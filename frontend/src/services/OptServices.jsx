@@ -1,7 +1,8 @@
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 
-export const getOptList = async () => {
+//** PROFİL TEMIN */
+export const getProfilTeminOptList = async () => {
     try {
       const response = await fetch(
         `${baseUrl}/resource/ProfilTeminOpt`
@@ -16,13 +17,13 @@ export const getOptList = async () => {
       console.error("Job Cards Fetch Error:", error);
     }
   };
-export const getOptDetails = async (optNo) => {
+export const getProfilTeminOptDetails = async (optNo) => {
     try {
       const response = await fetch(
         `${baseUrl}/resource/ProfilTeminOpt/${optNo}?fields=["*"]`
       ,{
         method: "GET",
-        credentials: 'include',  
+        credentials: 'include',        
       });
       const data = await response.json();
       return data.data
@@ -31,7 +32,23 @@ export const getOptDetails = async (optNo) => {
       console.error("Job Cards Fetch Error:", error);
     }
   };
-export const getProfiles = async () => {
+export const updateProfilTeminOpt = async (optNo) => {
+    try {
+      const response = await fetch(
+        `${baseUrl}/resource/ProfilTeminOpt/${optNo}`
+      ,{
+        method: "PUT",
+        credentials: 'include',  
+        body: JSON.stringify({status:"Tamamlandı"}), 
+      });
+      const data = await response.json();
+      return data.data
+      
+    } catch (error) {
+      console.error("Job Cards Fetch Error:", error);
+    }
+  };
+export const getProfilTeminProfiles = async () => {
     try {
       const response = await fetch(
         `${baseUrl}/resource/ProfilTeminOpt/911?fields=["*"]`
@@ -46,3 +63,76 @@ export const getProfiles = async () => {
       console.error("Job Cards Fetch Error:", error);
     }
   };
+  
+export const updateProfilList = async (id,payload) => {
+  console.log("id:",id)
+  console.log("payload:",payload)
+    try {
+      const response = await fetch(
+        `${baseUrl}/resource/OptProfileList/${id}`
+      ,{
+        method: "PUT",
+        credentials: 'include',  
+        body: JSON.stringify(payload),
+
+      });
+      if (!response.ok) {
+        throw new Error("Network response was not ok " + response.statusText);
+      }
+
+      const data = await response.json();
+      console.log("Profil Temin Listesi Güncellendi:", data);
+    } catch (error) {
+      console.error("Error updating job card:", error);
+    }
+  };
+
+  //** PROFİL TEMIN */
+
+  //** SAC KESIM */
+  export const getSacKesimOptList = async () => {
+    try {
+      const response = await fetch(
+        `${baseUrl}/resource/SacKesimOpt`
+      ,{
+        method: "GET",
+        credentials: 'include',  
+      });
+      const data = await response.json();
+      return data.data
+      
+    } catch (error) {
+      console.error("Job Cards Fetch Error:", error);
+    }
+  };
+export const getSacKesimOptDetails = async (optNo) => {
+    try {
+      const response = await fetch(
+        `${baseUrl}/resource/SacKesimOpt/${optNo}?fields=["*"]`
+      ,{
+        method: "GET",
+        credentials: 'include',  
+      });
+      const data = await response.json();
+      return data.data
+      
+    } catch (error) {
+      console.error("Job Cards Fetch Error:", error);
+    }
+  };
+export const getSacKesimProfiles = async () => {
+    try {
+      const response = await fetch(
+        `${baseUrl}/resource/SacKesimOpt/911?fields=["*"]`
+      ,{
+        method: "GET",
+        credentials: 'include',  
+      });
+      const data = await response.json();
+      return data.data.customer_list
+      
+    } catch (error) {
+      console.error("Job Cards Fetch Error:", error);
+    }
+  };
+  //** SAC KESIM */

@@ -5,6 +5,20 @@ app_description = "Ozerpan Job Card Management App"
 app_email = "mstfrs68@gmail.com"
 app_license = "agpl-3.0"
 
+doc_events = {
+    "Work Order": {
+        "before_insert": "ozerpanjobcard.api.set_opt_no_for_work_order"
+    }
+}
+
+doc_events.update({
+    "Job Card": {
+        "before_insert": "ozerpanjobcard.api.set_opt_no_for_job_card"
+    }
+})
+
+
+
 # Apps
 # ------------------
 
