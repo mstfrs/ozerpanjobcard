@@ -10,32 +10,37 @@ import {
 
 	QueryClient,
 	QueryClientProvider,
-  } from '@tanstack/react-query'
+} from '@tanstack/react-query'
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-  const queryClient = new QueryClient()
-
+const queryClient = new QueryClient()
+const basePath = import.meta.env.VITE_BASE_PATH || '/';
 
 function App() {
 	return (
 		<div className="App min-h-screen overflow-hidden">
-			<BrowserRouter>
-			<QueryClientProvider client={queryClient}>
 
-				<FrappeProvider>
-					<Routes>
-						<Route element={<Login />} path="/login" />
-						<Route element={<ProtectedRoute />}>
-							<Route element={<Jobcards />} path="/jobcards" />
 
-						</Route>
+			<FrappeProvider
+				socketPort={import.meta.env.VITE_SOCKET_PORT}
+				siteName={import.meta.env.VITE_SITE_NAME}
+			>
+				<BrowserRouter basename={basePath}>
+					<QueryClientProvider client={queryClient}>
+						<Routes>
+							<Route element={<Login />} path="/login" />
+							<Route element={<ProtectedRoute />}>
+								<Route element={<Jobcards />} path="/jobcards" />
 
-					</Routes>
-				</FrappeProvider>
-				</QueryClientProvider>
-				<ToastContainer 
-				position="top-center"/>
-			</BrowserRouter>
+							</Route>
+
+						</Routes>
+					</QueryClientProvider>
+					<ToastContainer
+						position="top-center" />
+				</BrowserRouter>
+			</FrappeProvider>
+
 		</div>
 	);
 }

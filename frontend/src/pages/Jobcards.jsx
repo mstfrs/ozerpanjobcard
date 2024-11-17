@@ -9,7 +9,9 @@ import Loading from "../components/Loading";
 import Navbar from "../components/Navbar/Navbar";
 import SacKesim from "../components/Stations/SacKesim";
 import ElapsedTimeCounter from "../utils/ElapsedTimeCounter";
-import KaynakKoseTemizleme from "../components/Stations/KaynakKoseTemizleme";
+import KaynakKoseTemizleme from "../components/Stations/KaynakKoseTemizleme/KaynakKoseTemizleme";
+import OrtaKayit from "../components/Stations/OrtaKayit/OrtaKayit";
+import KanatHazirlik from "../components/Stations/KanatHazırlık/KanatHazirlik";
 
 const Jobcards = () => {
   const [currentUser, setCurrentUser] = useState();
@@ -72,6 +74,12 @@ const Jobcards = () => {
       ) :
       currentOperation?.operations === "Kaynak Köşe Temizleme" ? (
         <KaynakKoseTemizleme currentOpt={currentOpt} currentJobcard={currentJobcard} />
+      ): 
+      currentOperation?.operations === "Orta Kayıt" ? (
+        <OrtaKayit currentOpt={currentOpt} currentJobcard={currentJobcard} />
+      ):
+      currentOperation?.operations === "Kanat Hazırlık" ? (
+        <KanatHazirlik currentOpt={currentOpt} currentJobcard={currentJobcard} />
       ): (
         <div className="h-[600px] flex items-center justify-center">
           {" "}
