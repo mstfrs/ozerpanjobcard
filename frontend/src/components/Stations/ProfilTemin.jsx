@@ -11,7 +11,7 @@ import ElapsedTimeCounter from '../../utils/ElapsedTimeCounter';
 
 
 const ProfilTemin = ({currentOpt,currentJobcard,isAllProfileTransferred,setIsAllProfileTransferred}) => {  
-console.log(currentJobcard?.time_logs?.at(-1).from_time)
+// console.log(currentJobcard?.time_logs?.at(-1).from_time)
     const [inputValues, setInputValues] = useState({});
     const queryClient = useQueryClient();
 
