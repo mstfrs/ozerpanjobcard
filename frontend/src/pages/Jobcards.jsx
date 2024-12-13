@@ -95,7 +95,7 @@ const Jobcards = () => {
         ) : currentJobcard?.status === "On Hold" ? (
           <h2 className="font-semibold text-lg">
             Durma Sebebi:{" "}
-            {currentJobcard?.time_logs?.at(-1).custom_reason.toUpperCase()}
+            {currentJobcard?.time_logs?.at(-1)?.custom_reason?.toUpperCase()||""}
           </h2>
         ) : (
           <h2 className="font-semibold text-lg">Süre: 00:00:00</h2>
