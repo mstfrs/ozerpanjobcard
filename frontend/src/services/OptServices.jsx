@@ -18,9 +18,10 @@ export const getProfilTeminOptList = async () => {
     }
   };
 export const getProfilTeminOptDetails = async (optNo) => {
+  console.log(optNo)
     try {
       const response = await fetch(
-        `${baseUrl}/resource/ProfilTeminOpt/${optNo}?fields=["*"]`
+        `${baseUrl}/resource/Opt Genel/${optNo}?fields=["*"]`
       ,{
         method: "GET",
         credentials: 'include',        
@@ -108,7 +109,7 @@ export const updateProfilList = async (id,payload) => {
 export const getSacKesimOptDetails = async (optNo) => {
     try {
       const response = await fetch(
-        `${baseUrl}/resource/SacKesimOpt/${optNo}?fields=["*"]`
+        `${baseUrl}/resource/Opt Genel/${optNo}?fields=["*"]`
       ,{
         method: "GET",
         credentials: 'include',  

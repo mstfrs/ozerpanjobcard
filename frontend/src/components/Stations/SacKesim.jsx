@@ -50,7 +50,7 @@ const SacKesim = ({currentOpt,currentJobcard}) => {
             if (!sacKesimOptInfo) return []; // Eğer optInfo yoksa boş dizi döndür
 
             // Her `item_no` için API isteği yap
-            const uniqueItems = [...new Set(sacKesimOptInfo?.profilelist.map(item => item.item_no))];
+            const uniqueItems = [...new Set(sacKesimOptInfo?.dst_list.map(item => item.item_code))];
 
             const imageRequests = uniqueItems.map(async (item) => {
                 const itemData = await getItemDetails(item);
@@ -68,15 +68,15 @@ const SacKesim = ({currentOpt,currentJobcard}) => {
            
             <div className="flex flex-col flex-1 bg-slate-100 w-2/3">
             <div className='w-full flex justify-between items-center bg-slate-200 p-1'>
-<h3 className='text-lg font-medium'>İstasyon : {sacKesimOptInfo?.machine_name}</h3>
+<h3 className='text-lg font-medium'>İstasyon : {sacKesimOptInfo?.machine_no}</h3>
 {currentJobcard&&<h3 className='text-lg font-medium'>İş Kartı No : {currentJobcard?.name}</h3>}
             </div>
              
                 <div className='overflow-auto'>
-                    <DataTable stripedRows size='small' value={sacKesimOptInfo?.profilelist} tableStyle={{ minWidth: '50rem' }}>
-                        <Column field="item_no" sortable header="Ürün No"></Column>
+                    <DataTable stripedRows size='small' value={sacKesimOptInfo?.dst_list} tableStyle={{ minWidth: '50rem' }}>
+                        <Column field="item_code" sortable header="Ürün No"></Column>
                         <Column field="item_name" header="Ürün Adı"></Column>                       
-                        <Column field="count" header="Adet"></Column>
+                        <Column field="custom_count" header="Adet"></Column>
                         <Column field="size" header="Ölçü"></Column>
                     </DataTable>
                 </div>
