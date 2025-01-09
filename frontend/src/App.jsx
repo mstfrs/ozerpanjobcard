@@ -15,6 +15,8 @@ import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 const queryClient = new QueryClient()
 const basePath = import.meta.env.VITE_BASE_PATH || '/';
+console.log("Base Path:", basePath);
+
 
 function App() {
 	return (

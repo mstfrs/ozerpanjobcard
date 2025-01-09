@@ -17,6 +17,37 @@ doc_events.update({
     }
 })
 
+fixtures = [
+    # {
+    #     "dt": "Custom Field",
+    #     "filters": [["name", "like", "%"]]
+    # },
+    # {
+    #     "dt": "Property Setter",
+    #     "filters": [["name", "like", "%"]]
+    # },
+    {
+        "dt": "Custom Script",
+        "filters": [["name", "like", "%"]]
+    }
+    # {
+    #     "dt": "DocType",
+    #     "filters": [["custom", "=", 1]]
+    # },
+    #   {
+    #     "dt": "DocType",
+    #     "filters": [["custom", "=", 1],["module", "=", "Ozerpanjobcard"]]
+    # }
+]
+
+ozerpandoc = [
+   
+    {
+        "dt": "DocType",
+        "filters": [["custom", "=", 1],["name", "like", "opt"]]
+    }
+]
+
 
 
 # Apps

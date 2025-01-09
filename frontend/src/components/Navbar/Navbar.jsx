@@ -9,9 +9,10 @@ import { useFrappeAuth, useFrappeGetDoc, useSWRConfig } from 'frappe-react-sdk';
 import Modal from '../Modal';
 import { toast } from 'react-toastify';
 import { useNavigate } from "react-router-dom";
+import { InputText } from 'primereact/inputtext';
 
 
-const Navbar = ({isAllProfileTransferred, currentUser, setFilters, data, setCurrentOpt, currentOpt, operations, workstations, setCurrentOperation, currentOperation, setCurrentWorkstation, currentWorkstation, currentJobcard, setCurrentJobcard,jobCardList,setIsLoading,employee }) => {
+const Navbar = ({currentBarkod,setCurrentBarkod,tesDetayList,isAllProfileTransferred, currentUser, setFilters,  setCurrentOpt, currentOpt, operations,  setCurrentOperation, currentOperation,  currentJobcard, setCurrentJobcard,jobCardList,setIsLoading,employee }) => {
   const { mutate } = useSWRConfig();
   const [visible, setVisible] = useState(false)
   const [reason, setReason] = useState()
@@ -27,10 +28,22 @@ const Navbar = ({isAllProfileTransferred, currentUser, setFilters, data, setCurr
 
    
 
-
   const { data: jobCard, jobCardError,isLoading: jobCardLoading, mutate:JobCardMutate } = useFrappeGetDoc("Job Card", currentJobcard?.name, "jobcarddetails");
 
-  
+  const machines=[
+    {
+      "id":1,
+      "machine":"MURAT-21"
+    },
+    {
+      "id":2,
+      "machine":"MURAT-TT"
+    },
+    {
+      "id":3,
+      "machine":"KABAN-24"
+    },
+  ]
 
 
   const handleOptiChange = async (e) => {
@@ -39,6 +52,15 @@ const Navbar = ({isAllProfileTransferred, currentUser, setFilters, data, setCurr
     const jobcardDetail = await getJobCardDetails(jobCardList?.find((item)=>item.custom_opti_no===e.value.custom_opti_no)?.name)
    await setCurrentJobcard(jobcardDetail)
     // mutate("jobcarddetails");
+    setIsLoading(false)
+  };
+  const handleBarkodChange = async (e) => {
+    setIsLoading(true)
+    setCurrentBarkod(e.target.value)
+    // const jobcardDetail = await getJobCardDetails(jobCardList?.find((item)=>item.custom_opti_no===e.value.custom_opti_no)?.name)
+  //  await setCurrentJobcard(jobcardDetail)
+    // mutate("jobcarddetails");
+    console.log(currentBarkod)
     setIsLoading(false)
   };
 
@@ -67,14 +89,24 @@ mutate("jobcarddetails");
 
 
 
-
   return (
     <div className='flex justify-between w-full gap-4'>
       <div className='w-full flex justify-start' >
         <Dropdown value={currentOperation} onChange={(e) => handleOperationChange(e)} options={operations} optionLabel="operations"
           placeholder="Operasyon Seçiniz" className="w-60 md:w-14rem border rounded" />
-        <Dropdown value={currentOpt} onChange={(e) => handleOptiChange(e)} options={jobCardList?.filter(item => item.status !== "Completed")} optionLabel="custom_opti_no"
-          placeholder="Opt No Seçiniz" className="w-60 md:w-20rem border rounded " />
+          
+          {
+            currentOperation?.operations==="Profil Temin"||currentOperation?.operations==="Sac Kesim"?
+            <Dropdown value={currentOpt} onChange={(e) => handleOptiChange(e)} options={jobCardList?.filter(item => item.status !== "Completed")} optionLabel="custom_opti_no"
+            placeholder="Opt No Seçiniz" className="w-60 md:w-20rem border rounded " />:
+           <InputText value={currentBarkod} onChange={(e) => handleBarkodChange(e)} />
+
+          // <Dropdown value={currentBarkod} onChange={(e) => handleBarkodChange(e)} options={tesDetayList} optionLabel="barkod"
+          // placeholder="Barkod Seçiniz" className="w-60 md:w-20rem border rounded " />
+          }
+        
+        {/* <Dropdown value={currentOpt} onChange={(e) => handleOptiChange(e)} options={machines} optionLabel="machine"
+          placeholder="Makina No Seçiniz" className="w-60 md:w-20rem border rounded " /> */}
 
       </div>
       <div className='w-full items-center'>

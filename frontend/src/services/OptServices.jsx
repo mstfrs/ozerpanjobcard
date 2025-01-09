@@ -70,7 +70,7 @@ export const updateProfilList = async (id,payload) => {
   console.log("payload:",payload)
     try {
       const response = await fetch(
-        `${baseUrl}/resource/OptProfileList/${id}`
+        `${baseUrl}/resource/Opt Genel Profile List/${id}`
       ,{
         method: "PUT",
         credentials: 'include',  
@@ -136,4 +136,27 @@ export const getSacKesimProfiles = async () => {
       console.error("Job Cards Fetch Error:", error);
     }
   };
+
+  export const updateDSTList = async (id,payload) => {
+    console.log("id:",id)
+    console.log("payload:",payload)
+      try {
+        const response = await fetch(
+          `${baseUrl}/resource/Opt Genel Dst List/${id}`
+        ,{
+          method: "PUT",
+          credentials: 'include',  
+          body: JSON.stringify(payload),
+  
+        });
+        if (!response.ok) {
+          throw new Error("Network response was not ok " + response.statusText);
+        }
+  
+        const data = await response.json();
+        console.log("Profil Temin Listesi Güncellendi:", data);
+      } catch (error) {
+        console.error("Error updating job card:", error);
+      }
+    };
   //** SAC KESIM */

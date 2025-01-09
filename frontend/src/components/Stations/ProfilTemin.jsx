@@ -16,6 +16,7 @@ const ProfilTemin = ({currentOpt,currentJobcard,isAllProfileTransferred,setIsAll
     const queryClient = useQueryClient();
 
     const handleInputChange = (e, itemNo) => {
+        console.log(itemNo)
         const { value } = e.target;
         setInputValues((prevValues) => ({
             ...prevValues,
@@ -24,6 +25,7 @@ const ProfilTemin = ({currentOpt,currentJobcard,isAllProfileTransferred,setIsAll
     };
 
     const inputColumnTemplate = (rowData) => {
+        console.log(rowData)
         return (
             
             <input
@@ -88,7 +90,7 @@ const ProfilTemin = ({currentOpt,currentJobcard,isAllProfileTransferred,setIsAll
                 const profilePayload = {
                     name: rowData.name,
                     parent: rowData.parent,
-                    parenttype: "ProfilTeminOpt",
+                    parenttype: "Opt Genel",
                     parentfield: "profile_list",
                     transfered:inputValues[rowData.item_code]
                   };

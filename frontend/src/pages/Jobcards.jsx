@@ -12,6 +12,7 @@ import ElapsedTimeCounter from "../utils/ElapsedTimeCounter";
 import KaynakKoseTemizleme from "../components/Stations/KaynakKoseTemizleme/KaynakKoseTemizleme";
 import OrtaKayit from "../components/Stations/OrtaKayit/OrtaKayit";
 import KanatHazirlik from "../components/Stations/KanatHazırlık/KanatHazirlik";
+import { getTesDetayDetails, getTestDetay } from "../services/TesDetayServices";
 
 const Jobcards = () => {
   const [currentUser, setCurrentUser] = useState();
@@ -19,7 +20,9 @@ const Jobcards = () => {
   const [currentOperation, setCurrentOperation] = useState();
   const [currentJobcard, setCurrentJobcard] = useState();
   const [currentOpt, setCurrentOpt] = useState();
+  const [currentBarkod, setCurrentBarkod] = useState()
   const [jobCardList, setjobCardList] = useState();
+  const [tesDetayList, setTesDetayList] = useState();
   const [employee, setEmployee] = useState();
   const [isLoading, setIsLoading] = useState(false);
   const [isAllProfileTransferred, setIsAllProfileTransferred] = useState(false); // Yeni state tanımlaması
@@ -39,6 +42,11 @@ const Jobcards = () => {
       setjobCardList(list);
     });
   }, [filters]);
+  useEffect(() => {
+    getTesDetayDetails(currentOpt).then((list) => {
+      setTesDetayList(list);
+    });
+  }, [currentOpt]);
 
   if (isLoading) {
     return <Loading />;
@@ -61,6 +69,9 @@ const Jobcards = () => {
         jobCardList={jobCardList}
         employee={employee}
         isAllProfileTransferred={isAllProfileTransferred}
+        tesDetayList={tesDetayList}
+        currentBarkod={currentBarkod}
+        setCurrentBarkod={setCurrentBarkod}
       />
       {currentOperation?.operations === "Profil Temin" ? (
         <ProfilTemin
