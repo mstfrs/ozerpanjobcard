@@ -112,7 +112,7 @@ const KaynakKoseTemizleme = ({ currentOpt, currentJobcard }) => {
                 </div> */}
                 </div>
                 <div className="w-3/4 p-4 flex gap-4 justify-center bg-slate-200">
-                    <img src={tesDetay&&`/${tesDetay[0]?.siparis_no+tesDetay[0]?.poz_no}.jpg`} alt="" className=' h-full' />
+                    <img src={tesDetay&&`/files/share/${tesDetay[0]?.siparis_no+tesDetay[0]?.poz_no}.jpg`} alt="" className=' h-4/5' />
                     {/* {
                     images?.map((img,index) => (
                         img.image && <img key={index} src="/poz1.png" alt="" className='w-60 h-60' />
