@@ -58,10 +58,10 @@ console.log('status open')
 const { isSequenceValid, prevOpt } = await checkOperationSequence(jobCard);
 
       
-        if (!isSequenceValid) {
-          toast.error(`${prevOpt} tamamlanmadan bu operasyona başlayamazsınız.`);
-          return; // Fonksiyon burada durur ve diğer kodlar çalışmaz
-        }
+        // if (!isSequenceValid) {
+        //   toast.error(`${prevOpt} tamamlanmadan bu operasyona başlayamazsınız.`);
+        //   return; // Fonksiyon burada durur ve diğer kodlar çalışmaz
+        // }
         const timeLogPayload = {
           job_card: jobCard?.name,
           from_time: formatDateToCustomFormat(new Date().toISOString()),

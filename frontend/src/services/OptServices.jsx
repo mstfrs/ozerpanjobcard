@@ -107,6 +107,7 @@ export const updateProfilList = async (id,payload) => {
     }
   };
 export const getSacKesimOptDetails = async (optNo) => {
+  console.log(optNo)
     try {
       const response = await fetch(
         `${baseUrl}/resource/Opt Genel/${optNo}?fields=["*"]`

@@ -1,10 +1,20 @@
 import React from "react";
+import useJobcardsStore from '../../store/jobcardStore';
 
-const CustomerInfoCard = ({ tesDetay,maxSanalAdet,itemDetails }) => {
+
+const CustomerInfoCard = ({ tesDetay,itemDetails }) => {
+  const {
+
+    currentJobcard,
+    setCurrentBarkod,
+    currentBarkod,
+    maxSanalAdet,
+    setIsAccessoryLoading,
+} = useJobcardsStore();
+console.log(maxSanalAdet)
   const { siparis_no, poz_no, bayi_adi,sanal_adet } = tesDetay && tesDetay[0] ? tesDetay[0] : {};
-  console.log(maxSanalAdet);
   return (
-    <div className="bg-gray-100 p-2 w-full h-full text-gray-800 rounded-md shadow-md border-b-8">
+    <div className="bg-gray-100 p-2 w-full h-auto text-gray-800 rounded-md shadow-md border-b-8">
       <h2 className="font-bold text-red-600 text-lg mb-2">Ürün / Müşteri Bilgileri</h2>
       <div className="text-base">
         <p className="mb-1">

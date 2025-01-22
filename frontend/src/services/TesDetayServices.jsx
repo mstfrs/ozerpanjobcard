@@ -20,7 +20,7 @@ export const getTesDetayDetails = async (barcode) => {
   console.log(barcode)
     try {
       const response = await fetch(
-        `${baseUrl}/resource/TesDetay?fields=["*"]&filters=[["barkod","=","${barcode}"],["status","!=","Tamamlandı"]]`
+        `${baseUrl}/resource/TesDetay?fields=["*"]&filters=[["barkod","=","${barcode}"]]`
       ,{
         method: "GET",
         credentials: 'include',        
@@ -32,7 +32,7 @@ export const getTesDetayDetails = async (barcode) => {
       console.error("Job Cards Fetch Error:", error);
     }
   };
-export const getPozDetails = async (pozNo,siparisNo) => {
+export const getAllBarcodesOfPoz = async (pozNo,siparisNo) => {
     try {
       const response = await fetch(
         `${baseUrl}/resource/TesDetay?fields=["*"]&filters=[["poz_no","=","${pozNo}"],["siparis_no","=","${siparisNo}"]]`

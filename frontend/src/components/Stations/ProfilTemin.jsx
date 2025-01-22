@@ -7,10 +7,15 @@ import { getItemDetails } from '../../services/ItemServices';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Loading from '../Loading';
 import ElapsedTimeCounter from '../../utils/ElapsedTimeCounter';
+import useJobcardsStore from '../../store/jobcardStore';
 
 
 
-const ProfilTemin = ({currentOpt,currentJobcard,isAllProfileTransferred,setIsAllProfileTransferred}) => {  
+const ProfilTemin = () => {  
+
+    const {
+        currentOpt,currentJobcard,isAllProfileTransferred,setIsAllProfileTransferred
+    } = useJobcardsStore();
 // console.log(currentJobcard?.time_logs?.at(-1).from_time)
     const [inputValues, setInputValues] = useState({});
     const queryClient = useQueryClient();
@@ -129,14 +134,14 @@ const ProfilTemin = ({currentOpt,currentJobcard,isAllProfileTransferred,setIsAll
 {currentJobcard&&<h3 className='text-lg font-medium'>İş Kartı No : {currentJobcard?.name}</h3>}
 
             </div>
-                <div className='h-1/2 overflow-auto'>
+                {/* <div className='h-1/2 overflow-auto'>
                     <DataTable stripedRows size='small' value={profileOptInfo?.customer_list} tableStyle={{ minWidth: '50rem' }}>
                         <Column field="projectno" sortable header="Proje Üretim No"></Column>
                         <Column field="customer" header="Müşteri Adı"></Column>
                         <Column field="order_no" header="Sipariş No"></Column>
                         <Column field="deliverydate" header="Sevk Tarihi"></Column>
                     </DataTable>
-                </div>
+                </div> */}
                 <div>
                     <DataTable stripedRows size='small' value={profileOptInfo?.profile_list} tableStyle={{ minWidth: '50rem' }}>
                         <Column field="item_code" sortable header="Ürün No"></Column>

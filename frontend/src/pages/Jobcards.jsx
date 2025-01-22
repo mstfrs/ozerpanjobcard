@@ -1,33 +1,47 @@
-import React, { useEffect, useState } from "react";
-import { getJobCardDetails, getJobCards } from "../services/JobCardServices";
-import { useQuery } from "@tanstack/react-query";
-import { fetchCurrentUser } from "../services/AuthServices";
-import { getLoggedUserEmployeeDetails } from "../services/EmployeeServices";
+import React, { useEffect } from "react";
 import ProfilTemin from "../components/Stations/ProfilTemin";
-import { getProfilTeminOptList } from "../services/OptServices";
-import Loading from "../components/Loading";
-import Navbar from "../components/Navbar/Navbar";
 import SacKesim from "../components/Stations/SacKesim";
-import ElapsedTimeCounter from "../utils/ElapsedTimeCounter";
 import KaynakKoseTemizleme from "../components/Stations/KaynakKoseTemizleme/KaynakKoseTemizleme";
 import OrtaKayit from "../components/Stations/OrtaKayit/OrtaKayit";
 import KanatHazirlik from "../components/Stations/KanatHazırlık/KanatHazirlik";
-import { getTesDetayDetails, getTestDetay } from "../services/TesDetayServices";
+import Loading from "../components/Loading";
+import Navbar from "../components/Navbar/Navbar";
+import ElapsedTimeCounter from "../utils/ElapsedTimeCounter";
+import useJobcardsStore from "../store/jobcardStore";
+import { fetchCurrentUser } from "../services/AuthServices";
+import { getLoggedUserEmployeeDetails } from "../services/EmployeeServices";
+import { getJobCards } from "../services/JobCardServices";
+import { getTesDetayDetails } from "../services/TesDetayServices";
+import KanatBaglama from "../components/Stations/KanatBaglama/KanatBaglama";
 
 const Jobcards = () => {
-  const [currentUser, setCurrentUser] = useState();
-  const [currentWorkstation, setCurrentWorkstation] = useState();
-  const [currentOperation, setCurrentOperation] = useState();
-  const [currentJobcard, setCurrentJobcard] = useState();
-  const [currentOpt, setCurrentOpt] = useState();
-  const [currentBarkod, setCurrentBarkod] = useState()
-  const [jobCardList, setjobCardList] = useState();
-  const [tesDetayList, setTesDetayList] = useState();
-  const [employee, setEmployee] = useState();
-  const [isLoading, setIsLoading] = useState(false);
-  const [isAllProfileTransferred, setIsAllProfileTransferred] = useState(false); // Yeni state tanımlaması
+  const {
+    currentUser,
+    currentWorkstation,
+    currentOperation,
+    currentJobcard,
+    currentOpt,
+    currentBarkod,
+    jobCardList,
+    tesDetayList,
+    employee,
+    isLoading,
+    isAllProfileTransferred,
+    filters,
+    setCurrentUser,
+    setCurrentWorkstation,
+    setCurrentOperation,
+    setCurrentJobcard,
+    setCurrentOpt,
+    setCurrentBarkod,
+    setJobCardList,
+    setTesDetayList,
+    setEmployee,
+    setIsLoading,
+    setIsAllProfileTransferred,
+    setFilters,
+  } = useJobcardsStore();
 
-  const [filters, setFilters] = useState([]);
   useEffect(() => {
     fetchCurrentUser().then((currentUsr) => {
       setCurrentUser(currentUsr.message);
@@ -37,76 +51,50 @@ const Jobcards = () => {
       setEmployee(employee);
     });
   }, [currentUser]);
+
   useEffect(() => {
-    getJobCards(filters, 5).then((list) => {
-      setjobCardList(list);
+    getJobCards (filters, 5).then((list) => {
+      setJobCardList(list);
     });
   }, [filters]);
-  useEffect(() => {
-    getTesDetayDetails(currentOpt).then((list) => {
-      setTesDetayList(list);
-    });
-  }, [currentOpt]);
+
+  // useEffect(() => {
+  //   getTesDetayDetails(currentOpt).then((list) => {
+  //     setTesDetayList(list);
+  //   });
+  // }, [currentOpt]);
 
   if (isLoading) {
     return <Loading />;
   }
+
   return (
-    <div className="">
-      <Navbar
-        operations={employee?.custom_operations}
-        currentWorkstation={currentWorkstation}
-        setCurrentWorkstation={setCurrentWorkstation}
-        currentOperation={currentOperation}
-        setCurrentOperation={setCurrentOperation}
-        currentJobcard={currentJobcard}
-        setCurrentJobcard={setCurrentJobcard}
-        setFilters={setFilters}
-        currentOpt={currentOpt}
-        setCurrentOpt={setCurrentOpt}
-        setIsLoading={setIsLoading}
-        currentUser={currentUser}
-        jobCardList={jobCardList}
-        employee={employee}
-        isAllProfileTransferred={isAllProfileTransferred}
-        tesDetayList={tesDetayList}
-        currentBarkod={currentBarkod}
-        setCurrentBarkod={setCurrentBarkod}
-      />
+    <div className="h-dvh flex flex-col justify-between">
+      <Navbar />
       {currentOperation?.operations === "Profil Temin" ? (
-        <ProfilTemin
-          isAllProfileTransferred={isAllProfileTransferred}
-          setIsAllProfileTransferred={setIsAllProfileTransferred}
-          currentOpt={currentOpt}
-          currentJobcard={currentJobcard}
-        />
+        <ProfilTemin />
       ) : currentOperation?.operations === "Sac Kesim" ? (
-        <SacKesim currentOpt={currentOpt} currentJobcard={currentJobcard} />
-      ) :
-      currentOperation?.operations === "Kaynak Köşe Temizleme" ? (
-        <KaynakKoseTemizleme currentOpt={currentOpt} currentJobcard={currentJobcard} />
-      ): 
-      currentOperation?.operations === "Orta Kayıt" ? (
-        <OrtaKayit currentOpt={currentOpt} currentJobcard={currentJobcard} />
-      ):
-      currentOperation?.operations === "Kanat Hazırlık" ? (
-        <KanatHazirlik currentOpt={currentOpt} currentJobcard={currentJobcard} />
-      ): (
-        <div className="h-[600px] flex items-center justify-center">
-          {" "}
-          <img src="/logobg.jpg" className=" h-2/3" alt="" />{" "}
+        <SacKesim />
+      ) : currentOperation?.operations === "Kaynak Köşe Temizleme" ? (
+        <KaynakKoseTemizleme />
+      ) : currentOperation?.operations === "Orta Kayıt" ? (
+        <OrtaKayit />
+      ) : currentOperation?.operations === "Kanat Hazırlık" ? (
+        <KanatHazirlik />
+      ) :currentOperation?.operations === "Kanat Bağlama" ? (
+        <KanatBaglama />
+      ) : (
+        <div className="h-1/4 w-1/2 flex items-center justify-center">
+          <img src="/logobg.jpg" className="mx-auto" alt="" />
         </div>
       )}
 
       <div className=" pr-3 items-center flex justify-end bg-red-400">
         {currentJobcard?.status === "Work In Progress" ? (
-          <ElapsedTimeCounter
-            fromTime={currentJobcard?.time_logs?.at(-1).from_time}
-          />
+          <ElapsedTimeCounter fromTime={currentJobcard?.time_logs?.at(-1).from_time} />
         ) : currentJobcard?.status === "On Hold" ? (
           <h2 className="font-semibold text-lg">
-            Durma Sebebi:{" "}
-            {currentJobcard?.time_logs?.at(-1)?.custom_reason?.toUpperCase()||""}
+            Durma Sebebi: {currentJobcard?.time_logs?.at(-1)?.custom_reason?.toUpperCase() || ""}
           </h2>
         ) : (
           <h2 className="font-semibold text-lg">Süre: 00:00:00</h2>
