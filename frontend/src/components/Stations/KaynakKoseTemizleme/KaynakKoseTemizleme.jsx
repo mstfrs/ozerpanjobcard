@@ -6,7 +6,7 @@ import { getItemDetails } from '../../../services/ItemServices';
 import { useQuery } from '@tanstack/react-query';
 import Loading from '../../Loading';
 import CustomerInfoCard from '../../Cards/CustomerInfo';
-import { getAllBarcodesOfPoz, getPozDetails, getTesDetayDetails, getTestDetay, updateTesDetay } from '../../../services/TesDetayServices';
+import { getAllBarcodesOfPoz,  getTesDetayDetails, getTestDetay, updateTesDetay } from '../../../services/TesDetayServices';
 import { InputText } from 'primereact/inputtext';
 import { toast } from "react-toastify";
 

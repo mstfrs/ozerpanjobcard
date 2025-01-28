@@ -44,7 +44,7 @@ export  const JobCardAction = async (jobCard,employee,reason) => {
     try {
       if (jobCard?.status === 'Work In Progress') {
         // Eğer duraklatılmışsa devam ettir
-        const timeLogId = jobCard.time_logs&&jobCard.time_logs[jobCard.time_logs.length - 1]?.name;       
+        const timeLogId =await jobCard.time_logs&&jobCard.time_logs?.at(-1)?.name;       
         const updatedPayload = {
           to_time: formatDateToCustomFormat(new Date().toISOString()), // Bitirme zamanı güncelleniyor
           custom_reason: reason,
@@ -145,6 +145,7 @@ const { isSequenceValid, prevOpt } = await checkOperationSequence(jobCard);
   };
 
   const updateJobLog = async (timeLogId, updatedPayload) => {
+    console.log(timeLogId)
     try {
       const response = await fetch(`${baseUrl}/resource/Job Card Time Log/${timeLogId}`, {
         method: "PUT",
