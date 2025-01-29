@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { barcodeAction, getPozData } from "../../../services/TesDetayServices";
 import CustomerInfoCard from "../../Cards/CustomerInfo";
-import AccessoryInfoCard from "../../Cards/AccessoryInfo";
 import { InputText } from "primereact/inputtext";
 import useJobcardsStore from "../../../store/jobcardStore";
 import Loading from "../../Loading";
 
-const KanatHazirlik = () => {
+const KaynakKose = () => {
   const {
     currentJobcard,
     setCurrentJobcard,
@@ -75,11 +74,9 @@ const KanatHazirlik = () => {
               maxSanalAdet={maxSanalAdet}
               pozDetails={pozDetails}
             />
-            <AccessoryInfoCard
-              pozDetails={pozDetails?.items}
-            />
+        
           </div>
-          <div className="w-2/4 p-4 flex gap-4 justify-center bg-slate-200">
+          <div className="w-3/4 p-4 flex gap-4 justify-center bg-slate-200">
             <img
               src={`/files/share/${
                 pozDetails?.siparis_no + pozDetails?.poz_no
@@ -88,16 +85,7 @@ const KanatHazirlik = () => {
               className=" h-4/5"
             />
           </div>
-          <div className="w-1/4 h-full p-4 grid grid-cols-1 gap-4 justify-center place-items-center bg-slate-200 overflow-auto">
-            {pozDetails?.items?.accessory_kit?.map((kit) => (
-              <img
-                key={kit.item_code}
-                src={`${kit.image}`}
-                alt=""
-                className=" h-full w-full"
-              />
-            ))}
-          </div>
+       
         </div>
       ) : (
         <div className="h-[600px] flex items-center justify-center">
@@ -108,4 +96,4 @@ const KanatHazirlik = () => {
   );
 };
 
-export default KanatHazirlik;
+export default KaynakKose;

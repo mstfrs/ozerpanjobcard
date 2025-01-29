@@ -1,27 +1,25 @@
-import React, { useEffect, useState } from 'react'
+import  { useEffect, useState } from 'react'
 
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
-import {  getProfilTeminOptDetails, updateProfilList } from '../../services/OptServices';
-import { getItemDetails } from '../../services/ItemServices';
+import {  getProfilTeminOptDetails, updateProfilList } from '../../../services/OptServices';
+import { getItemDetails } from '../../../services/ItemServices';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Loading from '../Loading';
-import ElapsedTimeCounter from '../../utils/ElapsedTimeCounter';
-import useJobcardsStore from '../../store/jobcardStore';
+import Loading from '../../Loading';
+import useJobcardsStore from '../../../store/jobcardStore';
 
 
 
 const ProfilTemin = () => {  
 
     const {
-        currentOpt,currentJobcard,isAllProfileTransferred,setIsAllProfileTransferred
+        currentOpt,currentJobcard,setIsAllProfileTransferred
     } = useJobcardsStore();
 // console.log(currentJobcard?.time_logs?.at(-1).from_time)
     const [inputValues, setInputValues] = useState({});
     const queryClient = useQueryClient();
 
     const handleInputChange = (e, itemNo) => {
-        console.log(itemNo)
         const { value } = e.target;
         setInputValues((prevValues) => ({
             ...prevValues,
@@ -30,15 +28,14 @@ const ProfilTemin = () => {
     };
 
     const inputColumnTemplate = (rowData) => {
-        console.log(rowData)
         return (
             
             <input
                 type="number"
                 disabled={currentJobcard?.status!=="Work In Progress"}
                 max={rowData.amountboy}
-                min={rowData.transfered}
-                value={inputValues[rowData.item_code] || rowData.transfered || ''}
+                min={rowData.custom_transfered}
+                value={inputValues[rowData.item_code] || rowData.custom_transfered || ''}
                 onChange={(e) => handleInputChange(e, rowData.item_code)}
              
                 className="p-inputtext p-component w-10 border-2 text-center border-slate-700 no-arrows" // PrimeReact input stilini kullanma
@@ -91,18 +88,18 @@ const ProfilTemin = () => {
     const actionTemplate = (rowData) => {
        
         return (
-            <button className='disabled:text-red-400 font-bold ' disabled={rowData.amountboy==rowData.transfered} onClick={async() => {
+            <button className='disabled:text-red-400 font-bold ' disabled={rowData.amountboy==rowData.custom_transfered} onClick={async() => {
                 const profilePayload = {
                     name: rowData.name,
                     parent: rowData.parent,
                     parenttype: "Opt Genel",
                     parentfield: "profile_list",
-                    transfered:inputValues[rowData.item_code]
+                    custom_transfered:inputValues[rowData.item_code]
                   };
-                //   setInputValues({});
-                // await updateProfilList(rowData.name,profilePayload)
+                  setInputValues({});
+                await updateProfilList(rowData.name,profilePayload)
                
-                // refetch()
+                refetch()
                 mutate(profilePayload);
             }}><i className="pi pi-check"></i></button>
         );
@@ -112,7 +109,7 @@ const ProfilTemin = () => {
         console.log(profileOptInfo?.profile_list)
         if (profileOptInfo?.profile_list) {
             const allTransferred = profileOptInfo.profile_list.every(
-                row => Number(row.amountboy) === Number(row.transfered)
+                row => Number(row.amountboy) === Number(row.custom_transfered)
             );
             setIsAllProfileTransferred(allTransferred);
             console.log(allTransferred)
@@ -147,8 +144,7 @@ const ProfilTemin = () => {
                         <Column field="item_code" sortable header="Ürün No"></Column>
                         <Column field="item_name" header="Ürün Adı"></Column>
                         <Column header="Çekilen" body={inputColumnTemplate}></Column>
-                        <Column header="" body={actionTemplate}></Column>
-                        
+                        <Column header="" body={actionTemplate}></Column>                        
                         <Column field="amountboy" header="Miktar (Boy)"></Column>
                         <Column field="amountmt" header="Miktar (Mt)"></Column>
                     </DataTable>

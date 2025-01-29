@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
-import ProfilTemin from "../components/Stations/ProfilTemin";
-import SacKesim from "../components/Stations/SacKesim";
-import KaynakKoseTemizleme from "../components/Stations/KaynakKoseTemizleme/KaynakKoseTemizleme";
+import { useEffect } from "react";
+import ProfilTemin from "../components/Stations/ProfilTemin/ProfilTemin";
+import SacKesim from "../components/Stations/SacKesim/SacKesim";
 import OrtaKayit from "../components/Stations/OrtaKayit/OrtaKayit";
 import KanatHazirlik from "../components/Stations/KanatHazırlık/KanatHazirlik";
 import Loading from "../components/Loading";
@@ -12,6 +11,9 @@ import { fetchCurrentUser } from "../services/AuthServices";
 import { getLoggedUserEmployeeDetails } from "../services/EmployeeServices";
 import { getJobCards } from "../services/JobCardServices";
 import KanatBaglama from "../components/Stations/KanatBaglama/KanatBaglama";
+import KaynakKose from "../components/Stations/KaynakKoseTemizleme/KaynakKose";
+import Cita from "../components/Stations/Cita/Cita";
+import Kalite from "../components/Stations/Kalite/Kalite";
 
 const Jobcards = () => {
   const {
@@ -61,13 +63,17 @@ const Jobcards = () => {
       ) : currentOperation?.operations === "Sac Kesim" ? (
         <SacKesim />
       ) : currentOperation?.operations === "Kaynak Köşe Temizleme" ? (
-        <KaynakKoseTemizleme />
+        <KaynakKose />
       ) : currentOperation?.operations === "Orta Kayıt" ? (
         <OrtaKayit />
       ) : currentOperation?.operations === "Kanat Hazırlık" ? (
         <KanatHazirlik />
       ) : currentOperation?.operations === "Kanat Bağlama" ? (
         <KanatBaglama />
+      ) : currentOperation?.operations === "Çıta" ? (
+        <Cita />
+      ) : currentOperation?.operations === "Kalite" ? (
+        <Kalite />
       ) : (
         <div className="h-1/4 w-1/3 flex mx-auto items-center justify-center">
           <img src="/logobg.jpg" className="mx-auto" alt="" />

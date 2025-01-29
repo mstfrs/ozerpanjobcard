@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
-import { getItemDetails } from '../../services/ItemServices';
+import { getItemDetails } from '../../../services/ItemServices';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Loading from '../Loading';
+import Loading from '../../Loading';
 import { Button } from 'primereact/button';
-import useJobcardsStore from '../../store/jobcardStore';
-import { getSacKesimOptDetails, updateDSTList } from '../../services/OptServices';
+import useJobcardsStore from '../../../store/jobcardStore';
+import { getSacKesimOptDetails, updateDSTList } from '../../../services/OptServices';
 import { ProgressBar } from 'primereact/progressbar';
-import { completeJobCard } from '../../services/JobCardServices';
+import { completeJobCard } from '../../../services/JobCardServices';
 import { Dialog } from 'primereact/dialog';
 
 

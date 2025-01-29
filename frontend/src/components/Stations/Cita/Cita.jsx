@@ -5,8 +5,9 @@ import AccessoryInfoCard from "../../Cards/AccessoryInfo";
 import { InputText } from "primereact/inputtext";
 import useJobcardsStore from "../../../store/jobcardStore";
 import Loading from "../../Loading";
+import CitaInfoCard from "../../Cards/CitaInfo";
 
-const KanatHazirlik = () => {
+const Cita = () => {
   const {
     currentJobcard,
     setCurrentJobcard,
@@ -60,7 +61,9 @@ const KanatHazirlik = () => {
         <div className="flex justify-center items-center h-full">
           <Loading />
         </div>
-      ) : currentBarkod ? (
+      ) : 
+      currentBarkod ? 
+      (
         <div className="w-full flex justify-between h-[calc(100vh-100px)]  px-3 py-2">
           <div className="flex flex-col flex-1 bg-slate-100 w-1/4 overflow-auto ">
             <div className="w-full flex justify-between items-center bg-slate-200 p-1 ">
@@ -75,7 +78,7 @@ const KanatHazirlik = () => {
               maxSanalAdet={maxSanalAdet}
               pozDetails={pozDetails}
             />
-            <AccessoryInfoCard
+            <CitaInfoCard
               pozDetails={pozDetails?.items}
             />
           </div>
@@ -89,23 +92,24 @@ const KanatHazirlik = () => {
             />
           </div>
           <div className="w-1/4 h-full p-4 grid grid-cols-1 gap-4 justify-center place-items-center bg-slate-200 overflow-auto">
-            {pozDetails?.items?.accessory_kit?.map((kit) => (
+            {pozDetails?.items?.cita?.map((item) => (
               <img
-                key={kit.item_code}
-                src={`${kit.image}`}
+                key={item.item_code}
+                src={`${item.image}`}
                 alt=""
                 className=" h-full w-full"
               />
             ))}
           </div>
         </div>
-      ) : (
+      ) 
+      : (
         <div className="h-[600px] flex items-center justify-center">
           <img src="/logobg.jpg" className=" h-2/3" alt="" />
-        </div>
-      )}
+        </div>)
+      }
     </>
   );
 };
 
-export default KanatHazirlik;
+export default Cita;
