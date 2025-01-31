@@ -3,7 +3,7 @@ const AccessoryInfoCard = ({ pozDetails }) => {
  
   return (
     
-      <div className="bg-gray-100 p-2 w-full pr-4 h-full text-gray-800 rounded-md shadow-md">
+      <div className="bg-gray-100 p-2 w-full pr-4  text-gray-800 rounded-md shadow-md">
         <h2 className="font-bold text-red-600 text-base mb-1 border-b-2 border-black">Aksesuar Bilgileri</h2>
         <div className="text-xs">
           {
