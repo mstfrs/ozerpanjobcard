@@ -14,6 +14,7 @@ import KanatBaglama from "../components/Stations/KanatBaglama/KanatBaglama";
 import KaynakKose from "../components/Stations/KaynakKoseTemizleme/KaynakKose";
 import Cita from "../components/Stations/Cita/Cita";
 import Kalite from "../components/Stations/Kalite/Kalite";
+import Cam from '../components/Stations/Cam/Cam';
 
 const Jobcards = () => {
   const {
@@ -27,7 +28,6 @@ const Jobcards = () => {
     setJobCardList,
     setEmployee,
   } = useJobcardsStore();
-  console.log(currentJobcard);
 
   useEffect(() => {
     fetchCurrentUser().then((currentUsr) => {
@@ -74,6 +74,8 @@ const Jobcards = () => {
         <Cita />
       ) : currentOperation?.operations === "Kalite" ? (
         <Kalite />
+      ) : currentOperation?.operations === "Cam" ? (
+        <Cam />
       ) : (
         <div className="h-1/4 w-1/3 flex mx-auto items-center justify-center">
           <img src="/logobg.jpg" className="mx-auto" alt="" />

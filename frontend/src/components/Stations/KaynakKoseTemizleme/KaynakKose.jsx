@@ -22,29 +22,37 @@ const KaynakKose = () => {
   const [loading, setLoading] = useState(false); // Loading state
 
   const handleBarkodChange = async (e) => {
-    setLoading(true); // Set loading to true
-    await setCurrentBarkod(e.target.value);
-    const pozDetails = await getPozData(e.target.value);
-    console.log("pozdetails", pozDetails);
-    await setPozDetails(pozDetails?.message);
+    const barcodeValue = e.target.value; // Boşlukları temizle
+    if (!barcodeValue) return; // Eğer boşsa işlem yapma
 
-    const barcodeDetails = await barcodeAction({
-      barcode: e?.target?.value,
-      employee: employee?.name,
-      operation: currentOperation?.operations,
-    });
-    setBarcodeDetails(barcodeDetails?.message);
-    await setCurrentJobcard(barcodeDetails?.message?.job_card);
-    console.log(currentJobcard, "currentJobcard");
-    setTesDetay(barcodeDetails);
-    setLoading(false); // Set loading to false
+    setLoading(true);
+    try {
+      const pozDetails = await getPozData(barcodeValue);
+      console.log("pozdetails", pozDetails);
+      setPozDetails(pozDetails?.message);
+
+      const barcodeDetails = await barcodeAction({
+        barcode: barcodeValue,
+        employee: employee?.name,
+        operation: currentOperation?.operations,
+      });
+      // setBarcodeDetails(barcodeDetails?.message);
+      setCurrentJobcard(barcodeDetails?.message?.job_card);
+      console.log(currentJobcard, "currentJobcard");
+      setTesDetay(barcodeDetails);
+    } finally {
+      setLoading(false);
+      setCurrentBarkod(""); // Inputu temizle ama tekrar sorgu atmasını engelle
+      
+    }
   };
 
   
   useEffect(() => {
-    setCurrentBarkod("");
-  }, [])
-  
+    if (currentBarkod) {
+      handleBarkodChange({ target: { value: currentBarkod } });
+    }
+  }, [currentBarkod]);
 
   return (
     <>
@@ -52,7 +60,8 @@ const KaynakKose = () => {
         className="border-2 border-red-400 w-2/3 text-center text-xl font-semibold  mx-auto my-1 py-1"
         value={currentBarkod}
         disabled={currentJobcard?.status === "On Hold"}
-        onChange={(e) => handleBarkodChange(e)}
+        onChange={(e) => setCurrentBarkod(e.target.value)}
+        onBlur={(e) => handleBarkodChange(e)}
       />
 
       {loading ? (

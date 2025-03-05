@@ -2,6 +2,8 @@ import { Dropdown } from "primereact/dropdown";
 import { useState } from "react";
 import { FaPlayCircle, FaPowerOff } from "react-icons/fa";
 import { FaRegCircleStop } from "react-icons/fa6";
+import { BiSolidError } from "react-icons/bi";
+
 import {
   completeJobCard,
   getJobCardDetails,
@@ -12,6 +14,9 @@ import Modal from "../Modal";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import useJobcardsStore from "../../store/jobcardStore";
+import ReportErrorDropdown from "../ReportErrorDropdown"
+import ErrorModal from '../ErrorModal';
+
 
 const Navbar = () => {
   const {
@@ -28,6 +33,10 @@ const Navbar = () => {
     jobCardList,
     setIsLoading,
     employee,
+    isAllSelected,
+    errorModalVisible,
+    setErrorModalVisible
+        
   } = useJobcardsStore();
 
   const { mutate } = useSWRConfig();
@@ -128,7 +137,24 @@ const Navbar = () => {
           {currentUser}
         </h2>
       </div>
+   
       <div className="w-full flex items-center gap-1">
+
+      {(currentOperation?.operations === "Kalite" || currentOperation?.operations === "Cam") &&
+        <div aria-disabled={isAllSelected}
+        onClick={() =>
+          !isAllSelected && setErrorModalVisible(true)
+        }
+        className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer ${isAllSelected ? 'cursor-not-allowed opacity-50' : 'hover:bg-red-200'}`}
+      >
+        <BiSolidError size="3rem" className="text-yellow-400 " />
+        <div  className="w-3/4 text-center text-xl ">
+          Hata
+        </div>
+      </div>
+    
+    }
+
         <div
           onClick={() =>
             currentJobcard?.status === "Work In Progress"
@@ -175,6 +201,9 @@ const Navbar = () => {
           setReason={setReason}
           handleClick={handleClick}
         />
+        {/* <ErrorModal
+         errorModalVisible={errorModalVisible}
+         setErrorModalVisible={setErrorModalVisible}/> */}
       </div>
     </div>
   );

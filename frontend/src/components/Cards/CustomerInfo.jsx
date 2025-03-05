@@ -1,17 +1,5 @@
-import React from "react";
-import useJobcardsStore from '../../store/jobcardStore';
-
-
-const CustomerInfoCard = ({ tesDetay,itemDetails,pozDetails }) => {
-  const {
-
-    currentJobcard,
-    setCurrentBarkod,
-    currentBarkod,
-    setIsAccessoryLoading,
-} = useJobcardsStore();
-  // const { siparis_no, poz_no, bayi_adi,sanal_adet } = tesDetay && tesDetay[0] ? tesDetay[0] : {};
-  const { siparis_no, poz_no, bayi_adi,sanal_adet,max_sanal_adet,serial,color } = pozDetails || {};
+const CustomerInfoCard = ({ tesDetay }) => {
+  const { siparis_no, poz_no, bayi_adi,sanal_adet,max_sanal_adet,serial,color } = tesDetay?.poz_data || {};
   return (
     <div className="bg-gray-100 p-2 w-full h-auto text-gray-800 rounded-md shadow-md border-b-8">
       <h2 className="font-bold text-red-600 text-lg mb-1  border-b-2 border-black">Ürün / Müşteri Bilgileri</h2>

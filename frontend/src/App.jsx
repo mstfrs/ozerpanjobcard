@@ -20,7 +20,7 @@ console.log("Base Path:", basePath);
 
 function App() {
 	return (
-		<div className="App min-h-screen overflow-hidden">
+		<div className="App overflow-hidden">
 
 
 			<FrappeProvider

@@ -1,30 +1,55 @@
 import { useState, useEffect } from 'react';
 import { Checkbox } from 'primereact/checkbox';
+import useJobcardsStore from '../store/jobcardStore';
 
-const QuailtyCheck = () => {
+const QualityCheck = ({ onCriteriaChange, setCriteria, tesDetay }) => {
     const categories = [
         { name: 'Seri ve Renk', key: 'A' },
         { name: 'İç ve Dış Yüzey', key: 'B' },
         { name: 'Aksesuar Seçimi', key: 'C' },
         { name: 'Kanat Baskısı', key: 'D' }
     ];
-    const [selectedCategories, setSelectedCategories] = useState([categories[1]]);
-    const [isAllSelected, setIsAllSelected] = useState(false);
+    const [selectedCategories, setSelectedCategories] = useState([]);
+    const {
+        isAllSelected,
+        setIsAllSelected
+    } = useJobcardsStore();
+
+    useEffect(() => {
+        console.log(tesDetay, "tesDetay");
+        // İlk yüklemede tüm kategorileri ekle ve passed değerlerini false olarak ayarla
+        const initialCriteria = tesDetay?.quality_data?.criteria ? tesDetay.quality_data.criteria.map(category => ({
+            ...category,
+            passed: category.passed
+        })) : categories.map(category => ({
+            ...category,
+            passed: false
+        }));
+        setSelectedCategories(initialCriteria);
+        setCriteria(initialCriteria);
+        console.log(selectedCategories, "selectedCategories");
+    }, [tesDetay, setCriteria]);
 
     const onCategoryChange = (e) => {
         let _selectedCategories = [...selectedCategories];
 
-        if (e.checked)
-            _selectedCategories.push(e.value);
-        else
-            _selectedCategories = _selectedCategories.filter(category => category.key !== e.value.key);
+        if (e.checked) {
+            _selectedCategories = _selectedCategories.map(category =>
+                category.key === e.value.key ? { ...category, passed: true } : category
+            );
+        } else {
+            _selectedCategories = _selectedCategories.map(category =>
+                category.key === e.value.key ? { ...category, passed: false } : category
+            );
+        }
 
         setSelectedCategories(_selectedCategories);
+        onCriteriaChange(_selectedCategories); // Callback fonksiyonunu çağır
     };
 
     useEffect(() => {
-        setIsAllSelected(selectedCategories.length === categories.length);
-    }, [selectedCategories]);
+        setIsAllSelected(selectedCategories.filter(category => category.passed).length === categories.length);
+    }, [selectedCategories, setIsAllSelected]);
 
     return (
         <div className={`flex flex-col w-full border-2 ${isAllSelected ? 'border-green-400' : 'border-red-400'} h-44`}>
@@ -38,7 +63,7 @@ const QuailtyCheck = () => {
                             <label htmlFor={category.key} className="ml-2">
                                 {category.name}
                             </label>
-                            <Checkbox className="" inputId={category.key} name="category" value={category} onChange={onCategoryChange} checked={selectedCategories.some((item) => item.key === category.key)} />
+                            <Checkbox className="" inputId={category.key} name="category" value={category} onChange={onCategoryChange} checked={selectedCategories.some((item) => item.key === category.key && item.passed)} />
                         </div>
                     );
                 })}
@@ -47,4 +72,4 @@ const QuailtyCheck = () => {
     );
 };
 
-export default QuailtyCheck;
+export default QualityCheck;

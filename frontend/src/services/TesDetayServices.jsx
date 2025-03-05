@@ -49,7 +49,7 @@ export const getAllBarcodesOfPoz = async (pozNo,siparisNo) => {
 
   export const barcodeAction = async (params) => {
     try {
-        const response = await fetch(`${baseUrl}/method/ozerpan_ercom_sync.custom_api.read_barcode.api.read_barcode`, {
+        const response = await fetch(`${baseUrl}/method/ozerpan_ercom_sync.custom_api.api.read_barcode`, {
             credentials: 'include',
             method:'POST',
             headers: { "Content-Type": "application/json" },
@@ -58,8 +58,7 @@ export const getAllBarcodesOfPoz = async (pozNo,siparisNo) => {
 
         if (response.ok) {
             const  message  = await response.json();
-            
-            return message;
+            return message.message;
         } else {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }

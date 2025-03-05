@@ -1,4 +1,4 @@
-const CitaInfoCard = ({ pozDetails }) => {
+const CitaInfoCard = ({ tesDetay }) => {
 
  
   return (
@@ -7,7 +7,7 @@ const CitaInfoCard = ({ pozDetails }) => {
         <h2 className="font-bold text-red-600 text-base mb-1 border-b-2 border-black">Çıta Bilgileri</h2>
         <div className="text-xs">
           {
-            pozDetails?.cita?.map((item, index) => (
+            tesDetay?.poz_data?.items?.cita?.map((item, index) => (
               <div key={index} className="flex justify-start gap-1 mb-1">
                 <span className="font-bold text-red-600 ">#{item.item_code}</span>
                 <div className=" w-full flex justify-between">

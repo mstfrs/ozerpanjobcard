@@ -1,5 +1,5 @@
-const RemarksInfo = (pozDetails) => {
-  const { remarks } = pozDetails || {};
+const RemarksInfo = (tesDetay) => {
+  const { remarks } = tesDetay?.poz_data || {};
 
   return (
     <div className="bg-gray-100 p-2 w-full pr-4 h-full text-gray-800 rounded-md shadow-md">
