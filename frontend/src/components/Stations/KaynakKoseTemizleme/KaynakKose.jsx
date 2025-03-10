@@ -20,6 +20,7 @@ const KaynakKose = () => {
   const [tesDetay, setTesDetay] = useState();
   const [pozDetails, setPozDetails] = useState();
   const [loading, setLoading] = useState(false); // Loading state
+  const [isBgActive, setIsBgActive] = useState(false);
 
   const handleBarkodChange = async (e) => {
     const barcodeValue = e.target.value; // Boşlukları temizle
@@ -27,19 +28,19 @@ const KaynakKose = () => {
 
     setLoading(true);
     try {
-      const pozDetails = await getPozData(barcodeValue);
-      console.log("pozdetails", pozDetails);
-      setPozDetails(pozDetails?.message);
-
-      const barcodeDetails = await barcodeAction({
-        barcode: barcodeValue,
-        employee: employee?.name,
-        operation: currentOperation?.operations,
-      });
-      // setBarcodeDetails(barcodeDetails?.message);
-      setCurrentJobcard(barcodeDetails?.message?.job_card);
-      console.log(currentJobcard, "currentJobcard");
-      setTesDetay(barcodeDetails);
+         const barcodeDetails = await barcodeAction({
+           barcode: barcodeValue,
+           employee: employee?.name,
+           operation: currentOperation?.operations,
+         });
+         if (barcodeDetails?.status === "error") {
+           toast.error(barcodeDetails?.message);
+           setIsBgActive(false);
+         } else {
+           setCurrentJobcard(barcodeDetails?.job_card);
+           setTesDetay(barcodeDetails);
+           setIsBgActive(true);
+         }
     } finally {
       setLoading(false);
       setCurrentBarkod(""); // Inputu temizle ama tekrar sorgu atmasını engelle
@@ -48,27 +49,32 @@ const KaynakKose = () => {
   };
 
   
-  useEffect(() => {
-    if (currentBarkod) {
-      handleBarkodChange({ target: { value: currentBarkod } });
-    }
-  }, [currentBarkod]);
+  // useEffect(() => {
+  //   if (currentBarkod) {
+  //     handleBarkodChange({ target: { value: currentBarkod } });
+  //   }
+  // }, [currentBarkod]);
 
   return (
     <>
-      <InputText
-        className="border-2 border-red-400 w-2/3 text-center text-xl font-semibold  mx-auto my-1 py-1"
+        <InputText
+        className="border-2 border-red-400 w-2/3 text-center text-xl font-semibold mx-auto my-1 py-1"
         value={currentBarkod}
         disabled={currentJobcard?.status === "On Hold"}
         onChange={(e) => setCurrentBarkod(e.target.value)}
-        onBlur={(e) => handleBarkodChange(e)}
+        // onBlur={(e) => handleBarkodChange(e)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            handleBarkodChange(e);
+          }
+        }}
       />
 
       {loading ? (
         <div className="flex justify-center items-center h-full">
           <Loading />
         </div>
-      ) : currentBarkod ? (
+      ) : isBgActive ? (
         <div className="w-full flex justify-between h-[calc(100vh-100px)]  px-3 py-2">
           <div className="flex flex-col flex-1 bg-slate-100 w-1/4 overflow-auto ">
             <div className="w-full flex justify-between items-center bg-slate-200 p-1 ">
@@ -86,19 +92,36 @@ const KaynakKose = () => {
         
           </div>
           <div className="w-3/4 p-4 flex gap-4 justify-center bg-slate-200">
-            <img
-              src={`/files/share/${
-                pozDetails?.siparis_no + pozDetails?.poz_no
-              }.jpg`}
+          <img
+              src={
+                tesDetay?.poz_data?.siparis_no && tesDetay?.poz_data?.poz_no
+                  ? `/files/share/${
+                      tesDetay?.poz_data?.siparis_no +
+                      tesDetay?.poz_data?.poz_no
+                    }.jpg`
+                  : "/files/share/noimage.png"
+              }
               alt=""
-              className=" h-4/5"
+              className="h-full"
             />
+          {/* <img
+              src={
+                tesDetay?.poz_data?.siparis_no && tesDetay?.poz_data?.poz_no
+                  ? `/files/share/${
+                      tesDetay?.poz_data?.siparis_no +
+                      tesDetay?.poz_data?.poz_no
+                    }.jpg`
+                  : "/files/share/noimage.png"
+              }
+              alt=""
+              className="h-full"
+            /> */}
           </div>
        
         </div>
       ) : (
         <div className="h-[600px] flex items-center justify-center">
-          <img src="/logobg.jpg" className=" h-2/3" alt="" />
+          <img src="/files/logobg.jpg" className=" h-2/3" alt="" />
         </div>
       )}
     </>

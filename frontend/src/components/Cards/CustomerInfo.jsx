@@ -11,7 +11,7 @@ const CustomerInfoCard = ({ tesDetay }) => {
           <span className="font-semibold">Adet :</span> {sanal_adet ? sanal_adet:'-'} / {max_sanal_adet ? max_sanal_adet:'Bilgi yok'}
         </p>
         <p className="mb-1">
-          <span className="font-semibold">Müşteri Adı :</span> {bayi_adi ? `${bayi_adi} - İbrahim İMAMOĞLU` : 'Bilgi yok'}
+          <span className="font-semibold">Müşteri Adı :</span> {bayi_adi ? `${bayi_adi}` : 'Bilgi yok'}
         </p>
         <p className="mb-1">
           <span className="font-semibold">Teklif :</span> {bayi_adi || 'Bilgi yok'}

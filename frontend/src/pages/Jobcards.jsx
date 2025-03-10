@@ -78,7 +78,7 @@ const Jobcards = () => {
         <Cam />
       ) : (
         <div className="h-1/4 w-1/3 flex mx-auto items-center justify-center">
-          <img src="/logobg.jpg" className="mx-auto" alt="" />
+          <img src="/files/logobg.jpg" className="mx-auto" alt="" />
         </div>
       )}
 

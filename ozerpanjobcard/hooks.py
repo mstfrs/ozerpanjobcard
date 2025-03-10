@@ -17,7 +17,7 @@ doc_events.update({
     }
 })
 
-fixtures = [
+#fixtures = [
     # {
     #     "dt": "Custom Field",
     #     "filters": [["name", "like", "%"]]
@@ -26,10 +26,10 @@ fixtures = [
     #     "dt": "Property Setter",
     #     "filters": [["name", "like", "%"]]
     # },
-    {
-        "dt": "Custom Script",
-        "filters": [["name", "like", "%"]]
-    }
+    #{
+     #   "dt": "Custom Script",
+      #  "filters": [["name", "like", "%"]]
+    #}
     # {
     #     "dt": "DocType",
     #     "filters": [["custom", "=", 1]]
@@ -38,6 +38,18 @@ fixtures = [
     #     "dt": "DocType",
     #     "filters": [["custom", "=", 1],["module", "=", "Ozerpanjobcard"]]
     # }
+#]
+fixtures = [
+    {"dt": "Custom Field", "filters": [["module", "=", "Ozerpanjobcard"]]},
+    {"dt": "Property Setter", "filters": [["module", "=", "Ozerpanjobcard"]]},
+    #{"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
+    {"dt": "Item Group"},
+    {"dt": "Workstation"},
+    {"dt": "Operation"},
+    {"dt": "UOM"},
+    {"dt": "Cam"},
+    {"dt": "Cam Recipe"},
+    {"dt": "Profile Type"},
 ]
 
 ozerpandoc = [
