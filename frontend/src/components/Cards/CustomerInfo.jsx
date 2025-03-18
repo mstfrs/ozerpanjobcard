@@ -1,5 +1,5 @@
 const CustomerInfoCard = ({ tesDetay }) => {
-  const { siparis_no, poz_no, bayi_adi,sanal_adet,max_sanal_adet,serial,color } = tesDetay?.poz_data || {};
+  const { siparis_no, poz_no, bayi_adi,sanal_adet,max_sanal_adet,serial,color,musteri } = tesDetay?.poz_data || {};
   return (
     <div className="bg-gray-100 p-2 w-full h-auto text-gray-800 rounded-md shadow-md border-b-8">
       <h2 className="font-bold text-red-600 text-lg mb-1  border-b-2 border-black">Ürün / Müşteri Bilgileri</h2>
@@ -11,7 +11,7 @@ const CustomerInfoCard = ({ tesDetay }) => {
           <span className="font-semibold">Adet :</span> {sanal_adet ? sanal_adet:'-'} / {max_sanal_adet ? max_sanal_adet:'Bilgi yok'}
         </p>
         <p className="mb-1">
-          <span className="font-semibold">Müşteri Adı :</span> {bayi_adi ? `${bayi_adi}` : 'Bilgi yok'}
+          <span className="font-semibold">Müşteri Adı :</span> {musteri ? `${musteri}` : 'Bilgi yok'}
         </p>
         <p className="mb-1">
           <span className="font-semibold">Teklif :</span> {bayi_adi || 'Bilgi yok'}

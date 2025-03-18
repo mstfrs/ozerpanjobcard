@@ -32,3 +32,23 @@ def set_opt_no_for_job_card(doc, method):
         # Work Order'dan custom_opti_no değerini alın
         work_order = frappe.get_doc("Work Order", doc.work_order)
         doc.custom_opti_no = work_order.custom_opti_no
+
+@frappe.whitelist()
+def get_glass_details(item_code):
+    try:
+        item = frappe.get_doc("Item", item_code)
+        if not item:
+            return {"error": "Item not found"}
+
+        return {
+            "item_code": item.item_code,
+            "item_name": item.item_name,
+            "custom_width": item.get("custom_width", ""),
+            "custom_height": item.get("custom_height", ""),
+            "custom_top_gunes_gecirgenligi": item.get("custom_top_gunes_gecirgenligi", ""),
+            "custom_u_degeri": item.get("custom_u_degeri", ""),
+            "custom_isik_gecirgenligi": item.get("custom_isik_gecirgenligi", ""),
+        }
+    except Exception as e:
+        frappe.log_error(f"Error in get_glass_details: {str(e)}")
+        return {"error": str(e)}

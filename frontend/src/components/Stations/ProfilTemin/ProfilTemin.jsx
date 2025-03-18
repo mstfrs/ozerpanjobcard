@@ -20,8 +20,8 @@ const ProfilTemin = () => {
   const queryClient = useQueryClient();
 
   const handleInputChange = (e, itemNo) => {
-    const { value } = e.value;
-    console.log(e);
+    const { value } = e;
+    console.log(value);
     setInputValues((prevValues) => ({
       ...prevValues,
       [itemNo]: value,
@@ -48,7 +48,7 @@ const ProfilTemin = () => {
       //     max={rowData.amountboy}
       //     min={rowData.custom_transfered}
       //     value={inputValues[rowData.item_code] || rowData.custom_transfered || ''}
-      //     onChange={(e) => handleInputChange(e, rowData.item_code)}
+      //     onChange={(e) => handleInputChange(e, rowData.item_code)
 
       //     className="p-inputtext p-component w-10  text-center  text-center no-arrows" // PrimeReact input stilini kullanma
       // />
@@ -95,8 +95,6 @@ const ProfilTemin = () => {
         "profileOptInfo",
         currentOpt?.custom_opti_no,
       ]);
-      setInputValues({}); // Input değerlerini sıfırla
-      // refetch(); // Tüm veriyi yeniden çek
     },
     onError: (error) => {
       console.error("Update işlemi sırasında hata oluştu:", error);
@@ -116,10 +114,14 @@ const ProfilTemin = () => {
             parentfield: "profile_list",
             custom_transfered: inputValues[rowData.item_code],
           };
-          setInputValues({});
-          await updateProfilList(rowData.name, profilePayload);
 
-          refetch();
+          // Önce inputValues state'ini güncelleyin
+          setInputValues((prevValues) => ({
+            ...prevValues,
+            [rowData.item_code]: profilePayload.custom_transfered,
+          }));
+
+          // Ardından mutate fonksiyonunu çağırın
           mutate(profilePayload);
         }}
       >

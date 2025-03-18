@@ -5,11 +5,11 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { Card } from "primereact/card";
-import { getGlassList } from "../../../services/GlassServices";
-
+import { getGlassDetails, getGlassList } from "../../../services/GlassServices";
+import { glassLabelPrint } from "../../../services/PrintServices";
 const Cam = () => {
   const [search, setSearch] = useState("");
-  const [inputValue, setInputValue] = useState('');
+  const [inputValue, setInputValue] = useState("");
   const [glassList, setGlassList] = useState();
   const [selectedProduct, setSelectedProduct] = useState(null);
 
@@ -25,19 +25,20 @@ const Cam = () => {
 
   const handleRowClick = async (e) => {
     const product = e.data;
-    setSelectedProduct(product);
-    console.log("Selected Product:", product);
+    // setSelectedProduct(product);
 
-    // Yeni bir istek atmak için product'ın stok kodunu kullanabilirsiniz
-    const stockCode = product.stok_kodu; // Stok kodunu product verisinden alın
-    // Yeni istek atma işlemi burada yapılabilir
-    // Örneğin:
-    // const newData = await fetchNewData(stockCode);
-    // console.log("New Data:", newData);
+    const glassDetails = await getGlassDetails(product?.stok_kodu);
+    console.log("glassDetails", glassDetails);
+    setSelectedProduct({ product, glassDetails });
+    console.log("Selected Product:", selectedProduct);
+  };
+
+  const handlePrintLabel = async () => {
+    const data = await glassLabelPrint(selectedProduct);
   };
 
   const rowClassName = (data) => {
-    return data === selectedProduct ? 'bg-red-300' : '';
+    return data === selectedProduct?.product ? "bg-red-300" : "";
   };
 
   const header = (
@@ -51,8 +52,16 @@ const Cam = () => {
         />
       </span>
       <div className="flex justify-between gap-2 mr-2">
-        <Button label="Cam Etiketi Bas" className="p-button-primary" />
-        <Button onClick={handleSearch} label="Sorgula" className="p-button-primary" />
+        <Button
+          label="Cam Etiketi Bas"
+          className="p-button-primary"
+          onClick={handlePrintLabel}
+        />
+        <Button
+          onClick={handleSearch}
+          label="Sorgula"
+          className="p-button-primary"
+        />
       </div>
     </div>
   );
@@ -79,7 +88,10 @@ const Cam = () => {
           }
           subTitle={
             <span className="text-xs text-gray-600">
-              Adı: {glassList?.items[0] ? `${glassList.items[0].cari_unvan} - ${glassList.items[0].musteri}` : ''}
+              Adı:{" "}
+              {glassList?.items[0]
+                ? `${glassList.items[0].cari_unvan} - ${glassList.items[0].musteri}`
+                : ""}
             </span>
           }
         />{" "}

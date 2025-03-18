@@ -7,6 +7,9 @@ import proxyOptions from './proxyOptions';
 export default defineConfig({
 	plugins: [react()],
 	server: {
+		watch: {
+			usePolling: true,
+		  },
 		port: 8080,
 		proxy: proxyOptions
 	},

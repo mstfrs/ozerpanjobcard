@@ -1,0 +1,102 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2025-03-12 22:38:08.106702",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "performance_declaration_number",
+  "sizes",
+  "wind_load_resistance",
+  "labor_forces",
+  "air_permeability",
+  "water_permeability",
+  "thermal_conductivity",
+  "acoustic_performance",
+  "load_carrying_capacity",
+  "dangerous_goods",
+  "description"
+ ],
+ "fields": [
+  {
+   "fieldname": "performance_declaration_number",
+   "fieldtype": "Data",
+   "label": "Performans Beyan No"
+  },
+  {
+   "fieldname": "sizes",
+   "fieldtype": "Data",
+   "label": "Boyutlar"
+  },
+  {
+   "fieldname": "wind_load_resistance",
+   "fieldtype": "Data",
+   "label": "R\u00fczgar Y\u00fck\u00fcne Dayan\u0131m"
+  },
+  {
+   "fieldname": "labor_forces",
+   "fieldtype": "Data",
+   "label": "\u00c7al\u0131\u015fma Kuvvetleri"
+  },
+  {
+   "fieldname": "air_permeability",
+   "fieldtype": "Data",
+   "label": "Hava Ge\u00e7irgenlik"
+  },
+  {
+   "fieldname": "water_permeability",
+   "fieldtype": "Data",
+   "label": "Su Ge\u00e7irgenlik"
+  },
+  {
+   "fieldname": "thermal_conductivity",
+   "fieldtype": "Data",
+   "label": "Is\u0131l iletkenlik (U Pencere) - (W/(m2K)"
+  },
+  {
+   "fieldname": "acoustic_performance",
+   "fieldtype": "Data",
+   "label": "Akustik Performans"
+  },
+  {
+   "fieldname": "load_carrying_capacity",
+   "fieldtype": "Data",
+   "label": "G\u00fcvenlik Tertibat\u0131n\u0131n Y\u00fck Ta\u015f\u0131ma Kapasitesi"
+  },
+  {
+   "fieldname": "dangerous_goods",
+   "fieldtype": "Data",
+   "label": "Tehlikeli Maddeler"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text",
+   "label": "A\u00e7\u0131klama"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2025-03-12 22:58:13.326081",
+ "modified_by": "Administrator",
+ "module": "Ozerpanjobcard",
+ "name": "Quality Label Items",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
