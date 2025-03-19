@@ -1,50 +1,30 @@
+const baseUrl = import.meta.env.VITE_BASE_URL;
+
 export const glassLabelPrint = async (selectedProduct) => {
     console.log(selectedProduct, "selectedProduct");
     const{product,glassDetails}=selectedProduct;
   const zpl = `     
 ^XA
+^CWZ,E:ARIAL.TTF
+^CI28
 ^CFE,30,30
 ^PW679
 ^LL679
-^FO0,120^GB480,3,3^FS
-^FO480,0^GB3,600,3^FS  
-^FO0,599^GB679,3,3^FS
-^FO10,150^A0N,20,20^FDURETICI FIRMA^FS
-^FO200,150^A0N,15,15^FB256,2,5,L,8^FD:Ozerpan Cam Pvc Panjur Sis. San. Tic. Ltd. Sti.^FS
-^FO10,200^A0N,20,20^FDADRES^FS
-^FO200,200^A0N,15,15^FB256,2,5,L,8^FD:Mimarsinan Organize Sanayi Bolgesi, 23. Cad. No.13 Melikgazi/Kayseri^FS
-^FO10,260^A0N,20,20^FDWEB ADRESI^FS
-^FO200,260^A0N,15,15^FB256,2,5,L,8^FD:www.ozerpan.com.tr^FS
-^FO10,320^A0N,20,20^FDTEL/FAKS^FS
-^FO200,320^A0N,15,15^FB256,2,5,L,8^FD:444 6 230 / 0 352 294 3 294^FS
-^FO10,380^A0N,20,20^FDSIPARIS NO^FS
-^FO200,380^A0N,15,15^FB256,2,5,L,8^FD:${product.parent}^FS
-^FO10,440^A0N,20,20^FDCAM KOMBINASYONU^FS
-^FO200,440^A0N,15,15^FB256,2,5,L,8^FD:${glassDetails.item_name}S Serisi Isicam 4+16+4^FS
-^FO10,500^A0N,20,20^FDEBAT (mm) / SIRA NO^FS
-^FO200,500^A0N,15,15^FB256,2,5,L,8^FD:${product.gen}x ${product.gen}^FS
-^FO10,560^A0N,20,20^FDMUSTERI^FS
-^FO200,560^A0N,15,15^FB256,2,5,L,8^FD:${product.musteri}^FS
-^FO495,150^A0N,12,12^FDONAYLANMIS KURULUS NO:^FS
-^FO490,165^GB180,35,2^FS  
-^FO520,175^A0N,20,20^FD1783^FS
-^FO495,220^A0N,12,12^FDDOP NO:^FS
-^FO490,235^GB180,35,2^FS  
-^FO520,245^A0N,20,20^FD1175258^FS
-^FO495,290^A0N,12,12^FDISIK GECIRGENLIGI:^FS
-^FO490,305^GB180,35,2^FS  
-^FO520,315^A0N,20,20^FD${glassDetails.custom_isik_gecirgenligi}^FS
-^FO495,360^A0N,12,12^FB156,2,5,L,0^FDTOPLAM GUNES ENERJISI GECIRGENLIGI (%):^FS
-^FO490,395^GB180,35,2^FS  
-^FO520,405^A0N,20,20^FD${glassDetails.custom_top_gunes_gecirgenligi}^FS
-^FO495,520^A0N,12,12^FDU DEGERI(W/m2K):^FS
-^FO490,535^GB180,35,2^FS  
-^FO520,545^A0N,20,20^FD${glassDetails.custom_u_degeri}^FS
+^FO220,415^A0N,20,20^FB256,2,5,L,8^FD${product.parent}^FS
+^FO220,470^A0N,20,20^FB256,2,5,L,8^FD${glassDetails.custom_item_name}^FS
+^FO220,530^A0N,20,20^FB256,2,5,L,8^FD${product.gen} X ${product.yuk}^FS
+^FO220,565^A0N,20,20^FB256,2,5,L,8^FD${product.cari_unvan} / ${product.musteri}^FS
+^FO520,240^A0N,20,20^FD1783^FS
+^FO520,315^A0N,20,20^FD1175258^FS
+^FO520,390^A0N,20,20^FD${glassDetails.custom_isik_gecirgenligi}^FS
+^FO520,490^A0N,20,20^FD${glassDetails.custom_top_gunes_gecirgenligi}^FS
+^FO520,565^A0N,20,20^FD${glassDetails.custom_u_degeri}^FS
 ^XZ`;
 
   try {
-    const response = await fetch(`http://192.168.0.53/pstprnt`, {
+    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_label`, {
       credentials: "include",
+      mode: "no-cors",
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: zpl,

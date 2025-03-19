@@ -36,15 +36,13 @@ def set_opt_no_for_job_card(doc, method):
 @frappe.whitelist()
 def get_glass_details(item_code):
     try:
-        item = frappe.get_doc("Item", item_code)
+        item = frappe.get_doc("Cam Recipe", item_code)
         if not item:
             return {"error": "Item not found"}
 
         return {
-            "item_code": item.item_code,
-            "item_name": item.item_name,
-            "custom_width": item.get("custom_width", ""),
-            "custom_height": item.get("custom_height", ""),
+            "item_code": item.item_no,
+            "item_name": item.get("custom_item_name",""),         
             "custom_top_gunes_gecirgenligi": item.get("custom_top_gunes_gecirgenligi", ""),
             "custom_u_degeri": item.get("custom_u_degeri", ""),
             "custom_isik_gecirgenligi": item.get("custom_isik_gecirgenligi", ""),
@@ -52,3 +50,33 @@ def get_glass_details(item_code):
     except Exception as e:
         frappe.log_error(f"Error in get_glass_details: {str(e)}")
         return {"error": str(e)}
+
+import frappe
+import requests
+
+@frappe.whitelist(allow_guest=True)
+def print_label():
+    try:
+        # Gelen ham veriyi al
+        label_data = frappe.request.get_data(as_text=True)
+
+        # Boş veri kontrolü
+        if not label_data.strip():
+            frappe.throw("Received empty label data")
+
+        # Yazıcıya istek yap
+        url = "http://192.168.0.53/pstprnt"  # Zebra yazıcısının IP'si
+        headers = {"Content-Type": "text/plain"}  # JSON yerine düz metin
+        response = requests.post(url, headers=headers, data=label_data)
+
+        if response.status_code == 200:
+            return {"success": True, "message": "Label sent to printer successfully"}
+        else:
+            return {"success": False, "message": f"Printer Error: {response.status_code}"}
+
+    except Exception as e:
+        frappe.log_error(f"Printer Error: {str(e)}")
+        return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
+
+
+

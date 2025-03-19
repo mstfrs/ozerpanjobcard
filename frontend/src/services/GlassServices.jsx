@@ -20,13 +20,13 @@ export const getGlassList = async (id) => {
   export const getGlassDetails = async (item_code) => {
     try {
       const response = await fetch(
-        `${baseUrl}/method/ozerpanjobcard.api.get_glass_details?item_code=${item_code}`
+        `${baseUrl}/resource/Cam Recipe/${item_code}`
       ,{
         method: "GET",
         credentials: 'include',  
       });
       const data = await response.json();
-      return data.message || []
+      return data.data || []
       
     } catch (error) {
       console.error("Cam Liste Fetch Error:", error);
