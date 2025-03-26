@@ -11,6 +11,7 @@ import RemarksInfo from "../../Cards/RemarksInfo";
 import { ButtonGroup } from "primereact/buttongroup";
 import ErrorModal from "../../ErrorModal";
 import QualityCheck from "../../QuailtyCheck";
+const baseUrl = import.meta.env.VITE_BASE_URL;
 
 const Kalite = () => {
   const {
@@ -22,6 +23,8 @@ const Kalite = () => {
     currentOperation,
     isAllSelected,
     setIsAllSelected,
+    qualityCheckCode,
+    setQualityCheckCode,
   } = useJobcardsStore();
   const [tesDetay, setTesDetay] = useState();
   const [activeBarcode, setActiveBarcode] = useState();
@@ -29,6 +32,8 @@ const Kalite = () => {
   const [criteria, setCriteria] = useState([]);
   const [errorData, setErrorData] = useState(null); // Error data state
   const [errorModalVisible, setErrorModalVisible] = useState(false); // Error modal visibility state
+  const [totalMtul, setTotalMtul] = useState(0);
+  const [labelInfo, setLabelInfo] = useState();
 
   const handleCriteriaChange = (selectedCategories) => {
     const formattedCriteria = selectedCategories.map((category) => ({
@@ -41,6 +46,30 @@ const Kalite = () => {
     setIsAllSelected(selectedCategories.length === 4); // Tüm kategoriler seçili mi kontrol et
   };
 
+  const getQualityLabelItems = async (qualityCheckCode, totalMtul) => {
+    try {
+      const response = await fetch(
+        `${baseUrl}/method/ozerpanjobcard.api.get_quality_label_items?quality_check_code=${qualityCheckCode}&total_mtul=${totalMtul}`,
+        {
+          method: "GET",
+          credentials: "include",
+          parenttype: "Quality Label Items",
+          parentfield: "frame_codes",
+        }
+      );
+
+      if (!response.ok) {
+        console.log("Quality Label Items getirilirken bir hata oluştu");
+        return null;
+      }
+
+      const data = await response.json();
+      return data.message[0] || [];
+    } catch (error) {
+      console.error("Quality Label Items Fetch Error:", error);
+      return null;
+    }
+  };
   const handleBarkodChange = async (e) => {
     const barcodeValue = e.target.value; // Boşlukları temizle
     if (!barcodeValue) return; // Eğer boşsa işlem yapma
@@ -54,9 +83,31 @@ const Kalite = () => {
       });
       setCurrentJobcard(barcodeDetails?.message?.job_card);
       setTesDetay(barcodeDetails);
+      setQualityCheckCode(
+        parseInt(
+          barcodeDetails?.poz_data?.items?.ana_profil?.[0].item_code.slice(0, 5)
+        )
+      );
+      console.log(
+        "Frame code",
+        barcodeDetails?.poz_data?.items?.ana_profil?.[0].item_code.slice(0, 5)
+      );
+      await setTotalMtul(
+        barcodeDetails?.poz_data?.items?.ana_profil?.[0].quantity * 1000
+      );
+      console.log(
+        "qty",
+        barcodeDetails?.poz_data?.items?.ana_profil?.[0].quantity * 1000
+      );
+      const qualityLabelItems = await getQualityLabelItems(
+        qualityCheckCode,
+        totalMtul
+      );
+      await setLabelInfo(qualityLabelItems);
+      console.log("Quality Label Items", qualityLabelItems);
     } finally {
+      console.log(labelInfo, "labelInfo");
       setLoading(false);
-      console.log(tesDetay, "tesDetay");
       setCurrentBarkod(""); // Inputu temizle ama tekrar sorgu atmasını engelle
     }
   };
@@ -73,7 +124,7 @@ const Kalite = () => {
           overall_notes:
             errorData?.desc ||
             "General quality is good except for dimensional issue",
-          required_operations: errorData?.required_operations||[],
+          required_operations: errorData?.required_operations || [],
         },
       });
       console.log(barcodeDetails, "barcodeDetails");
@@ -85,56 +136,58 @@ const Kalite = () => {
     }
   };
 
-  const handleErrorDataSubmit = useCallback((data) => {
-    console.log("Child'dan gelen data:", data);
-  }, [setErrorData]);
-
+  const handleErrorDataSubmit = useCallback(
+    (data) => {
+      console.log("Child'dan gelen data:", data);
+    },
+    [setErrorData]
+  );
 
   const handlePrintLabel = async () => {
-    const zpl= `
+    console.log("labelInfo", labelInfo);
+    const zpl = `
      
-  ^XA
-  
+ ^XA
+  ^CI28
   ^PW559
   ^LL551
   ^LS32
   ^FO50,300^A0N,30,30^FD010.013.528.030.9331^FS  
   
-  ^FO50,540^A0N,28,30^FB500,3,0,L,0^FDSHW-DER-ERSU DAY.TUK.MALLARI ERSU DAY.TUK.MALLARI ^FS
+  ^FO50,540^A0N,28,30^FB500,3,0,L,0^FD${tesDetay?.poz_data?.bayi_adi} - ${tesDetay?.poz_data?.musteri}  ^FS
   
   ^FO0,600^GB700,3,3^FS
-  ^FO50,610^A0N,30,30^FDPerformans Beyan No: TS EN 14351-1^FS
+  ^FO50,610^A0N,30,30^FDPerformans Beyan No: TS EN 14351-${labelInfo.performance_declaration_number}^FS
   ^CF0,10,10
-  ^FO50,650^CF0,18,18^FB500,3,0,C,0^FDEv ve benzeri alanlar ile ticari alanlarda kullanimi tasarlanan yaya gecisine uygun hazir dis kapilar ve pencereler^FS
+^FO0,650^FB560,1,0,C,0^A0N,30,30^FD${labelInfo.custom_serial}^FS
+
+
+  ^FO50,690^CF0,18,18^FB500,3,0,C,0^FD${labelInfo.description}^FS
   
-  ^FO0,700^GB700,3,3^FS
+  ^FO0,730^GB700,3,3^FS
   
-  ^FO50,710^A0N,15,15^FDRuzgar yukune dayanim: ^FS
-  ^FO400,710^A0N,15,15^FB500,3,0,0^FDSinif C3 / B4^FS
-  ^FO50,740^A0N,15,15^FDKar yukune ve kalici yuke dayanim:^FS
-  ^FO400,740^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,770^A0N,15,15^FDDis yangin performansi:^FS
-  ^FO400,770^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,800^A0N,15,15^FDSu Gecirmezlik: ^FS
-  ^FO400,800^A0N,15,15^FB500,3,0,0^FDSinif E 1650^FS
-  ^FO50,830^A0N,15,15^FDTehlikeli maddeler: ^FS
-  ^FO400,830^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,860^A0N,15,15^FDDarbe direnci: ^FS
-  ^FO400,860^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,890^A0N,15,15^FDGuvenlik tertibatlarinin yuk tasima kapasitesi: ^FS
-  ^FO400,890^A0N,15,15^FB500,3,0,0^FDUYGUN^FS
-  ^FO50,920^A0N,15,15^FDYukseklik: NPD^FS
-  ^FO400,920^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,950^A0N,15,15^FDAkustik Performans: ^FS
-  ^FO400,950^A0N,15,15^FB500,3,0,0^FD33(-1,-5) dB^FS
-  ^FO50,980^A0N,15,15^FDIsil iletkenlik: ^FS
-  ^FO400,980^A0N,15,15^FB500,3,0,0^FD1,3 W/m2k^FS
-  ^FO50,1010^A0N,15,15^FDIsima (radyasyon) ozellikleri: ^FS
-  ^FO400,1010^A0N,15,15^FB500,3,0,0^FDCam etiketinde belirtilmistir^FS
-  ^FO50,1040^A0N,15,15^FDHava gecirgenligi: ^FS
-  ^FO400,1040^A0N,15,15^FB500,3,0,0^FDSinif 4^FS
-  ^FO50,1070^A0N,15,15^FDCalistirma kuvvetleri: ^FS
-  ^FO400,1070^A0N,15,15^FB500,3,0,0^FDSinif 1^FS
+
+  ^FO50,740^A0N,15,15^FDBoyutlar (mm):^FS
+  ^FO400,740^A0N,15,15^FB500,3,0,0^FD${labelInfo.sizes}^FS
+ 
+  ^FO50,770^A0N,15,15^FDKar yukune dayanim:^FS
+  ^FO400,770^A0N,15,15^FB500,3,0,0^FD${labelInfo.wind_load_resistance} ^FS
+  ^FO50,800^A0N,15,15^FDÇalışma Kuvvetleri: ^FS
+  ^FO400,800^A0N,15,15^FB500,3,0,0^FD${labelInfo.labor_forces}^FS
+  ^FO50,830^A0N,15,15^FDHava Geçirgenlik:^FS
+  ^FO400,830^A0N,15,15^FB500,3,0,0^FD${labelInfo.air_permeability}^FS
+  ^FO50,860^A0N,15,15^FDSu Geçirmezlik: ^FS
+  ^FO400,860^A0N,15,15^FB500,3,0,0^FD${labelInfo.water_permeability}^FS
+  ^FO50,890^A0N,15,15^FDIsıl iletkenlik (U Pencere) - (W/(m2K): ^FS
+  ^FO400,890^A0N,15,15^FB500,3,0,0^FD${labelInfo.thermal_conductivity}^FS
+  ^FO50,920^A0N,15,15^FDAkustik Performans: ^FS
+  ^FO400,920^A0N,15,15^FB500,3,0,0^FD${labelInfo.acoustic_performance}^FS
+  ^FO50,950^A0N,15,15^FDGüvenlik Tertibatı Yük Taşıma Kapasitesi: ^FS
+  ^FO400,950^A0N,15,15^FB500,3,0,0^FD${labelInfo.load_carrying_capacity}^FS
+  ^FO50,980^A0N,15,15^FDTehlikeli Maddeler: ^FS
+  ^FO400,980^A0N,15,15^FB500,3,0,0^FD${labelInfo.dangerous_goods} ^FS
+  ^FO0,1020^FB500,1,0,C,0^A0N,15,15^FDSistem 3^FS
+
   ^FO350,1100^GB150,3,3^FS
   ^FO350,1120^A0N,30,40^FD102,6 Kg^FS
   ^XZ
@@ -180,7 +233,7 @@ const Kalite = () => {
       <ErrorModal
         errorModalVisible={errorModalVisible}
         setErrorModalVisible={setErrorModalVisible}
-        setErrorData={setErrorData} 
+        setErrorData={setErrorData}
         onSubmitErrorData={handleOnayla}
       />
 
@@ -226,7 +279,11 @@ const Kalite = () => {
             />
           </div>
           <div className="w-1/4 h-full flex flex-col gap-2 justify-center bg-slate-200 overflow-auto">
-            <QualityCheck onCriteriaChange={handleCriteriaChange} setCriteria={setCriteria} tesDetay= {tesDetay} />
+            <QualityCheck
+              onCriteriaChange={handleCriteriaChange}
+              setCriteria={setCriteria}
+              tesDetay={tesDetay}
+            />
             <Button
               className="font-semibold"
               label="ONAYLA"

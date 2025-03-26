@@ -16,7 +16,11 @@
   "acoustic_performance",
   "load_carrying_capacity",
   "dangerous_goods",
-  "description"
+  "description",
+  "serial",
+  "min",
+  "max",
+  "frame_codes"
  ],
  "fields": [
   {
@@ -73,11 +77,32 @@
    "fieldname": "description",
    "fieldtype": "Text",
    "label": "A\u00e7\u0131klama"
+  },
+  {
+   "fieldname": "serial",
+   "fieldtype": "Data",
+   "label": "Seri"
+  },
+  {
+   "fieldname": "min",
+   "fieldtype": "Int",
+   "label": "Min. De\u011fer"
+  },
+  {
+   "fieldname": "max",
+   "fieldtype": "Int",
+   "label": "Max. De\u011fer"
+  },
+  {
+   "fieldname": "frame_codes",
+   "fieldtype": "Table",
+   "label": "Kasa Kodlar\u0131",
+   "options": "Quality Label Frame Codes"
   }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2025-03-12 22:58:13.326081",
+ "modified": "2025-03-24 22:15:35.174566",
  "modified_by": "Administrator",
  "module": "Ozerpanjobcard",
  "name": "Quality Label Items",

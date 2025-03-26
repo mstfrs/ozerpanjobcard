@@ -5,13 +5,22 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { Card } from "primereact/card";
-import { getGlassDetails, getGlassList } from "../../../services/GlassServices";
+import { getGlassDetails, getGlassList, processGlassOperation } from "../../../services/GlassServices";
 import { glassLabelPrint } from "../../../services/PrintServices";
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import useJobcardsStore from "../../../store/jobcardStore";
+
 const Cam = () => {
   const [search, setSearch] = useState("");
   const [inputValue, setInputValue] = useState("");
   const [glassList, setGlassList] = useState();
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  const {
+    employee,
+    currentOperation,
+  } = useJobcardsStore();
 
   const handleInputChange = (e) => {
     setInputValue(e.target.value);
@@ -25,8 +34,6 @@ const Cam = () => {
 
   const handleRowClick = async (e) => {
     const product = e.data;
-    // setSelectedProduct(product);
-
     const glassDetails = await getGlassDetails(product?.stok_kodu);
     console.log("glassDetails", glassDetails);
     setSelectedProduct({ product, glassDetails });
@@ -34,7 +41,17 @@ const Cam = () => {
   };
 
   const handlePrintLabel = async () => {
-    const data = await glassLabelPrint(selectedProduct);
+    if (!selectedProduct) {
+      toast.error("Lütfen bir ürün seçin");
+      return;
+    }
+
+    const result = await processGlassOperation(currentOperation.operations, employee.name, selectedProduct.product.name);
+    if (result) {
+      toast.success("Cam operasyonu başarıyla işlendi");
+      const data = await getGlassList(inputValue);
+      setGlassList(data);
+    }
   };
 
   const rowClassName = (data) => {
@@ -75,9 +92,29 @@ const Cam = () => {
     );
   };
 
+  // Cam cinslerini ve adetlerini hesaplayın
+  const glassTypes = glassList?.items?.reduce((acc, item) => {
+    const { aciklama } = item;
+    if (!acc[aciklama]) {
+      acc[aciklama] = 0;
+    }
+    acc[aciklama] += 1;
+    return acc;
+  }, {});
+
+  // Status değerlerini ve adetlerini hesaplayın
+  const statusCounts = glassList?.items?.reduce((acc, item) => {
+    const { status } = item;
+    if (!acc[status]) {
+      acc[status] = 0;
+    }
+    acc[status] += 1;
+    return acc;
+  }, {});
+
   return (
     <div className="pt-2 flex text-xs h-full">
-      <div className="mr-2">
+            <div className="mr-2">
         {header}
         <Card
           className="mb-4"
@@ -89,12 +126,40 @@ const Cam = () => {
           subTitle={
             <span className="text-xs text-gray-600">
               Adı:{" "}
-              {glassList?.items[0]
+              {glassList?.items?.[0]
                 ? `${glassList.items[0].cari_unvan} - ${glassList.items[0].musteri}`
                 : ""}
             </span>
           }
-        />{" "}
+        />
+        {/* Cam Çeşitleri ve Adetleri Card bileşeni */}
+        {glassTypes && (
+          <Card className="mb-1 items-center">
+            <h3 className="text-sm font-semibold mb-2"> Cam Çeşitleri ve Adetleri</h3>
+            <ul className="text-xs">
+              {Object.entries(glassTypes).map(([type, count]) => (
+                <li key={type} className="flex justify-between">
+                  <span>{type}</span>
+                  <span className="text-sm font-semibold">{count}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+        {/* Status Değerleri ve Adetleri Card bileşeni */}
+        {statusCounts && (
+          <Card className="mb-1 items-center">
+            <h3 className="text-sm font-semibold mb-2"> Durumlar</h3>
+            <ul className="text-xs">
+              {Object.entries(statusCounts).map(([status, count]) => (
+                <li key={status} className="flex justify-between">
+                  <span>{status === "Pending" ? "Yeni" : status === "In Progress" ? "İşlemde" :"Tamamlanan"}</span>
+                  <span className="text-sm font-semibold">{count}</span> 
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
 
       <DataTable
@@ -121,6 +186,12 @@ const Cam = () => {
         <Column
           field="yuk"
           header="Yükseklik"
+          sortable
+          style={{ width: "120px" }}
+        />
+         <Column
+          field="sanal_adet"
+          header="Sanal Adet"
           sortable
           style={{ width: "120px" }}
         />

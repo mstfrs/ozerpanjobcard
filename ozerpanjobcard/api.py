@@ -78,5 +78,26 @@ def print_label():
         frappe.log_error(f"Printer Error: {str(e)}")
         return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
 
+import frappe
+from frappe import _
+@frappe.whitelist()
+def get_quality_label_items(quality_check_code, total_mtul):
+    try:
+        # Quality Label Items doctype'ını filtreleyin
+        quality_label_items = frappe.db.sql("""
+            SELECT 
+                qli.*
+            FROM 
+                `tabQuality Label Items` qli
+            JOIN 
+                `tabQuality Label Frame Codes` qlfc ON qlfc.parent = qli.name
+            WHERE 
+                qlfc.frame_code = %s
+                AND qli.min <= %s
+                AND qli.max >= %s
+        """, (quality_check_code, total_mtul, total_mtul), as_dict=True)
 
-
+        return quality_label_items
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), _("Error in get_quality_label_items"))
+        return {"error": str(e)}

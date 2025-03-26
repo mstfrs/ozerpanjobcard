@@ -40,16 +40,17 @@ doc_events.update({
     # }
 #]
 fixtures = [
-    {"dt": "Custom Field", "filters": [["module", "=", "Ozerpanjobcard"]]},
-    {"dt": "Property Setter", "filters": [["module", "=", "Ozerpanjobcard"]]},
+    # {"dt": "Custom Field", "filters": [["module", "=", "Ozerpanjobcard"]]},
+    # {"dt": "Property Setter", "filters": [["module", "=", "Ozerpanjobcard"]]},
     #{"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
-    {"dt": "Item Group"},
-    {"dt": "Workstation"},
-    {"dt": "Operation"},
-    {"dt": "UOM"},
-    {"dt": "Cam"},
-    {"dt": "Cam Recipe"},
-    {"dt": "Profile Type"},
+    # {"dt": "Item Group"},
+    # {"dt": "Workstation"},
+    # {"dt": "Operation"},
+    # {"dt": "UOM"},
+    # {"dt": "Cam"},
+    # {"dt": "Cam Recipe"},
+    # {"dt": "Profile Type"},
+    {"dt": "Quality Label Items"},
 ]
 
 ozerpandoc = [

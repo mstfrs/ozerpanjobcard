@@ -24,10 +24,9 @@ export const glassLabelPrint = async (selectedProduct) => {
   try {
     const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_label`, {
       credentials: "include",
-      mode: "no-cors",
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: zpl,
+      body: JSON.stringify({ zpl }),
     });
 
     if (response.ok) {
