@@ -51,6 +51,7 @@ fixtures = [
     # {"dt": "Cam Recipe"},
     # {"dt": "Profile Type"},
     {"dt": "Quality Label Items"},
+    {"dt": "Quality Label Frame Codes"},
 ]
 
 ozerpandoc = [
