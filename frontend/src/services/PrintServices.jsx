@@ -41,61 +41,60 @@ export const glassLabelPrint = async (selectedProduct) => {
 };
 
 
-export const qualityLabelPrint = async () => {
+export const qualityLabelPrint = async (tesDetay,labelInfo) => {
   const zpl = `
      
-  ^XA  
-  ^PW559
-  ^LL551
-  ^LS32
-  ^FO50,300^A0N,30,30^FD010.013.528.030.9331^FS  
+  ^XA
+   ^CI28
+
+   ^LS32
+   ^FO50,300^A0N,30,30^FD010.013.528.030.9331^FS  
+   
+   ^FO50,540^A0N,28,30^FB500,3,0,L,0^FD${tesDetay?.poz_data?.bayi_adi} - ${tesDetay?.poz_data?.musteri}  ^FS
+   
+   ^FO0,600^GB700,3,3^FS
+   ^FO50,610^A0N,30,30^FDPerformans Beyan No: TS EN 14351-${labelInfo.performance_declaration_number}^FS
+   ^CF0,10,10
+ ^FO0,650^FB560,1,0,C,0^A0N,30,30^FD${labelInfo.custom_serial}^FS
+ 
+ 
+   ^FO50,690^CF0,18,18^FB500,3,0,C,0^FD${labelInfo.description}^FS
+   
+   ^FO0,730^GB700,3,3^FS
+   
+ 
+   ^FO50,740^A0N,15,15^FDBoyutlar (mm):^FS
+   ^FO400,740^A0N,15,15^FB500,3,0,0^FD${labelInfo.sizes}^FS
   
-  ^FO50,540^A0N,28,30^FB500,3,0,L,0^FDSHW-DER-ERSU DAY.TUK.MALLARI ERSU DAY.TUK.MALLARI ^FS
-  
-  ^FO0,600^GB700,3,3^FS
-  ^FO50,610^A0N,30,30^FDPerformans Beyan No: TS EN 14351-1^FS
-  ^CF0,10,10
-  ^FO50,650^CF0,18,18^FB500,3,0,C,0^FDEv ve benzeri alanlar ile ticari alanlarda kullanimi tasarlanan yaya gecisine uygun hazir dis kapilar ve pencereler^FS
-  
-  ^FO0,700^GB700,3,3^FS
-  
-  ^FO50,710^A0N,15,15^FDRuzgar yukune dayanim: ^FS
-  ^FO400,710^A0N,15,15^FB500,3,0,0^FDSinif C3 / B4^FS
-  ^FO50,740^A0N,15,15^FDKar yukune ve kalici yuke dayanim:^FS
-  ^FO400,740^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,770^A0N,15,15^FDDis yangin performansi:^FS
-  ^FO400,770^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,800^A0N,15,15^FDSu Gecirmezlik: ^FS
-  ^FO400,800^A0N,15,15^FB500,3,0,0^FDSinif E 1650^FS
-  ^FO50,830^A0N,15,15^FDTehlikeli maddeler: ^FS
-  ^FO400,830^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,860^A0N,15,15^FDDarbe direnci: ^FS
-  ^FO400,860^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,890^A0N,15,15^FDGuvenlik tertibatlarinin yuk tasima kapasitesi: ^FS
-  ^FO400,890^A0N,15,15^FB500,3,0,0^FDUYGUN^FS
-  ^FO50,920^A0N,15,15^FDYukseklik: NPD^FS
-  ^FO400,920^A0N,15,15^FB500,3,0,0^FDNPD^FS
-  ^FO50,950^A0N,15,15^FDAkustik Performans: ^FS
-  ^FO400,950^A0N,15,15^FB500,3,0,0^FD33(-1,-5) dB^FS
-  ^FO50,980^A0N,15,15^FDIsil iletkenlik: ^FS
-  ^FO400,980^A0N,15,15^FB500,3,0,0^FD1,3 W/m2k^FS
-  ^FO50,1010^A0N,15,15^FDIsima (radyasyon) ozellikleri: ^FS
-  ^FO400,1010^A0N,15,15^FB500,3,0,0^FDCam etiketinde belirtilmistir^FS
-  ^FO50,1040^A0N,15,15^FDHava gecirgenligi: ^FS
-  ^FO400,1040^A0N,15,15^FB500,3,0,0^FDSinif 4^FS
-  ^FO50,1070^A0N,15,15^FDCalistirma kuvvetleri: ^FS
-  ^FO400,1070^A0N,15,15^FB500,3,0,0^FDSinif 1^FS
-  ^FO350,1100^GB150,3,3^FS
-  ^FO350,1120^A0N,30,40^FD102,6 Kg^FS
-  ^XZ
-  
-    `;
+   ^FO50,770^A0N,15,15^FDKar yukune dayanim:^FS
+   ^FO400,770^A0N,15,15^FB500,3,0,0^FD${labelInfo.wind_load_resistance} ^FS
+   ^FO50,800^A0N,15,15^FDÇalışma Kuvvetleri: ^FS
+   ^FO400,800^A0N,15,15^FB500,3,0,0^FD${labelInfo.labor_forces}^FS
+   ^FO50,830^A0N,15,15^FDHava Geçirgenlik:^FS
+   ^FO400,830^A0N,15,15^FB500,3,0,0^FD${labelInfo.air_permeability}^FS
+   ^FO50,860^A0N,15,15^FDSu Geçirmezlik: ^FS
+   ^FO400,860^A0N,15,15^FB500,3,0,0^FD${labelInfo.water_permeability}^FS
+   ^FO50,890^A0N,15,15^FDIsıl iletkenlik (U Pencere) - (W/(m2K): ^FS
+   ^FO400,890^A0N,15,15^FB500,3,0,0^FD${labelInfo.thermal_conductivity}^FS
+   ^FO50,920^A0N,15,15^FDAkustik Performans: ^FS
+   ^FO400,920^A0N,15,15^FB500,3,0,0^FD${labelInfo.acoustic_performance}^FS
+   ^FO50,950^A0N,15,15^FDGüvenlik Tertibatı Yük Taşıma Kapasitesi: ^FS
+   ^FO400,950^A0N,15,15^FB500,3,0,0^FD${labelInfo.load_carrying_capacity}^FS
+   ^FO50,980^A0N,15,15^FDTehlikeli Maddeler: ^FS
+   ^FO400,980^A0N,15,15^FB500,3,0,0^FD${labelInfo.dangerous_goods} ^FS
+   ^FO0,1020^FB500,1,0,C,0^A0N,15,15^FDSistem 3^FS
+ 
+   ^FO350,1100^GB150,3,3^FS
+   ^FO350,1120^A0N,30,40^FD102,6 Kg^FS
+   ^XZ
+   
+     `;
   try {
-    const response = await fetch(`http://192.168.0.53/pstprnt`, {
+    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_label`, {
       credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: zpl,
+      body: JSON.stringify({ zpl }),
     });
 
     if (response.ok) {
