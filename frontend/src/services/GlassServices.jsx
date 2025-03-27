@@ -5,12 +5,13 @@ const baseUrl = import.meta.env.VITE_BASE_URL;
 export const getGlassList = async (id) => {
   try {
     const response = await fetch(
-      `${baseUrl}/resource/CamListe/${id}`,
+   `${baseUrl}/method/ozerpanjobcard.api.get_glass_list?order_no=${id}&fields=["*"]`,
       {
         method: "GET",
         credentials: 'include',
       }
-    );
+    )
+
 
     if (response.status === 404) {
       toast.error("Siparişe ait Cam listesi bulunamadı");
@@ -18,13 +19,36 @@ export const getGlassList = async (id) => {
     }
 
     const data = await response.json();
-    return data.data || [];
+    return data.message || [];
   } catch (error) {
     console.error("Cam Liste Fetch Error:", error);
     toast.error("Cam listesi getirilirken bir hata oluştu");
     return [];
   }
 };
+// export const getGlassList = async (id) => {
+//   try {
+//     const response = await fetch(
+//       `${baseUrl}/resource/CamListe?filters=[["order_no","=","${id}"]]&fields=["*"]`,
+//       {
+//         method: "GET",
+//         credentials: 'include',
+//       }
+//     );
+
+//     if (response.status === 404) {
+//       toast.error("Siparişe ait Cam listesi bulunamadı");
+//       return [];
+//     }
+
+//     const data = await response.json();
+//     return data.data || [];
+//   } catch (error) {
+//     console.error("Cam Liste Fetch Error:", error);
+//     toast.error("Cam listesi getirilirken bir hata oluştu");
+//     return [];
+//   }
+// };
 
 export const getGlassDetails = async (item_code) => {
   try {
@@ -44,7 +68,7 @@ export const getGlassDetails = async (item_code) => {
   }
 };
 
-export const processGlassOperation = async (operation, employee, name) => {
+export const processGlassOperation = async (operation, employee, glass_name) => {
   try {
     const response = await fetch(
       `${baseUrl}/method/ozerpan_ercom_sync.custom_api.api.process_glass_operation`,
@@ -57,7 +81,7 @@ export const processGlassOperation = async (operation, employee, name) => {
         body: JSON.stringify({
           operation,
           employee,
-          name,
+          glass_name,
         }),
       }
     );

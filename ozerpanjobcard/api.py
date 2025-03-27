@@ -101,3 +101,20 @@ def get_quality_label_items(quality_check_code, total_mtul):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), _("Error in get_quality_label_items"))
         return {"error": str(e)}
+
+
+@frappe.whitelist()
+def get_glass_list(order_no):
+    camlar = frappe.get_all(
+        "CamListe",
+        filters={"order_no": order_no},
+        fields=["*"]  # Tüm alanları getir
+    )
+
+    # Eğer child table varsa ve onu da getirmek istiyorsan:
+    for cam in camlar:
+        cam_doc = frappe.get_doc("CamListe", cam.name)
+        cam["job_cards"] = [g.as_dict() for g in cam_doc.job_cards]  # örnek olarak child table adı 'glasses'
+
+    return camlar
+

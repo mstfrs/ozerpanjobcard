@@ -28,8 +28,9 @@ const Cam = () => {
 
   const handleSearch = async () => {
     const data = await getGlassList(inputValue);
-    setGlassList(data);
-    console.log(data);
+    const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
+    setGlassList(filteredData);
+    console.log(filteredData);
   };
 
   const handleRowClick = async (e) => {
@@ -49,9 +50,10 @@ const Cam = () => {
     const result = await processGlassOperation(currentOperation.operations, employee.name, selectedProduct.product.name);
     if (result) {
       toast.success("Cam operasyonu başarıyla işlendi");
+      glassLabelPrint(selectedProduct);
       const data = await getGlassList(inputValue);
-      setGlassList(data);
-    }
+      const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
+      setGlassList(filteredData);    }
   };
 
   const rowClassName = (data) => {
@@ -84,16 +86,18 @@ const Cam = () => {
   );
 
   const statusBodyTemplate = (rowData) => {
+    const status = rowData.job_cards?.[0]?.status || "N/A";
+
     return (
       <Tag
-        value={rowData.status}
-        severity={rowData.status === "Pending" ? "success" : "warning"}
+        value={status}
+        severity={status === "Pending" ? "success" : "warning"}
       />
     );
   };
 
   // Cam cinslerini ve adetlerini hesaplayın
-  const glassTypes = glassList?.items?.reduce((acc, item) => {
+  const glassTypes = glassList?.reduce((acc, item) => {
     const { aciklama } = item;
     if (!acc[aciklama]) {
       acc[aciklama] = 0;
@@ -103,8 +107,8 @@ const Cam = () => {
   }, {});
 
   // Status değerlerini ve adetlerini hesaplayın
-  const statusCounts = glassList?.items?.reduce((acc, item) => {
-    const { status } = item;
+  const statusCounts = glassList?.reduce((acc, item) => {
+    const status = item.job_cards?.[0]?.status || "N/A"; // job_cards içindeki status değerini al
     if (!acc[status]) {
       acc[status] = 0;
     }
@@ -120,14 +124,15 @@ const Cam = () => {
           className="mb-4"
           title={
             <span className="text-sm font-semibold">
-              Fabrika Sipariş No: {glassList?.order_no}
+              Fabrika Sipariş No: 
+              {/* {glassList?.[0].order_no} */}
             </span>
           }
           subTitle={
             <span className="text-xs text-gray-600">
               Adı:{" "}
-              {glassList?.items?.[0]
-                ? `${glassList.items[0].cari_unvan} - ${glassList.items[0].musteri}`
+              {glassList?.[0]
+                ? `${glassList[0].cari_unvan} - ${glassList[0].musteri}`
                 : ""}
             </span>
           }
@@ -163,7 +168,7 @@ const Cam = () => {
       </div>
 
       <DataTable
-        value={glassList?.items}
+        value={glassList}
         className="p-datatable-sm text-xs w-full h-full"
         paginator
         rows={10}
@@ -178,13 +183,13 @@ const Cam = () => {
           style={{ width: "100px" }}
         />
         <Column
-          field="gen"
+          field="genislik"
           header="Genişlik"
           sortable
           style={{ width: "120px" }}
         />
         <Column
-          field="yuk"
+          field="yukseklik"
           header="Yükseklik"
           sortable
           style={{ width: "120px" }}
@@ -196,9 +201,10 @@ const Cam = () => {
           style={{ width: "120px" }}
         />
         <Column
-          field="status"
+          field="job_cards[0].status"
           header="Durumu"
           body={statusBodyTemplate}
+          
           style={{ width: "120px" }}
         />
         <Column field="aciklama" header="Cam Cinsi" sortable />
