@@ -1,422 +1,338 @@
 [
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10304",
   "modified": "2025-03-24 22:16:27.514715",
-  "name": "1mrjjab1at",
-  "parent": "SAFİR 76-0-5450",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1mrjjab1at"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10304",
   "modified": "2025-03-24 22:16:56.756383",
-  "name": "1n4n9depm3",
-  "parent": "SAFİR 76-5451-7145",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1n4n9depm3"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10304",
   "modified": "2025-03-24 22:17:16.976120",
-  "name": "1nb1cj437a",
-  "parent": "SAFİR 76-7146-7995",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nb1cj437a"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10304",
   "modified": "2025-03-24 22:17:38.730824",
-  "name": "1nhr3rb7j2",
-  "parent": "SAFİR 76-7996-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nhr3rb7j2"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10300",
   "modified": "2025-03-24 22:19:52.721599",
-  "name": "1orngogllg",
-  "parent": "DORADO 76-0-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1orngogllg"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10200",
   "modified": "2025-03-24 22:21:50.608852",
-  "name": "1q0i6ac7f9",
-  "parent": "REVOTECH-0-5450",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1q0i6ac7f9"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10200",
   "modified": "2025-03-24 22:23:54.459777",
-  "name": "1r78di98bk",
-  "parent": "REVOTECH-5451-7145",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1r78di98bk"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10200",
   "modified": "2025-03-24 22:26:18.546969",
-  "name": "1rp76t7dl3",
-  "parent": "REVOTECH-7146-7995",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1rp76t7dl3"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10200",
   "modified": "2025-03-24 22:25:54.228651",
-  "name": "1scm39mu37",
-  "parent": "REVOTECH-7996-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1scm39mu37"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10261",
   "modified": "2025-03-24 22:29:22.690117",
-  "name": "1udqh2s4jj",
-  "parent": "LOTUS-0-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1udqh2s4jj"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10260",
   "modified": "2025-03-24 22:30:19.886278",
-  "name": "1uvmivff1o",
-  "parent": "LOTUS-0-999998",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1uvmivff1o"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "12480",
   "modified": "2025-03-24 22:33:50.589589",
-  "name": "2030i78bbd",
-  "parent": "COMFORT SLİDE-0-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "2030i78bbd"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "12420",
   "modified": "2025-03-24 22:33:33.121717",
-  "name": "20s3hmpbk0",
-  "parent": "HS 76-0-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "20s3hmpbk0"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10305",
   "modified": "2025-03-24 22:16:27.514715",
-  "name": "1mrj67f5vn",
-  "parent": "SAFİR 76-0-5450",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1mrj67f5vn"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10305",
   "modified": "2025-03-24 22:16:56.756383",
-  "name": "1n4ntjce26",
-  "parent": "SAFİR 76-5451-7145",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1n4ntjce26"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10305",
   "modified": "2025-03-24 22:17:16.976120",
-  "name": "1nb1b6nsrk",
-  "parent": "SAFİR 76-7146-7995",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nb1b6nsrk"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10305",
   "modified": "2025-03-24 22:17:38.730824",
-  "name": "1nhrc79akp",
-  "parent": "SAFİR 76-7996-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nhrc79akp"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10302",
   "modified": "2025-03-24 22:19:52.721599",
-  "name": "1ornktgft5",
-  "parent": "DORADO 76-0-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1ornktgft5"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10202",
   "modified": "2025-03-24 22:21:50.608852",
-  "name": "1q0i5eeeda",
-  "parent": "REVOTECH-0-5450",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1q0i5eeeda"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10202",
   "modified": "2025-03-24 22:23:54.459777",
-  "name": "1r7857a9fi",
-  "parent": "REVOTECH-5451-7145",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1r7857a9fi"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10202",
   "modified": "2025-03-24 22:26:18.546969",
-  "name": "1rp7hird2f",
-  "parent": "REVOTECH-7146-7995",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1rp7hird2f"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10202",
   "modified": "2025-03-24 22:25:54.228651",
-  "name": "1scm79etlr",
-  "parent": "REVOTECH-7996-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1scm79etlr"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10263",
   "modified": "2025-03-24 22:29:22.690117",
-  "name": "1udqdcgqk0",
-  "parent": "LOTUS-0-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1udqdcgqk0"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10262",
   "modified": "2025-03-24 22:30:19.886278",
-  "name": "1uvm5md6u7",
-  "parent": "LOTUS-0-999998",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1uvm5md6u7"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10309",
   "modified": "2025-03-24 22:16:27.514715",
-  "name": "1mrjiqsspj",
-  "parent": "SAFİR 76-0-5450",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1mrjiqsspj"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10309",
   "modified": "2025-03-24 22:16:56.756383",
-  "name": "1n4nth5sd4",
-  "parent": "SAFİR 76-5451-7145",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1n4nth5sd4"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10309",
   "modified": "2025-03-24 22:17:16.976120",
-  "name": "1nb1hb81jg",
-  "parent": "SAFİR 76-7146-7995",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nb1hb81jg"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10309",
   "modified": "2025-03-24 22:17:38.730824",
-  "name": "1nhr721asn",
-  "parent": "SAFİR 76-7996-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nhr721asn"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10320",
   "modified": "2025-03-24 22:19:52.721599",
-  "name": "1orntbv00n",
-  "parent": "DORADO 76-0-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1orntbv00n"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10220",
   "modified": "2025-03-24 22:21:50.608852",
-  "name": "1q0i3fsn0q",
-  "parent": "REVOTECH-0-5450",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1q0i3fsn0q"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10220",
   "modified": "2025-03-24 22:23:54.459777",
-  "name": "1r78fjvrfi",
-  "parent": "REVOTECH-5451-7145",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1r78fjvrfi"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10220",
   "modified": "2025-03-24 22:26:18.546969",
-  "name": "1rp7dfk4ho",
-  "parent": "REVOTECH-7146-7995",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1rp7dfk4ho"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10220",
   "modified": "2025-03-24 22:25:54.228651",
-  "name": "1scmk3bifl",
-  "parent": "REVOTECH-7996-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1scmk3bifl"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10324",
   "modified": "2025-03-24 22:16:27.514715",
-  "name": "1mrjg8s07k",
-  "parent": "SAFİR 76-0-5450",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1mrjg8s07k"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10324",
   "modified": "2025-03-24 22:16:56.756383",
-  "name": "1n4nlmrs91",
-  "parent": "SAFİR 76-5451-7145",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1n4nlmrs91"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10324",
   "modified": "2025-03-24 22:17:16.976120",
-  "name": "1nb1gfklto",
-  "parent": "SAFİR 76-7146-7995",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nb1gfklto"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10324",
   "modified": "2025-03-24 22:17:38.730824",
-  "name": "1nhrs92ps4",
-  "parent": "SAFİR 76-7996-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nhrs92ps4"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10310",
   "modified": "2025-03-24 22:19:52.721599",
-  "name": "1ornoj2faj",
-  "parent": "DORADO 76-0-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1ornoj2faj"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10314",
   "modified": "2025-03-24 22:16:27.514715",
-  "name": "1mrj003j9n",
-  "parent": "SAFİR 76-0-5450",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1mrj003j9n"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10314",
   "modified": "2025-03-24 22:16:56.756383",
-  "name": "1n4ntn965n",
-  "parent": "SAFİR 76-5451-7145",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1n4ntn965n"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10314",
   "modified": "2025-03-24 22:17:16.976120",
-  "name": "1nb14lavgf",
-  "parent": "SAFİR 76-7146-7995",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nb14lavgf"
  },
  {
+  "custom_serial": null,
   "docstatus": 0,
   "doctype": "Quality Label Frame Codes",
   "frame_code": "10314",
   "modified": "2025-03-24 22:17:38.730824",
-  "name": "1nhrbjbt8d",
-  "parent": "SAFİR 76-7996-999999",
-  "parentfield": "frame_codes",
-  "parenttype": "Quality Label Items"
+  "name": "1nhrbjbt8d"
  }
 ]
