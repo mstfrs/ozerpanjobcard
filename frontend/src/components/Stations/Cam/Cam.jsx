@@ -10,6 +10,7 @@ import { glassLabelPrint } from "../../../services/PrintServices";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import useJobcardsStore from "../../../store/jobcardStore";
+import { getJobCardDetails } from "../../../services/JobCardServices";
 
 const Cam = () => {
   const [search, setSearch] = useState("");
@@ -20,6 +21,8 @@ const Cam = () => {
   const {
     employee,
     currentOperation,
+    currentJobcard,
+    setCurrentJobcard,
   } = useJobcardsStore();
 
   const handleInputChange = (e) => {
@@ -31,10 +34,15 @@ const Cam = () => {
     const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
     setGlassList(filteredData);
     console.log(filteredData);
+    setSelectedProduct(null);
   };
 
   const handleRowClick = async (e) => {
     const product = e.data;
+    console.log("product", product);
+    const jobCardInfo=await getJobCardDetails(product?.job_cards[0]?.job_card_ref);
+    console.log(jobCardInfo,"jobCardInfo");
+    setCurrentJobcard(jobCardInfo);
     const glassDetails = await getGlassDetails(product?.stok_kodu);
     console.log("glassDetails", glassDetails);
     setSelectedProduct({ product, glassDetails });
@@ -68,6 +76,7 @@ const Cam = () => {
           value={inputValue}
           onChange={handleInputChange}
           className="w-full"
+          disabled={currentJobcard?.status == "Work In Progress"}
         />
       </span>
       <div className="flex justify-between gap-2 mr-2">
@@ -75,11 +84,15 @@ const Cam = () => {
           label="Cam Etiketi Bas"
           className="p-button-primary"
           onClick={handlePrintLabel}
+          disabled={!selectedProduct}
+
         />
         <Button
           onClick={handleSearch}
           label="Sorgula"
           className="p-button-primary"
+          disabled={currentJobcard?.status == "Work In Progress"}
+
         />
       </div>
     </div>
@@ -170,9 +183,11 @@ const Cam = () => {
       <DataTable
         value={glassList}
         className="p-datatable-sm text-xs w-full h-full"
-        paginator
+        // paginator
         rows={10}
-        responsiveLayout="scroll"
+        scrollable
+        scrollHeight="flex"
+        responsiveLayout="scroll" 
         onRowClick={handleRowClick} // Satıra tıklama olayını ekleyin
         rowClassName={rowClassName} // Satır sınıfını belirleyin
       >

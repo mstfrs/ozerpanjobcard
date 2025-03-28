@@ -39,8 +39,16 @@ function App() {
 						</Routes>
 					</QueryClientProvider>
 					<ToastContainer
-						position="top-center" />
-				</BrowserRouter>
+							position="top-center"
+							autoClose={1000} // Set time for message to auto-close in milliseconds (e.g., 5000ms = 5 seconds)
+							hideProgressBar={false}
+							newestOnTop={false}
+							closeOnClick
+							rtl={false}
+							pauseOnFocusLoss
+							draggable
+							pauseOnHover
+						/></BrowserRouter>
 			</FrappeProvider>
 
 		</div>
