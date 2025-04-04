@@ -68,7 +68,7 @@ export const getGlassDetails = async (item_code) => {
   }
 };
 
-export const processGlassOperation = async (operation, employee, glass_name) => {
+export const processGlassOperation = async (payload) => {
   try {
     const response = await fetch(
       `${baseUrl}/method/ozerpan_ercom_sync.custom_api.api.process_glass_operation`,
@@ -78,16 +78,13 @@ export const processGlassOperation = async (operation, employee, glass_name) => 
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          operation,
-          employee,
-          glass_name,
-        }),
+        body: JSON.stringify(payload),
       }
     );
 
     if (!response.ok) {
-      toast.error("Cam operasyonu işlenirken bir hata oluştu");
+      const errorData = await response.json();
+      toast.error(errorData.message?.message || "Cam operasyonu işlenirken bir hata oluştu");
       return null;
     }
 

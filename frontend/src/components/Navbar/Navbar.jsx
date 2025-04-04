@@ -142,9 +142,15 @@ const Navbar = () => {
 
       {(currentOperation?.operations === "Kalite" || currentOperation?.operations === "Cam") &&
         <div aria-disabled={isAllSelected}
-        onClick={() =>
-          !isAllSelected && setErrorModalVisible(true)
-        }
+        onClick={() => {
+          if (!isAllSelected) {
+            if (currentOperation?.operations === "Cam") {
+              document.querySelector('[data-testid="error-modal-trigger"]')?.click();
+            } else {
+              setErrorModalVisible(true);
+            }
+          }
+        }}
         className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer ${isAllSelected ? 'cursor-not-allowed opacity-50' : 'hover:bg-red-200'}`}
       >
         <BiSolidError size="3rem" className="text-yellow-400 " />
@@ -155,25 +161,28 @@ const Navbar = () => {
     
     }
 
-        <div
-          onClick={() =>
-            currentJobcard?.status === "Work In Progress"
-              ? setVisible(true)
-              : handleClick()
-          }
-          className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
-        >
-          <FaPlayCircle size="2rem" className="text-red-500 " />
-          <div className="w-3/4 text-center text-xl ">
-            {jobCardLoading
-              ? "Loading..."
-              : currentJobcard?.status === "On Hold"
-              ? "Devam Et"
-              : currentJobcard?.status === "Work In Progress"
-              ? "Durdur"
-              : "Başlat"}
+        {currentOperation?.operations !== "Cam" && (
+          <div
+            onClick={() =>
+              currentJobcard?.status === "Work In Progress"
+                ? setVisible(true)
+                : handleClick()
+            }
+            className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+          >
+            <FaPlayCircle size="2rem" className="text-red-500 " />
+            <div className="w-3/4 text-center text-xl ">
+              {jobCardLoading
+                ? "Loading..."
+                : currentJobcard?.status === "On Hold"
+                ? "Devam Et"
+                : currentJobcard?.status === "Work In Progress"
+                ? "Durdur"
+                : "Başlat"}
+            </div>
           </div>
-        </div>
+        )}
+
         {currentOperation?.operations === "Profil Temin" ? (
           <div
             onClick={() =>
@@ -201,9 +210,14 @@ const Navbar = () => {
           setReason={setReason}
           handleClick={handleClick}
         />
-        {/* <ErrorModal
+        <ErrorModal
          errorModalVisible={errorModalVisible}
-         setErrorModalVisible={setErrorModalVisible}/> */}
+         setErrorModalVisible={setErrorModalVisible}
+         onSubmitErrorData={(errorData) => {
+           // Handle error submission here
+           console.log("Error data:", errorData);
+         }}
+        />
       </div>
     </div>
   );

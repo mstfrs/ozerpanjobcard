@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import {
@@ -11,218 +10,254 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Loading from "../../Loading";
 import useJobcardsStore from "../../../store/jobcardStore";
 import { InputNumber } from "primereact/inputnumber";
+import { Toast } from 'primereact/toast';
+import { useRef } from "react";
+import { Button } from "primereact/button";
 
 const ProfilTemin = () => {
-  const { currentOpt, currentJobcard, setIsAllProfileTransferred } =
-    useJobcardsStore();
-  // console.log(currentJobcard?.time_logs?.at(-1).from_time)
-  const [inputValues, setInputValues] = useState({});
+  const { currentOpt, currentJobcard, setIsAllProfileTransferred } = useJobcardsStore();
+  const toast = useRef(null);
   const queryClient = useQueryClient();
 
-  const handleInputChange = (e, itemNo) => {
-    const { value } = e;
-    console.log(value);
-    setInputValues((prevValues) => ({
-      ...prevValues,
-      [itemNo]: value,
-    }));
-  };
-
-  const inputColumnTemplate = (rowData) => {
-    return (
-      <InputNumber
-        inputStyle={{ width: "40px" }}
-        mode="decimal"
-        showButtons
-        max={rowData.amountboy}
-        min={rowData.custom_transfered}
-        disabled={currentJobcard?.status !== "Work In Progress"}
-        onChange={(e) => handleInputChange(e, rowData.item_code)}
-        value={
-          inputValues[rowData.item_code] || rowData.custom_transfered || ""
-        }
-      />
-      // <input
-      //     type="number"
-      //     disabled={currentJobcard?.status!=="Work In Progress"}
-      //     max={rowData.amountboy}
-      //     min={rowData.custom_transfered}
-      //     value={inputValues[rowData.item_code] || rowData.custom_transfered || ''}
-      //     onChange={(e) => handleInputChange(e, rowData.item_code)
-
-      //     className="p-inputtext p-component w-10  text-center  text-center no-arrows" // PrimeReact input stilini kullanma
-      // />
-    );
-  };
+  // Profil Temin Opt Detayları Query
   const {
     data: profileOptInfo,
     isLoading: isProfileTeminOptLoading,
     isError: isOptError,
-    error: optError,
-    refetch,
   } = useQuery({
     queryKey: ["profileOptInfo", currentOpt?.custom_opti_no],
     queryFn: () => getProfilTeminOptDetails(currentOpt?.custom_opti_no),
-    // enabled: !!currentOpt?.custom_opti_no
+    enabled: !!currentOpt?.custom_opti_no,
+    staleTime: 30000, // 30 saniye boyunca cache'den kullan
+    cacheTime: 1000 * 60 * 5, // 5 dakika cache'de tut
   });
 
+  // Ürün Görselleri Query
   const { data: images, isLoading: isImageLoading } = useQuery({
-    queryKey: ["productImages", profileOptInfo],
+    queryKey: ["productImages", profileOptInfo?.profile_list],
     queryFn: async () => {
-      if (!profileOptInfo) return []; // Eğer optInfo yoksa boş dizi döndür
+      if (!profileOptInfo?.profile_list) return [];
 
-      // Her `item_code` için API isteği yap
-      const uniqueItems = [
-        ...new Set(profileOptInfo?.profile_list.map((item) => item.item_code)),
-      ];
+      const uniqueItems = [...new Set(profileOptInfo.profile_list.map(item => item.item_code))];
       const imageRequests = uniqueItems.map(async (item) => {
-        const itemData = await getItemDetails(item);
-        return { item, image: itemData.image };
+        try {
+          const itemData = await getItemDetails(item);
+          return { item, image: itemData.image };
+        } catch (error) {
+          console.error(`Error fetching image for item ${item}:`, error);
+          return { item, image: null };
+        }
       });
 
-      // Promise.all ile tüm API çağrılarını bekle
       return Promise.all(imageRequests);
     },
-    enabled: !!profileOptInfo, // optInfo yüklendikten sonra bu sorguyu çalıştır
+    enabled: !!profileOptInfo?.profile_list,
+    staleTime: 1000 * 60 * 5, // 5 dakika boyunca cache'den kullan
+    cacheTime: 1000 * 60 * 30, // 30 dakika cache'de tut
   });
 
-  const { mutate } = useMutation({
-    mutationFn: (profilePayload) =>
-      updateProfilList(profilePayload.name, profilePayload),
+  // Profil Listesi Güncelleme Mutation
+  const { mutate: updateProfile } = useMutation({
+    mutationFn: (profilePayload) => updateProfilList(profilePayload.name, profilePayload),
     onSuccess: () => {
-      // Cache'de 'profileOptInfo' anahtarına sahip veriyi yeniden getiriyoruz
-      queryClient.invalidateQueries([
-        "profileOptInfo",
-        currentOpt?.custom_opti_no,
-      ]);
+      queryClient.invalidateQueries(["profileOptInfo", currentOpt?.custom_opti_no]);
+      toast.current.show({
+        severity: 'success',
+        summary: 'Başarılı',
+        detail: 'Profil bilgileri güncellendi',
+        life: 3000
+      });
     },
     onError: (error) => {
-      console.error("Update işlemi sırasında hata oluştu:", error);
+      console.error("Güncelleme hatası:", error);
+      toast.current.show({
+        severity: 'error',
+        summary: 'Hata',
+        detail: 'Profil güncellenirken hata oluştu',
+        life: 3000
+      });
     },
   });
 
-  const actionTemplate = (rowData) => {
-    return (
-      <button
-        className="disabled:text-red-400 font-bold "
-        disabled={rowData.amountboy == rowData.custom_transfered}
-        onClick={async () => {
-          const profilePayload = {
-            name: rowData.name,
-            parent: rowData.parent,
-            parenttype: "Opt Genel",
-            parentfield: "profile_list",
-            custom_transfered: inputValues[rowData.item_code],
-          };
+  // Input değerlerini yönetmek için state
+  const [localInputValues, setLocalInputValues] = useState({});
 
-          // Önce inputValues state'ini güncelleyin
-          setInputValues((prevValues) => ({
-            ...prevValues,
-            [rowData.item_code]: profilePayload.custom_transfered,
-          }));
+  // Input değerlerini yönetmek için memoized state
+  const inputValues = useMemo(() => {
+    if (!profileOptInfo?.profile_list) return {};
+    return profileOptInfo.profile_list.reduce((acc, item) => {
+      acc[item.item_code] = item.custom_transfered || "";
+      return acc;
+    }, {});
+  }, [profileOptInfo?.profile_list]);
 
-          // Ardından mutate fonksiyonunu çağırın
-          mutate(profilePayload);
-        }}
-      >
-        <i className="pi pi-check"></i>
-      </button>
+  // Input değişiklik handler'ı
+  const handleInputChange = useCallback((value, itemNo) => {
+    if (value === null || value === undefined) return;
+    setLocalInputValues(prev => ({
+      ...prev,
+      [itemNo]: value
+    }));
+  }, []);
+
+  // Onaylama handler'ı
+  const handleApprove = useCallback((itemNo) => {
+    const value = localInputValues[itemNo];
+    if (value === null || value === undefined) return;
+    
+    const profileItem = profileOptInfo?.profile_list.find(
+      item => item.item_code === itemNo
     );
-  };
+    
+    if (!profileItem) return;
 
+    const profilePayload = {
+      name: profileItem.name,
+      parent: profileItem.parent,
+      parenttype: "Opt Genel",
+      parentfield: "profile_list",
+      custom_transfered: value,
+    };
+
+    updateProfile(profilePayload);
+  }, [profileOptInfo?.profile_list, updateProfile, localInputValues]);
+
+  // Input kolonu template'i
+  const inputColumnTemplate = useCallback((rowData) => {
+    return (
+      <div className="flex items-center gap-2">
+        <InputNumber
+          inputStyle={{ width: "60px" }}
+          mode="decimal"
+          showButtons
+          buttonLayout="horizontal"
+          max={rowData.amountboy}
+          min={0}
+          disabled={currentJobcard?.status !== "Work In Progress"}
+          onChange={(e) => handleInputChange(e.value, rowData.item_code)}
+          value={localInputValues[rowData.item_code] ?? inputValues[rowData.item_code]}
+          size="small"
+          className="p-inputnumber-sm"
+        />
+        <Button
+          icon="pi pi-check"
+          className="p-button-success p-button-sm"
+          onClick={() => handleApprove(rowData.item_code)}
+          disabled={currentJobcard?.status !== "Work In Progress"}
+        />
+      </div>
+    );
+  }, [currentJobcard?.status, handleInputChange, handleApprove, inputValues, localInputValues]);
+
+  // Ürün kodu template'i
+  const productCodeTemplate = useCallback((rowData) => {
+    // amountmt metre cinsinden, bunu santimetreye çeviriyoruz (1m = 100cm)
+    const amountInMm = rowData.amountmt * 1000;
+    const quantity = amountInMm / rowData.amountboy;
+    return (
+      <div className="flex flex-col">
+        <span>{rowData.item_code}</span>
+        <span className="text-xs text-gray-500">({quantity.toFixed(0)})</span>
+      </div>
+    );
+  }, []);
+
+  // Tüm profillerin transfer durumunu kontrol et
   useEffect(() => {
-    console.log(profileOptInfo?.profile_list);
     if (profileOptInfo?.profile_list) {
       const allTransferred = profileOptInfo.profile_list.every(
         (row) => Number(row.amountboy) === Number(row.custom_transfered)
       );
       setIsAllProfileTransferred(allTransferred);
-      console.log(allTransferred);
     }
-  }, [profileOptInfo]);
+  }, [profileOptInfo?.profile_list, setIsAllProfileTransferred]);
 
   if (isProfileTeminOptLoading || isImageLoading) return <Loading />;
+  if (isOptError) {
+    return (
+      <div className="flex items-center justify-center h-full text-red-500">
+        Veri yüklenirken bir hata oluştu. Lütfen sayfayı yenileyin.
+      </div>
+    );
+  }
 
   return (
-    <div>
-      <div className="w-full flex justify-between h-[calc(100vh-100px)] px-3 py-2">
-        <div className="flex flex-col flex-1 bg-slate-100 w-2/3">
-          <div className="w-full flex justify-between items-center bg-slate-200 p-1">
+    <div className="flex flex-col h-[calc(100vh-100px)]">
+      <Toast ref={toast} />
+      <div className="flex flex-1 px-3 py-2 gap-4">
+        {/* Sol Panel - Profil Listesi */}
+        <div className="flex-1 bg-slate-100 rounded-lg overflow-hidden">
+          <div className="bg-slate-200 p-3 flex justify-between items-center">
             <h3 className="text-lg font-medium">
-              İstasyon : {profileOptInfo?.machine_no}
+              İstasyon: {profileOptInfo?.machine_no}
             </h3>
             {currentJobcard && (
               <h3 className="text-lg font-medium">
-                İş Kartı No : {currentJobcard?.name}
+                İş Kartı No: {currentJobcard?.name}
               </h3>
             )}
           </div>
-          {/* <div className='h-1/2 overflow-auto'>
-                    <DataTable stripedRows size='small' value={profileOptInfo?.customer_list} tableStyle={{ minWidth: '50rem' }}>
-                        <Column field="projectno" sortable header="Proje Üretim No"></Column>
-                        <Column field="customer" header="Müşteri Adı"></Column>
-                        <Column field="order_no" header="Sipariş No"></Column>
-                        <Column field="deliverydate" header="Sevk Tarihi"></Column>
-                    </DataTable>
-                </div> */}
-          <div>
-            <DataTable
-              stripedRows
-              size="small"
-              value={profileOptInfo?.profile_list}
-              tableStyle={{ minWidth: "100%" }} // Adjusted for responsiveness
-              className="w-full md:w-auto" // Add responsive classes
-            >
-              <Column
-                field="item_code"
-                sortable
-                header="Ürün No"
-                style={{ width: "10%" }}
-              ></Column>
-              <Column
-                field="item_name"
-                header="Ürün Adı"
-                style={{ width: "20%" }}
-              ></Column>
-              <Column
-                header="Çekilen"
-                body={inputColumnTemplate}
-                style={{ width: "10%" }}
-                className="text-center"
-              ></Column>
-              <Column
-                header=""
-                body={actionTemplate}
-                className="text-center"
-                style={{ width: "5%" }}
-              ></Column>
-              <Column
-                field="amountboy"
-                header="Miktar (Boy)"
-                style={{ width: "5%" }}
-              ></Column>
-              <Column
-                field="amountmt"
-                header="Miktar (Mt)"
-                style={{ width: "5%" }}
-              ></Column>
-            </DataTable>
+
+          <DataTable
+            value={profileOptInfo?.profile_list}
+            scrollable
+            scrollHeight="calc(100vh - 200px)"
+            size="small"
+            stripedRows
+            responsiveLayout="scroll"
+            emptyMessage="Profil bulunamadı"
+          >
+            <Column
+              field="item_code"
+              header="Ürün No"
+              body={productCodeTemplate}
+              sortable
+              style={{ width: "15%" }}
+            />
+            <Column
+              field="item_name"
+              header="Ürün Adı"
+              style={{ width: "40%" }}
+            />
+            <Column
+              header="Çekilen"
+              body={inputColumnTemplate}
+              style={{ width: "15%" }}
+              className="text-center"
+            />
+            <Column
+              field="amountboy"
+              header="Miktar (Boy)"
+              style={{ width: "15%" }}
+              className="text-center"
+            />
+            <Column
+              field="amountmt"
+              header="Miktar (Mt)"
+              style={{ width: "15%" }}
+              className="text-center"
+            />
+          </DataTable>
+        </div>
+
+        {/* Sağ Panel - Ürün Görselleri */}
+        <div className="w-1/3 bg-slate-200 rounded-lg p-4">
+          <div className="grid grid-cols-2 gap-4 auto-rows-max overflow-y-auto h-full">
+            {images?.map((img, index) =>
+              img.image ? (
+                <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-white">
+                  <img
+                    src={img.image}
+                    alt={`Ürün ${img.item}`}
+                    className="w-full h-full object-contain"
+                    loading="lazy"
+                  />
+                </div>
+              ) : null
+            )}
           </div>
         </div>
-        <div className="w-1/3 p-4 grid grid-cols-2 gap-4 justify-center bg-slate-200">
-          {images?.map(
-            (img, index) =>
-              img.image && (
-                <img key={index} src={img.image} alt="" className="w-60 h-60" />
-              )
-          )}
-        </div>
       </div>
-      {/* <div className=' pr-3 items-center flex justify-end bg-red-400'>
-       {
-            currentJobcard.status==="Work In Progress"? <ElapsedTimeCounter fromTime={currentJobcard?.time_logs?.at(-1).from_time}/>:currentJobcard.status==="On Hold"?<h2 className='font-semibold text-lg'>Durma Sebebi: {currentJobcard?.time_logs?.at(-1).custom_reason.toUpperCase()}</h2> :<h2 className='font-semibold text-lg'>Süre: 00:00:00</h2>
-        }
-       </div> */}
     </div>
   );
 };

@@ -108,3 +108,50 @@ export const qualityLabelPrint = async (tesDetay,labelInfo) => {
     console.error("Hata:", error);
   }
 };
+
+export const surmeLabelPrint = async (pozDetails) => {
+  const zpl = `
+^XA
+^CI28
+^PW800     
+^LL320     
+^LS0
+
+^CF0,35
+
+^FO60,30^A0N,35,35^FDCari Unvanı:^FS
+^FO300,30^A0N,35,35^FD${pozDetails.bayi_adi}^FS
+
+^FO60,80^A0N,35,35^FDCari Kodu:^FS
+^FO300,80^A0N,35,35^FD${pozDetails.cari_kod}^FS
+
+^FO60,130^A0N,35,35^FDSip / Sevk:^FS
+^FO300,130^A0N,35,35^FD${pozDetails.siparis_tarihi} / ${pozDetails.sevkiyat_tarihi}^FS
+
+^FO60,180^A0N,35,35^FDMüşterisi:^FS
+^FO300,180^A0N,35,35^FD${pozDetails.musteri || '-'}^FS
+
+^FO60,230^A0N,35,35^FDSipariş No:^FS
+^FO300,230^A0N,35,35^FD${pozDetails.siparis_no} Poz No: ${pozDetails.poz_no.split('-')[1]}^FS
+
+^XZ`;
+
+  try {
+    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_label`, {
+      credentials: "include",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ zpl }),
+    });
+
+    if (response.ok) {
+      const message = await response.json();
+      console.log("message", message);
+      return message;
+    } else {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Hata:", error);
+  }
+};

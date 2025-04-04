@@ -5,6 +5,8 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Tag } from "primereact/tag";
 import { Card } from "primereact/card";
+import { Dialog } from "primereact/dialog";
+import { InputTextarea } from "primereact/inputtextarea";
 import { getGlassDetails, getGlassList, processGlassOperation } from "../../../services/GlassServices";
 import { glassLabelPrint } from "../../../services/PrintServices";
 import { ToastContainer, toast } from 'react-toastify';
@@ -17,6 +19,8 @@ const Cam = () => {
   const [inputValue, setInputValue] = useState("");
   const [glassList, setGlassList] = useState();
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorNote, setErrorNote] = useState("");
 
   const {
     employee,
@@ -32,21 +36,24 @@ const Cam = () => {
   const handleSearch = async () => {
     const data = await getGlassList(inputValue);
     const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
+    
+    if (filteredData.length === 0) {
+      toast.error("Siparişe ait üretilecek Cam bulunamadı");
+      setGlassList([]);
+      setSelectedProduct(null);
+      return;
+    }
+    
     setGlassList(filteredData);
-    console.log(filteredData);
     setSelectedProduct(null);
   };
 
   const handleRowClick = async (e) => {
     const product = e.data;
-    console.log("product", product);
-    const jobCardInfo=await getJobCardDetails(product?.job_cards[0]?.job_card_ref);
-    console.log(jobCardInfo,"jobCardInfo");
+    const jobCardInfo = await getJobCardDetails(product?.job_cards[0]?.job_card_ref);
     setCurrentJobcard(jobCardInfo);
     const glassDetails = await getGlassDetails(product?.stok_kodu);
-    console.log("glassDetails", glassDetails);
     setSelectedProduct({ product, glassDetails });
-    console.log("Selected Product:", selectedProduct);
   };
 
   const handlePrintLabel = async () => {
@@ -55,13 +62,65 @@ const Cam = () => {
       return;
     }
 
-    const result = await processGlassOperation(currentOperation.operations, employee.name, selectedProduct.product.name);
+    const payload = {
+      operation: "Cam",
+      employee: employee.name,
+      glass_name: selectedProduct.product.name
+    };
+
+    const result = await processGlassOperation(payload);
+    
     if (result) {
       toast.success("Cam operasyonu başarıyla işlendi");
       glassLabelPrint(selectedProduct);
       const data = await getGlassList(inputValue);
       const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
-      setGlassList(filteredData);    }
+      setGlassList(filteredData);
+    }
+  };
+
+  const handleErrorSubmit = async () => {
+    if (!selectedProduct) {
+      toast.error("Lütfen bir ürün seçin");
+      return;
+    }
+
+    if (!errorNote.trim()) {
+      toast.error("Lütfen hata açıklaması giriniz");
+      return;
+    }
+
+    try {
+      const payload = {
+        operation: "Cam",
+        employee: employee.name,
+        glass_name: selectedProduct.product.name,
+        quality_data: {
+          criteria: [{
+            id: "surface_finish",
+            name: "Surface Finish Quality",
+            passed: false,
+            notes: errorNote,
+            severity: "low"
+          }],
+          overall_notes: errorNote
+        }
+      };
+
+      const result = await processGlassOperation(payload);
+      
+      if (result) {
+        toast.success("Hata kaydı başarıyla oluşturuldu");
+        setErrorModalVisible(false);
+        setErrorNote("");
+        const data = await getGlassList(inputValue);
+        const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
+        setGlassList(filteredData);
+      }
+    } catch (error) {
+      toast.error("Hata kaydı oluşturulurken bir sorun oluştu");
+      console.error("Error submitting error data:", error);
+    }
   };
 
   const rowClassName = (data) => {
@@ -76,7 +135,7 @@ const Cam = () => {
           value={inputValue}
           onChange={handleInputChange}
           className="w-full"
-          disabled={currentJobcard?.status == "Work In Progress"}
+          // disabled={currentJobcard?.status === "Work In Progress"}
         />
       </span>
       <div className="flex justify-between gap-2 mr-2">
@@ -85,26 +144,28 @@ const Cam = () => {
           className="p-button-primary"
           onClick={handlePrintLabel}
           disabled={!selectedProduct}
-
         />
         <Button
           onClick={handleSearch}
           label="Sorgula"
           className="p-button-primary"
-          disabled={currentJobcard?.status == "Work In Progress"}
-
+          // disabled={currentJobcard?.status === "Work In Progress"}
         />
       </div>
     </div>
   );
 
   const statusBodyTemplate = (rowData) => {
-    const status = rowData.job_cards?.[0]?.status || "N/A";
+    const jobCards = rowData.job_cards || [];
+    const lastJobCard = jobCards[jobCards.length - 1];
+    const status = lastJobCard?.status || "N/A";
+    const isCorrective = lastJobCard?.is_corrective === 1;
 
     return (
       <Tag
-        value={status}
+        value={isCorrective ? `${status} (Düzeltme)` : status}
         severity={status === "Pending" ? "success" : "warning"}
+        className={isCorrective ? "bg-yellow-500" : ""}
       />
     );
   };
@@ -121,7 +182,7 @@ const Cam = () => {
 
   // Status değerlerini ve adetlerini hesaplayın
   const statusCounts = glassList?.reduce((acc, item) => {
-    const status = item.job_cards?.[0]?.status || "N/A"; // job_cards içindeki status değerini al
+    const status = item.job_cards?.[0]?.status || "N/A";
     if (!acc[status]) {
       acc[status] = 0;
     }
@@ -129,16 +190,65 @@ const Cam = () => {
     return acc;
   }, {});
 
+  const errorModalFooter = (
+    <div className="flex justify-end gap-2">
+      <Button
+        label="İptal"
+        icon="pi pi-times"
+        onClick={() => {
+          setErrorModalVisible(false);
+          setErrorNote("");
+        }}
+        className="p-button-text"
+      />
+      <Button
+        label="Kaydet"
+        icon="pi pi-check"
+        onClick={handleErrorSubmit}
+        className="p-button-primary"
+      />
+    </div>
+  );
+
   return (
     <div className="pt-2 flex text-xs h-full">
-            <div className="mr-2">
+      <Button
+        data-testid="error-modal-trigger"
+        className="hidden"
+        onClick={() => setErrorModalVisible(true)}
+      />
+      <Dialog
+        header="Hata Bildirimi"
+        visible={errorModalVisible}
+        style={{ width: '50vw' }}
+        onHide={() => {
+          setErrorModalVisible(false);
+          setErrorNote("");
+        }}
+        footer={errorModalFooter}
+      >
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="errorNote">Hata Açıklaması</label>
+            <InputTextarea
+              id="errorNote"
+              value={errorNote}
+              onChange={(e) => setErrorNote(e.target.value)}
+              rows={5}
+              className="w-full"
+              placeholder="Hata açıklamasını giriniz..."
+            />
+          </div>
+        </div>
+      </Dialog>
+
+      <div className="mr-2 flex flex-col">
         {header}
         <Card
           className="mb-4"
           title={
             <span className="text-sm font-semibold">
-              Fabrika Sipariş No: 
-              {/* {glassList?.[0].order_no} */}
+              Fabrika Sipariş No:
             </span>
           }
           subTitle={
@@ -150,10 +260,9 @@ const Cam = () => {
             </span>
           }
         />
-        {/* Cam Çeşitleri ve Adetleri Card bileşeni */}
         {glassTypes && (
           <Card className="mb-1 items-center">
-            <h3 className="text-sm font-semibold mb-2"> Cam Çeşitleri ve Adetleri</h3>
+            <h3 className="text-sm font-semibold mb-2">Cam Çeşitleri ve Adetleri</h3>
             <ul className="text-xs">
               {Object.entries(glassTypes).map(([type, count]) => (
                 <li key={type} className="flex justify-between">
@@ -164,15 +273,20 @@ const Cam = () => {
             </ul>
           </Card>
         )}
-        {/* Status Değerleri ve Adetleri Card bileşeni */}
         {statusCounts && (
           <Card className="mb-1 items-center">
-            <h3 className="text-sm font-semibold mb-2"> Durumlar</h3>
+            <h3 className="text-sm font-semibold mb-2">Durumlar</h3>
             <ul className="text-xs">
               {Object.entries(statusCounts).map(([status, count]) => (
                 <li key={status} className="flex justify-between">
-                  <span>{status === "Pending" ? "Yeni" : status === "In Progress" ? "İşlemde" :"Tamamlanan"}</span>
-                  <span className="text-sm font-semibold">{count}</span> 
+                  <span>
+                    {status === "Pending"
+                      ? "Yeni"
+                      : status === "In Progress"
+                      ? "İşlemde"
+                      : "Tamamlanan"}
+                  </span>
+                  <span className="text-sm font-semibold">{count}</span>
                 </li>
               ))}
             </ul>
@@ -180,50 +294,50 @@ const Cam = () => {
         )}
       </div>
 
-      <DataTable
-        value={glassList}
-        className="p-datatable-sm text-xs w-full h-full"
-        // paginator
-        rows={10}
-        scrollable
-        scrollHeight="flex"
-        responsiveLayout="scroll" 
-        onRowClick={handleRowClick} // Satıra tıklama olayını ekleyin
-        rowClassName={rowClassName} // Satır sınıfını belirleyin
-      >
-        <Column
-          field="poz_no"
-          header="Poz No"
-          sortable
-          style={{ width: "100px" }}
-        />
-        <Column
-          field="genislik"
-          header="Genişlik"
-          sortable
-          style={{ width: "120px" }}
-        />
-        <Column
-          field="yukseklik"
-          header="Yükseklik"
-          sortable
-          style={{ width: "120px" }}
-        />
-         <Column
-          field="sanal_adet"
-          header="Sanal Adet"
-          sortable
-          style={{ width: "120px" }}
-        />
-        <Column
-          field="job_cards[0].status"
-          header="Durumu"
-          body={statusBodyTemplate}
-          
-          style={{ width: "120px" }}
-        />
-        <Column field="aciklama" header="Cam Cinsi" sortable />
-      </DataTable>
+      <div className="flex-1 overflow-hidden">
+        <DataTable
+          value={glassList}
+          className="p-datatable-sm text-xs h-full"
+          rows={10}
+          scrollable
+          scrollHeight="calc(100vh - 100px)"
+          responsiveLayout="scroll"
+          onRowClick={handleRowClick}
+          rowClassName={rowClassName}
+        >
+          <Column
+            field="poz_no"
+            header="Poz No"
+            sortable
+            style={{ width: "100px" }}
+          />
+          <Column
+            field="genislik"
+            header="Genişlik"
+            sortable
+            style={{ width: "120px" }}
+          />
+          <Column
+            field="yukseklik"
+            header="Yükseklik"
+            sortable
+            style={{ width: "120px" }}
+          />
+          <Column
+            field="sanal_adet"
+            header="Sanal Adet"
+            sortable
+            style={{ width: "120px" }}
+          />
+          <Column
+            field="job_cards"
+            header="Durumu"
+            body={statusBodyTemplate}
+            style={{ width: "120px" }}
+          />
+          <Column field="aciklama" header="Cam Cinsi" sortable />
+        </DataTable>
+      </div>
     </div>
   );
 };

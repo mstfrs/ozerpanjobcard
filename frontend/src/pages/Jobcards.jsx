@@ -15,6 +15,7 @@ import KaynakKose from "../components/Stations/KaynakKoseTemizleme/KaynakKose";
 import Cita from "../components/Stations/Cita/Cita";
 import Kalite from "../components/Stations/Kalite/Kalite";
 import Cam from '../components/Stations/Cam/Cam';
+import SurmeHazirlama from "../components/Stations/SurmeHazirlama/SurmeHazirlama";
 
 const Jobcards = () => {
   const {
@@ -76,6 +77,8 @@ const Jobcards = () => {
         <Kalite />
       ) : currentOperation?.operations === "Cam" ? (
         <Cam />
+      ) : currentOperation?.operations === "Sürme Hazırlık" ? (
+        <SurmeHazirlama />
       ) : (
         <div className="h-1/4 w-1/3 flex mx-auto items-center justify-center">
           <img src="/files/logobg.jpg" className="mx-auto" alt="" />
