@@ -228,7 +228,7 @@ const Kalite = () => {
                   label="KALİTE"
                   icon="pi pi-print"
                   onClick={handlePrintLabel}
-                  disabled={!tesDetay || !labelInfo}
+                  // disabled={!tesDetay || !labelInfo}
                 />
               </ButtonGroup>
             </div>

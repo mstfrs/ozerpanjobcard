@@ -121,8 +121,15 @@ const Navbar = () => {
             <Dropdown
               value={currentOpt}
               onChange={(e) => handleOptiChange(e)}
-              options={jobCardList?.filter(
-                (item) => item.status !== "Completed"
+              // options={jobCardList?.filter(
+              //   (item) => item.status !== "Completed"
+              // )}
+              options={Array.from(
+                new Map(
+                  jobCardList
+                    ?.filter((item) => item.status !== "Completed")
+                    .map((item) => [item.custom_opti_no, item]) // Map: key olarak opti_no, value olarak item
+                ).values()
               )}
               optionLabel="custom_opti_no"
               placeholder="Opt No Seçiniz"
