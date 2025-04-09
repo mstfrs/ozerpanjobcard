@@ -12,6 +12,7 @@ import { ButtonGroup } from "primereact/buttongroup";
 import ErrorModal from "../../ErrorModal";
 import QualityCheck from "../../QuailtyCheck";
 import { qualityLabelPrint } from "../../../services/PrintServices";
+import { toast } from "react-toastify";
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 const Kalite = () => {
@@ -90,6 +91,37 @@ const Kalite = () => {
       });
       
       if (!barcodeDetails) {
+        setLoading(false);
+        return;
+      }
+
+      // Check for unfinished operations
+      if (barcodeDetails?.status === "error" && barcodeDetails?.error_type === "unfinished operations") {
+        const unfinishedOps = barcodeDetails.unfinished_operations;
+        
+        toast.error(
+          <div className="p-2">
+            <div className="font-bold text-lg mb-3 text-red-600">Tamamlanmamış Operasyonlar:</div>
+            <div className="space-y-2">
+              {unfinishedOps.map((op, index) => (
+                <div key={index} className="flex items-center">
+                  <span className="mr-2">•</span>
+                  <div>
+                    <div className="font-semibold text-xs:">{op.name}</div>
+                    <div className="text-xs text-gray-600">İş Kartı: {op.job_card}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>,
+          {
+            position: "top-center",
+            autoClose: false,
+            closeOnClick: true,
+            draggable: true,
+            className: "w-full max-w-md"
+          }
+        );
         setLoading(false);
         return;
       }

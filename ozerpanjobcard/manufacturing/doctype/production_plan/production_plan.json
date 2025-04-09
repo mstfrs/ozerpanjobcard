@@ -1,0 +1,18 @@
+{
+    "fields": [
+        {
+            "fieldname": "custom_serial",
+            "fieldtype": "Data",
+            "label": "Custom Serial",
+            "in_list_view": 1,
+            "in_standard_filter": 1
+        },
+        {
+            "fieldname": "custom_color",
+            "fieldtype": "Data",
+            "label": "Custom Color",
+            "in_list_view": 1,
+            "in_standard_filter": 1
+        }
+    ]
+} 

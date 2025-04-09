@@ -1,3 +1,5 @@
+from __future__ import unicode_literals
+
 app_name = "ozerpanjobcard"
 app_title = "Ozerpanjobcard"
 app_publisher = "mustafa"
@@ -188,9 +190,9 @@ ozerpandoc = [
 # ---------------
 # Override standard doctype classes
 
-# override_doctype_class = {
-# 	"ToDo": "custom_app.overrides.CustomToDo"
-# }
+override_doctype_class = {
+    "Production Plan": "ozerpanjobcard.manufacturing.doctype.production_plan.production_plan.CustomProductionPlan"
+}
 
 # Document Events
 # ---------------
