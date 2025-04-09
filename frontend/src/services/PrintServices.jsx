@@ -21,7 +21,7 @@ export const glassLabelPrint = async (selectedProduct) => {
 ^XZ`;
 
   try {
-    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_label`, {
+    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_glass_label`, {
       credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -90,7 +90,7 @@ export const qualityLabelPrint = async (tesDetay,labelInfo) => {
    
      `;
   try {
-    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_label`, {
+    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_quality_label`, {
       credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },

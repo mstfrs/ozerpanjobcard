@@ -55,7 +55,7 @@ import frappe
 import requests
 
 @frappe.whitelist(allow_guest=True)
-def print_label():
+def print_glass_label():
     try:
         # Gelen ham veriyi al
         label_data = frappe.request.get_data(as_text=True)
@@ -65,7 +65,31 @@ def print_label():
             frappe.throw("Received empty label data")
 
         # Yazıcıya istek yap
-        url = "http://192.168.0.53/pstprnt"  # Zebra yazıcısının IP'si
+        url = "http://192.168.0.213/pstprnt"  # Zebra yazıcısının IP'si
+        headers = {"Content-Type": "text/plain"}  # JSON yerine düz metin
+        response = requests.post(url, headers=headers, data=label_data)
+
+        if response.status_code == 200:
+            return {"success": True, "message": "Label sent to printer successfully"}
+        else:
+            return {"success": False, "message": f"Printer Error: {response.status_code}"}
+
+    except Exception as e:
+        frappe.log_error(f"Printer Error: {str(e)}")
+        return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
+        
+@frappe.whitelist(allow_guest=True)
+def print_quality_label():
+    try:
+        # Gelen ham veriyi al
+        label_data = frappe.request.get_data(as_text=True)
+
+        # Boş veri kontrolü
+        if not label_data.strip():
+            frappe.throw("Received empty label data")
+
+        # Yazıcıya istek yap
+        url = "http://192.168.0.227/pstprnt"  # Zebra yazıcısının IP'si
         headers = {"Content-Type": "text/plain"}  # JSON yerine düz metin
         response = requests.post(url, headers=headers, data=label_data)
 
