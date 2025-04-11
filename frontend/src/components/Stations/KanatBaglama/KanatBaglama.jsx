@@ -99,7 +99,6 @@ const KanatBaglama = () => {
                 : "/files/share/noimage.png"
               }
               alt=""
-              className=" h-full"
               />
             </div>
             <div className="w-1/4 h-full p-4 grid grid-cols-1 gap-4 justify-center place-items-start bg-slate-200 overflow-auto">

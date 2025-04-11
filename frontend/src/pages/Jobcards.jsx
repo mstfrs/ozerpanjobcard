@@ -16,6 +16,8 @@ import Cita from "../components/Stations/Cita/Cita";
 import Kalite from "../components/Stations/Kalite/Kalite";
 import Cam from '../components/Stations/Cam/Cam';
 import SurmeHazirlama from "../components/Stations/SurmeHazirlama/SurmeHazirlama";
+import SurmeBaglama from "../components/Stations/SurmeBaglama/SurmeBaglama";
+import SuperKesim from "../components/Stations/SuperKesim/SuperKesim";
 
 const Jobcards = () => {
   const {
@@ -79,6 +81,10 @@ const Jobcards = () => {
         <Cam />
       ) : currentOperation?.operations === "Sürme Hazırlık" ? (
         <SurmeHazirlama />
+      ) : currentOperation?.operations === "Sürme Bağlama" ? (
+        <SurmeBaglama />
+      ) : currentOperation?.operations === "Süper Kesim" ? (
+        <SuperKesim />
       ) : (
         <div className="h-1/4 w-1/3 flex mx-auto items-center justify-center">
           <img src="/files/logobg.jpg" className="mx-auto" alt="" />

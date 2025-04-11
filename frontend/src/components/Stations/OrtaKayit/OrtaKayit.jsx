@@ -18,7 +18,7 @@ const OrtaKayit = () => {
 
   const [tesDetay, setTesDetay] = useState();
   const [loading, setLoading] = useState(false); // Loading state
-  const [isBgActive, setIsBgActive] = useState(false);
+  const [isBgActive, setIsBgActive] = useState(false);    
 
   const handleBarkodChange = async (e) => {
     setIsBgActive(false);
@@ -95,7 +95,6 @@ const OrtaKayit = () => {
                   : "/files/share/noimage.png"
               }
               alt=""
-              className=" h-full"
             />
           </div>
           <div className="w-1/4 h-full p-4 grid grid-cols-1 gap-4 justify-center items-start place-items-center bg-slate-200 overflow-auto">

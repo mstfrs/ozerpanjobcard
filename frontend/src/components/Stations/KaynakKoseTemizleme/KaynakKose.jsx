@@ -102,7 +102,6 @@ const KaynakKose = () => {
                   : "/files/share/noimage.png"
               }
               alt=""
-              className="h-full"
             />
           {/* <img
               src={

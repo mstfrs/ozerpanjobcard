@@ -98,7 +98,7 @@ const Navbar = () => {
     if (currentOperation?.operations === "Profil Temin") {
       await completeJobCard(currentJobcard, currentJobcard.for_quantity);
       // updateProfilTeminOpt(currentOpt.name);
-    } else {
+    } else if (currentOperation?.operations === "Süper Kesim") {
       console.log(currentJobcard);
     }
     mutate("jobcarddetails");
@@ -138,6 +138,7 @@ const Navbar = () => {
           ) : null
           // <InputText value={currentBarkod} onChange={(e) => handleBarkodChange(e)} />
         }
+       
       </div>
       <div className="w-full items-center">
         <h2 className="w-full h-12 bg-red-400 rounded-md px-2 text-white text-center content-center ">
@@ -168,7 +169,7 @@ const Navbar = () => {
     
     }
 
-        {currentOperation?.operations !== "Cam" && (
+        {currentOperation?.operations !== "Cam" || currentOperation?.operations !== "Süper Kesim" && (
           <div
             onClick={() =>
               currentJobcard?.status === "Work In Progress"
@@ -191,6 +192,19 @@ const Navbar = () => {
         )}
 
         {currentOperation?.operations === "Profil Temin" ? (
+          <div
+            onClick={() =>
+              isAllProfileTransferred
+                ? handleComplete()
+                : toast.error("Tüm profillleri aktarmanız gerekmektedir")
+            }
+            className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+          >
+            <FaRegCircleStop size="2rem" className="text-red-500 " />
+            <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
+          </div>
+        ) : null}
+        {currentOperation?.operations === "Süper Kesim" ? (
           <div
             onClick={() =>
               isAllProfileTransferred
