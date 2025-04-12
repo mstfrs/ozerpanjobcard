@@ -1,5 +1,5 @@
 import { useFrappeAuth } from "frappe-react-sdk";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -8,9 +8,12 @@ export const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const passwordInputRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const loginTimeoutRef = useRef(null);
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     try {
       await login({
         username: email,
@@ -23,8 +26,47 @@ export const Login = () => {
     }
   };
 
-  
+  // Handle email input change
+  const handleEmailChange = (e) => {
+    setEmail(e.target.value);
+    if (e.target.value.length > 0) {
+      // Small delay to ensure barcode is fully read
+      setTimeout(() => {
+        passwordInputRef.current?.focus();
+      }, 100);
+    }
+  };
 
+  // Handle password input change
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    
+    // Clear any existing timeout
+    if (loginTimeoutRef.current) {
+      clearTimeout(loginTimeoutRef.current);
+    }
+
+    // Set new timeout for login
+    loginTimeoutRef.current = setTimeout(() => {
+      if (e.target.value.length > 0) {
+        handleSubmit();
+      }
+    }, 500); // Wait for 500ms after last character
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (loginTimeoutRef.current) {
+        clearTimeout(loginTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Focus email input on component mount
+  useEffect(() => {
+    emailInputRef.current?.focus();
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100 py-6 flex flex-col justify-center sm:py-12">
@@ -33,7 +75,7 @@ export const Login = () => {
         <div className="relative px-4 py-10 bg-white shadow-lg sm:rounded-3xl sm:p-20">
           <div className="max-w-md mx-auto">
             <div className="flex items-center justify-center">
-            <img src="/files/logobg.jpg" className="w-24 h-24"/>
+              <img src="/files/logobg.jpg" className="w-24 h-24"/>
             </div>
             
             {/* <h1 className="text-2xl font-semibold">Giriş</h1> */}
@@ -44,9 +86,10 @@ export const Login = () => {
                     id="email"
                     name="email"
                     type="text"
-                    className=" placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:border-rose-600"
+                    ref={emailInputRef}
+                    className="placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:border-rose-600"
                     placeholder="Email address"
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={handleEmailChange}
                     value={email}
                   />
                   <label
@@ -61,9 +104,10 @@ export const Login = () => {
                     id="password"
                     name="password"
                     type="password"
-                    className=" placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:border-rose-600"
+                    ref={passwordInputRef}
+                    className="placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:border-rose-600"
                     placeholder="Password"
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handlePasswordChange}
                     value={password}
                   />
                   <label
@@ -74,7 +118,7 @@ export const Login = () => {
                   </label>
                 </div>
                 <div onClick={handleSubmit} className="relative bg-slate-200 py-1 rounded-md hover:bg-slate-300 cursor-pointer">
-                  <button >Giriş</button>
+                  <button>Giriş</button>
                 </div>
               </div>
             </div>
