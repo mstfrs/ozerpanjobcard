@@ -1,5 +1,5 @@
 import { useFrappeAuth } from "frappe-react-sdk";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -8,6 +8,42 @@ export const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+
+  // Automatically focus email input on component mount
+  useEffect(() => {
+    if (emailInputRef.current) {
+      emailInputRef.current.focus();
+    }
+  }, []);
+
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setEmail(value);
+    // If the value ends with a return character (barcode scanner typically adds this)
+    if (value.includes('\n') || value.includes('\r')) {
+      // Clean the value (remove return characters)
+      const cleanValue = value.replace(/[\n\r]/g, '');
+      setEmail(cleanValue);
+      // Focus the password input
+      if (passwordInputRef.current) {
+        passwordInputRef.current.focus();
+      }
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value;
+    setPassword(value);
+    // If the value ends with a return character (barcode scanner typically adds this)
+    if (value.includes('\n') || value.includes('\r')) {
+      // Clean the value and attempt login
+      const cleanValue = value.replace(/[\n\r]/g, '');
+      setPassword(cleanValue);
+      handleSubmit(e);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -19,7 +55,13 @@ export const Login = () => {
       navigate("/jobcards");
     } catch (error) {
       console.error("Login failed", error);
-      toast.error('Kullanıcı Adı veya Şifre Hatalı')
+      toast.error('Kullanıcı Adı veya Şifre Hatalı');
+      // Reset fields and focus on email input after error
+      setEmail("");
+      setPassword("");
+      if (emailInputRef.current) {
+        emailInputRef.current.focus();
+      }
     }
   };
 
@@ -44,9 +86,10 @@ export const Login = () => {
                     id="email"
                     name="email"
                     type="text"
+                    ref={emailInputRef}
                     className=" placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:border-rose-600"
                     placeholder="Email address"
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={handleEmailChange}
                     value={email}
                   />
                   <label
@@ -61,9 +104,10 @@ export const Login = () => {
                     id="password"
                     name="password"
                     type="password"
+                    ref={passwordInputRef}
                     className=" placeholder-transparent h-10 w-full border-b-2 border-gray-300 text-gray-900 focus:outline-none focus:border-rose-600"
                     placeholder="Password"
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={handlePasswordChange}
                     value={password}
                   />
                   <label
