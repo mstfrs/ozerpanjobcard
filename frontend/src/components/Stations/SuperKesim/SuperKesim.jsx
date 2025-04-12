@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
+import { Image } from "primereact/image";
 import {
   getProfilTeminOptDetails,
   updateProfilList,
@@ -344,19 +345,21 @@ const SuperKesim = () => {
 
         {/* Sağ Panel - Ürün Görselleri */}
         <div className="w-1/3 bg-slate-200 rounded-lg p-4 ml-4">
-          <div className="grid grid-cols-2 gap-4 auto-rows-max overflow-y-auto h-full">
-            {images?.map((img, index) =>
-              img.image ? (
-                <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-white">
-                  <img
-                    src={img.image}
-                    alt={`Ürün ${img.item}`}
-                    className="w-full h-full object-contain"
-                    loading="lazy"
-                  />
-                </div>
-              ) : null
-            )}
+          <div className="h-[calc(100vh-200px)] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              {images?.map((img, index) =>
+                img.image ? (
+                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-white">
+                    <img
+                      src={img.image}
+                      alt={`Ürün ${img.item}`}
+                      className="w-full h-full object-contain"
+                      loading="lazy"
+                    />
+                  </div>
+                ) : null
+              )}
+            </div>
           </div>
         </div>
       </div>

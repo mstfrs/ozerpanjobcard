@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
+import { Image } from 'primereact/image';
 import { getItemDetails } from '../../../services/ItemServices';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Loading from '../../Loading';
@@ -248,19 +249,23 @@ const SacKesim = () => {
                     </DataTable>
                 </div>
             </div>
-            <div className="w-1/3 p-4 grid grid-cols-2 gap-4 justify-center bg-slate-200">
-                {images?.map((img, index) => (
-                    img.image && (
-                        <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-white">
-                            <img 
-                                src={img.image} 
-                                alt={`Ürün ${img.item}`}
-                                className="w-full h-full object-contain"
-                                loading="lazy"
-                            />
-                        </div>
-                    )
-                ))}
+            <div className="w-1/3 bg-slate-200 rounded-lg p-4">
+                <div className="h-[calc(100vh-200px)] overflow-y-auto">
+                    <div className="grid grid-cols-2 gap-4">
+                        {images?.map((img, index) => (
+                            img.image && (
+                                <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-white">
+                                    <img 
+                                        src={img.image} 
+                                        alt={`Ürün ${img.item}`}
+                                        className="w-full h-full object-contain"
+                                        loading="lazy"
+                                    />
+                                </div>
+                            )
+                        ))}
+                    </div>
+                </div>
             </div>
         </div>
     );
