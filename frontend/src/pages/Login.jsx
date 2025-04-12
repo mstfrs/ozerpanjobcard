@@ -1,5 +1,6 @@
 import { useFrappeAuth } from "frappe-react-sdk";
 import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -11,6 +12,42 @@ export const Login = () => {
   const passwordInputRef = useRef(null);
   const emailInputRef = useRef(null);
   const loginTimeoutRef = useRef(null);
+  const emailInputRef = useRef(null);
+  const passwordInputRef = useRef(null);
+
+  // Automatically focus email input on component mount
+  useEffect(() => {
+    if (emailInputRef.current) {
+      emailInputRef.current.focus();
+    }
+  }, []);
+
+  const handleEmailChange = (e) => {
+    const value = e.target.value;
+    setEmail(value);
+    // If the value ends with a return character (barcode scanner typically adds this)
+    if (value.includes('\n') || value.includes('\r')) {
+      // Clean the value (remove return characters)
+      const cleanValue = value.replace(/[\n\r]/g, '');
+      setEmail(cleanValue);
+      // Focus the password input
+      if (passwordInputRef.current) {
+        passwordInputRef.current.focus();
+      }
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    const value = e.target.value;
+    setPassword(value);
+    // If the value ends with a return character (barcode scanner typically adds this)
+    if (value.includes('\n') || value.includes('\r')) {
+      // Clean the value and attempt login
+      const cleanValue = value.replace(/[\n\r]/g, '');
+      setPassword(cleanValue);
+      handleSubmit(e);
+    }
+  };
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -22,7 +59,13 @@ export const Login = () => {
       navigate("/jobcards");
     } catch (error) {
       console.error("Login failed", error);
-      toast.error('Kullanıcı Adı veya Şifre Hatalı')
+      toast.error('Kullanıcı Adı veya Şifre Hatalı');
+      // Reset fields and focus on email input after error
+      setEmail("");
+      setPassword("");
+      if (emailInputRef.current) {
+        emailInputRef.current.focus();
+      }
     }
   };
 
