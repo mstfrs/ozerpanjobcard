@@ -11,6 +11,7 @@ export const Login = () => {
   const passwordInputRef = useRef(null);
   const emailInputRef = useRef(null);
   const loginTimeoutRef = useRef(null);
+  const lastInputTimeRef = useRef(Date.now());
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -28,9 +29,14 @@ export const Login = () => {
 
   // Handle email input change
   const handleEmailChange = (e) => {
+    const currentTime = Date.now();
+    const timeDiff = currentTime - lastInputTimeRef.current;
+    lastInputTimeRef.current = currentTime;
+
     setEmail(e.target.value);
-    if (e.target.value.length > 0) {
-      // Small delay to ensure barcode is fully read
+    
+    // If input is very fast (less than 50ms between characters), treat it as barcode scanner
+    if (timeDiff < 50 && e.target.value.length > 0) {
       setTimeout(() => {
         passwordInputRef.current?.focus();
       }, 100);
@@ -39,6 +45,10 @@ export const Login = () => {
 
   // Handle password input change
   const handlePasswordChange = (e) => {
+    const currentTime = Date.now();
+    const timeDiff = currentTime - lastInputTimeRef.current;
+    lastInputTimeRef.current = currentTime;
+
     setPassword(e.target.value);
     
     // Clear any existing timeout
@@ -46,12 +56,12 @@ export const Login = () => {
       clearTimeout(loginTimeoutRef.current);
     }
 
-    // Set new timeout for login
-    loginTimeoutRef.current = setTimeout(() => {
-      if (e.target.value.length > 0) {
+    // If input is very fast (less than 50ms between characters), treat it as barcode scanner
+    if (timeDiff < 50 && e.target.value.length > 0) {
+      loginTimeoutRef.current = setTimeout(() => {
         handleSubmit();
-      }
-    }, 500); // Wait for 500ms after last character
+      }, 500);
+    }
   };
 
   // Cleanup timeout on unmount
@@ -91,6 +101,11 @@ export const Login = () => {
                     placeholder="Email address"
                     onChange={handleEmailChange}
                     value={email}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        passwordInputRef.current?.focus();
+                      }
+                    }}
                   />
                   <label
                     htmlFor="email"
@@ -109,6 +124,11 @@ export const Login = () => {
                     placeholder="Password"
                     onChange={handlePasswordChange}
                     value={password}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSubmit();
+                      }
+                    }}
                   />
                   <label
                     htmlFor="password"
