@@ -78,8 +78,32 @@ const Navbar = () => {
   // };
 
   const handlelogOut = async (e) => {
-    await logout();
-    navigate("/login");
+    try {
+      // Only pause the job card if there's an active one in "Work In Progress" status
+      if (currentJobcard?.name && currentJobcard?.status === "Work In Progress") {
+        console.log("Pausing job card before logout:", currentJobcard.name);
+        
+        // Use JobCardAction to pause the job card with "Paydos" as reason
+        await JobCardAction(
+          currentJobcard,
+          employee,
+          "Paydos"
+        );
+        
+        toast.info("İş kartı duraklatıldı: Paydos");
+      }
+      
+      // Then logout as usual
+      await logout();
+      navigate("/login");
+    } catch (error) {
+      console.error("Error during logout:", error);
+      toast.error("Çıkış yaparken bir hata oluştu");
+      
+      // Still attempt to logout even if pausing the job card fails
+      await logout();
+      navigate("/login");
+    }
   };
 
   const handleClick = async (e) => {
@@ -169,7 +193,7 @@ const Navbar = () => {
     
     }
 
-        {currentOperation?.operations !== "Cam" || currentOperation?.operations !== "Süper Kesim" && (
+        {currentOperation?.operations !== "Cam" && currentOperation?.operations !== "Süper Kesim" && (
           <div
             onClick={() =>
               currentJobcard?.status === "Work In Progress"

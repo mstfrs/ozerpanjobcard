@@ -33,15 +33,20 @@ const ProfilTemin = () => {
   });
 
   // Ürün Görselleri Query
-  const { data: images, isLoading: isImageLoading } = useQuery({
+  const { data: images, isLoading: isImageLoading, error: imageError } = useQuery({
     queryKey: ["productImages", profileOptInfo?.profile_list],
     queryFn: async () => {
       if (!profileOptInfo?.profile_list) return [];
 
+      console.log("Fetching images for profile list:", profileOptInfo.profile_list);
       const uniqueItems = [...new Set(profileOptInfo.profile_list.map(item => item.item_code))];
+      console.log("Unique items to fetch:", uniqueItems);
+      
       const imageRequests = uniqueItems.map(async (item) => {
         try {
+          console.log(`Fetching details for item: ${item}`);
           const itemData = await getItemDetails(item);
+          console.log(`Received data for item ${item}:`, itemData);
           return { item, image: itemData.image };
         } catch (error) {
           console.error(`Error fetching image for item ${item}:`, error);
@@ -51,9 +56,13 @@ const ProfilTemin = () => {
 
       return Promise.all(imageRequests);
     },
-    enabled: !!profileOptInfo?.profile_list,
+    enabled: !!profileOptInfo?.profile_list && profileOptInfo.profile_list.length > 0,
     staleTime: 1000 * 60 * 5, // 5 dakika boyunca cache'den kullan
     cacheTime: 1000 * 60 * 30, // 30 dakika cache'de tut
+    retry: 2,
+    onError: (error) => {
+      console.error("Error fetching product images:", error);
+    }
   });
 
   // Profil Listesi Güncelleme Mutation
@@ -244,6 +253,19 @@ const ProfilTemin = () => {
         
         <div className="w-1/3 bg-slate-200 rounded-lg p-4">
           <div className="h-[calc(100vh-200px)] overflow-y-auto">
+            {imageError && (
+              <div className="p-3 mb-4 bg-red-100 text-red-700 rounded-lg">
+                <h3 className="font-bold">Görsel yüklenirken hata oluştu:</h3>
+                <p>{imageError.message}</p>
+              </div>
+            )}
+            
+            {images && images.length === 0 && !isImageLoading && (
+              <div className="p-3 bg-yellow-100 text-yellow-700 rounded-lg">
+                <p>Görsel bulunamadı veya yüklenemedi.</p>
+              </div>
+            )}
+            
             <div className="grid grid-cols-2 gap-4">
               {images?.map((img, index) =>
                 img.image ? (
@@ -253,9 +275,22 @@ const ProfilTemin = () => {
                       alt={`Ürün ${img.item}`}
                       className="w-full h-full object-contain"
                       loading="lazy"
+                      onError={(e) => {
+                        console.error(`Image load error for ${img.item}`);
+                        e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23f0f0f0'/%3E%3Ctext x='50' y='50' font-family='Arial' font-size='12' text-anchor='middle' dominant-baseline='middle'%3EResim Yok%3C/text%3E%3C/svg%3E";
+                      }}
                     />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-70 text-white text-xs p-1">
+                      {img.item}
+                    </div>
                   </div>
-                ) : null
+                ) : (
+                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                    <span className="text-gray-500 text-xs text-center">
+                      {img.item} - Görsel Yok
+                    </span>
+                  </div>
+                )
               )}
             </div>
           </div>

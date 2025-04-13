@@ -9,11 +9,22 @@ export const getItemDetails = async (itemNo) => {
         method: "GET",
         credentials: 'include',  
       });
+      
+      if (!response.ok) {
+        throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+      }
+      
       const data = await response.json();
-      return data.data
+      
+      if (!data || !data.data) {
+        throw new Error('Invalid response data structure');
+      }
+      
+      return data.data;
       
     } catch (error) {
-      console.error("Job Cards Fetch Error:", error);
+      console.error(`Error fetching item details for ${itemNo}:`, error);
+      throw error; // Re-throw the error for proper handling in the component
     }
   };
 
