@@ -9,13 +9,15 @@ import {
   getJobCardDetails,
   JobCardAction,
 } from "../../services/JobCardServices";
-import { useFrappeAuth, useFrappeGetDoc, useSWRConfig } from "frappe-react-sdk";
+import { useFrappeAuth, useFrappeGetDoc, useSWRConfig, useFrappeUpdateDoc } from "frappe-react-sdk";
 import Modal from "../Modal";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import useJobcardsStore from "../../store/jobcardStore";
 import ReportErrorDropdown from "../ReportErrorDropdown"
 import ErrorModal from '../ErrorModal';
+import { completeSuperKesim } from "../../services/SuperKesimServices";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 const Navbar = () => {
@@ -44,6 +46,7 @@ const Navbar = () => {
   const [reason, setReason] = useState();
   const { logout } = useFrappeAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleOperationChange = (e) => {
     setCurrentOperation(e.value);
@@ -123,7 +126,29 @@ const Navbar = () => {
       await completeJobCard(currentJobcard, currentJobcard.for_quantity);
       // updateProfilTeminOpt(currentOpt.name);
     } else if (currentOperation?.operations === "Süper Kesim") {
-      console.log(currentJobcard);
+      try {
+        console.log(currentOpt)
+        // Get the opt_no from the current job card
+        const optNo = currentOpt?.custom_opti_no;
+        if (!optNo) {
+          toast.error("Opt No bulunamadı!");
+          return;
+        }
+
+        // Update the Super Kesim record status
+        await completeSuperKesim(optNo)
+        await setCurrentOpt(null)
+
+        // Invalidate both queries to refresh the data
+        queryClient.invalidateQueries(["allSuperKesimRecords"]);
+        queryClient.invalidateQueries(["superKesimInfo"]);
+
+        toast.success("Süper Kesim kaydı başarıyla güncellendi");
+        
+      } catch (error) {
+        console.error("Super Kesim güncelleme hatası:", error);
+        toast.error("Süper Kesim kaydı güncellenirken hata oluştu");
+      }
     }
     mutate("jobcarddetails");
   };
@@ -230,11 +255,7 @@ const Navbar = () => {
         ) : null}
         {currentOperation?.operations === "Süper Kesim" ? (
           <div
-            onClick={() =>
-              isAllProfileTransferred
-                ? handleComplete()
-                : toast.error("Tüm profillleri aktarmanız gerekmektedir")
-            }
+            onClick={() => handleComplete()}
             className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
           >
             <FaRegCircleStop size="2rem" className="text-red-500 " />

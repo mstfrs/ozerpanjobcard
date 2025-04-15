@@ -18,7 +18,7 @@ import { updateSuperKesimProfileList, getAllSuperKesimRecords, getSuperKesimProf
 import { Dropdown } from "primereact/dropdown";
 
 const SuperKesim = () => {
-  const { currentOpt, currentJobcard, setIsAllProfileTransferred } = useJobcardsStore();
+  const { currentOpt, currentJobcard, setIsAllProfileTransferred, setCurrentOpt } = useJobcardsStore();
   const toast = useRef(null);
   const queryClient = useQueryClient();
 
@@ -155,7 +155,14 @@ const SuperKesim = () => {
   const handleOptiNoChange = useCallback((e) => {
     console.log("Opti No Change Event:", e.value); // Debug log
     setSelectedOptiNo(e.value);
-  }, []);
+    // Update the store's currentOpt
+    setCurrentOpt({
+      custom_opti_no: e.value.opti_no,
+      name: e.value.name
+    });
+    // Refresh superKesimInfo data
+    queryClient.invalidateQueries(["superKesimInfo", e.value?.name]);
+  }, [setCurrentOpt, queryClient]);
 
   const handleInputChange = useCallback((value, itemCode) => {
     if (value === null || value === undefined) return;
