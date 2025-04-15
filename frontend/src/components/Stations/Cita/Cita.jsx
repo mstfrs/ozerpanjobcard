@@ -123,7 +123,7 @@ const Cita = () => {
                     : "/files/share/noimage.png"
                 }
                 alt=""
-                className=" h-full w-full"
+                className="w-full"
               />
             ))}
           </div>

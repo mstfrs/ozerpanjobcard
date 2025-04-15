@@ -7,7 +7,7 @@ const KitInfoCard = ({ tesDetay }) => {
         <h2 className="font-bold text-red-600 text-base mb-1 border-b-2 border-black">Kit Bilgileri</h2>
         <div className="text-sm">
           {
-            tesDetay?.poz_data?.items?.accessory_kit?.map((item, index) => (
+            tesDetay?.poz_data?.items?.accessory_kits?.map((item, index) => (
               <div key={index} className="flex justify-start gap-1 mb-1">
                 <span className="font-bold text-red-600 ">#{item.item_code}</span>
                 <div className=" w-full flex justify-between">

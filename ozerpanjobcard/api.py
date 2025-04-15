@@ -3,6 +3,7 @@ import frappe
 @frappe.whitelist()
 def add_opt_no_to_work_orders(production_plan, opt_no):
     # Production Plan’dan üretilen Work Order'ları bulun
+    print(production_plan, opt_no)
     work_orders = frappe.get_all("Work Order", filters={"production_plan": production_plan}, fields=["name"])
 
     for wo in work_orders:
@@ -65,7 +66,7 @@ def print_glass_label():
             frappe.throw("Received empty label data")
 
         # Yazıcıya istek yap
-        url = "http://192.168.0.213/pstprnt"  # Zebra yazıcısının IP'si
+        url = "http://192.168.0.227/pstprnt"  # Zebra yazıcısının IP'si
         headers = {"Content-Type": "text/plain"}  # JSON yerine düz metin
         response = requests.post(url, headers=headers, data=label_data)
 
@@ -89,7 +90,7 @@ def print_quality_label():
             frappe.throw("Received empty label data")
 
         # Yazıcıya istek yap
-        url = "http://192.168.0.227/pstprnt"  # Zebra yazıcısının IP'si
+        url = "http://192.168.0.53/pstprnt"  # Zebra yazıcısının IP'si
         headers = {"Content-Type": "text/plain"}  # JSON yerine düz metin
         response = requests.post(url, headers=headers, data=label_data)
 
