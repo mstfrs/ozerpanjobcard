@@ -15,7 +15,7 @@ import { useRef } from "react";
 import { Button } from "primereact/button";
 
 const ProfilTemin = () => {
-  const { currentOpt, currentJobcard, setIsAllProfileTransferred } = useJobcardsStore();
+  const { currentOpt, currentJobcard, setIsAllProfileTransferred,currentJobcardStatus } = useJobcardsStore();
   const toast = useRef(null);
   const queryClient = useQueryClient();
 
@@ -142,7 +142,7 @@ const ProfilTemin = () => {
           buttonLayout="horizontal"
           max={rowData.amountboy}
           min={0}
-          disabled={currentJobcard?.status !== "Work In Progress"}
+          disabled={currentJobcardStatus !== "Work In Progress"}
           onChange={(e) => handleInputChange(e.value, rowData.item_code)}
           value={localInputValues[rowData.item_code] ?? inputValues[rowData.item_code]}
           size="small"
@@ -152,7 +152,7 @@ const ProfilTemin = () => {
           icon="pi pi-check"
           className="p-button-success p-button-sm"
           onClick={() => handleApprove(rowData.item_code)}
-          disabled={currentJobcard?.status !== "Work In Progress"}
+          disabled={currentJobcardStatus !== "Work In Progress"}
         />
       </div>
     );
@@ -200,11 +200,11 @@ const ProfilTemin = () => {
             <h3 className="text-lg font-medium">
               İstasyon: {profileOptInfo?.machine_no}
             </h3>
-            {currentJobcard && (
+            {/* {currentJobcard && (
               <h3 className="text-lg font-medium">
                 İş Kartı No: {currentJobcard?.name}
               </h3>
-            )}
+            )} */}
           </div>
 
           <DataTable

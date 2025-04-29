@@ -224,9 +224,9 @@ const SacKesim = () => {
                         icon="pi pi-complete" 
                         className="bg-red-400 p-button-raised p-button-rounded p-button-text px-2 py-1" 
                     />
-                    {currentJobcard && (
+                    {/* {currentJobcard && (
                         <h3 className='text-lg font-medium'>İş Kartı No : {currentJobcard?.name}</h3>
-                    )}
+                    )} */}
                 </div>
 
                 <Dialog 

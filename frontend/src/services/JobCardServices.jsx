@@ -4,6 +4,33 @@ import { toast } from "react-toastify";
 
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
+export const updateJobCard=async(payload)=>{
+  try {
+  const response = await fetch(
+    "/api/method/ozerpan_ercom_sync.custom_api.api.update_job_cards",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(
+        payload
+      ),
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Network response was not ok");
+  }
+
+  const data = await response.json();
+  console.log("API Response:", data);
+  toast.success("Job cards updated successfully");
+} catch (error) {
+  console.error("Error updating job cards:", error);
+  toast.error("Failed to update job cards");
+}}
+
 
 export const getJobCards = async (filters) => {
     try {
@@ -128,7 +155,6 @@ const { isSequenceValid, prevOpt } = await checkOperationSequence(jobCard);
         credentials: 'include',
         headers: {
           "Content-Type": "application/json",
-          //"Authorization": `token 6d76e6b39cc7a4d:f63543ae0fad40f`, // API anahtarı ve gizli anahtar
         },
         body: JSON.stringify(payload),
       });
@@ -184,7 +210,8 @@ const { isSequenceValid, prevOpt } = await checkOperationSequence(jobCard);
   }
 
   const submitJobCard = async (joCardId, payload) => {
-
+console.log(joCardId)
+console.log(payload)
 
     try {
       const response = await fetch(
@@ -206,7 +233,7 @@ const { isSequenceValid, prevOpt } = await checkOperationSequence(jobCard);
   };
 
 export const completeJobCard = async (jobCard,quantity) => {
-  console.log(jobCard)
+  console.log(jobCard,quantity)
     const timeLogId = jobCard.time_logs[jobCard.time_logs.length - 1].name;
     const updatedPayload = {
       to_time: formatDateToCustomFormat(new Date().toISOString()), // Bitirme zamanı güncelleniyor
@@ -216,14 +243,9 @@ export const completeJobCard = async (jobCard,quantity) => {
       parentfield: "time_logs",
 
     };
-    //await updateJobCardStatus(jobCard.name, { status:"Completed",action:'Submit'});
-    await updateJobLog(timeLogId, updatedPayload);
-    jobCard.total_completed_qty + quantity === jobCard.for_quantity ?
-      await submitJobCard(jobCard.name, { run_method: "submit" })
-      :
-     ( await updateJobCardStatus(jobCard.name, { is_paused: 1, status: "On Hold" }),
-    toast.warn('İş Kartının Tamamlanması için Üretilmesi gereken miktarı tamalamadınız '))
-  
+    await updateJobLog(timeLogId, updatedPayload); 
+    await submitJobCard(jobCard.name, { status:"Completed",action:'Submit'});
+
   };
 
 

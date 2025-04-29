@@ -8,17 +8,22 @@ import {
   completeJobCard,
   getJobCardDetails,
   JobCardAction,
+  updateJobCard,
 } from "../../services/JobCardServices";
-import { useFrappeAuth, useFrappeGetDoc, useSWRConfig, useFrappeUpdateDoc } from "frappe-react-sdk";
+import {
+  useFrappeAuth,
+  useFrappeGetDoc,
+  useSWRConfig,
+  useFrappeUpdateDoc,
+} from "frappe-react-sdk";
 import Modal from "../Modal";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import useJobcardsStore from "../../store/jobcardStore";
-import ReportErrorDropdown from "../ReportErrorDropdown"
-import ErrorModal from '../ErrorModal';
+import ReportErrorDropdown from "../ReportErrorDropdown";
+import ErrorModal from "../ErrorModal";
 import { completeSuperKesim } from "../../services/SuperKesimServices";
 import { useQueryClient } from "@tanstack/react-query";
-
 
 const Navbar = () => {
   const {
@@ -37,8 +42,9 @@ const Navbar = () => {
     employee,
     isAllSelected,
     errorModalVisible,
-    setErrorModalVisible
-        
+    setErrorModalVisible,
+    setCurrentJobcardStatus,
+    currentJobcardStatus,
   } = useJobcardsStore();
 
   const { mutate } = useSWRConfig();
@@ -52,6 +58,7 @@ const Navbar = () => {
     setCurrentOperation(e.value);
     setCurrentOpt({});
     setCurrentJobcard({});
+    setCurrentJobcardStatus("Open");
     setFilters([["operation", "=", e.value.operations]]);
   };
 
@@ -65,44 +72,48 @@ const Navbar = () => {
     setIsLoading(true);
     console.log(e.value.custom_opti_no);
     setCurrentOpt(e.value);
-    const jobcardDetail = await getJobCardDetails(
+    setCurrentJobcardStatus(
       jobCardList?.find(
         (item) => item.custom_opti_no === e.value.custom_opti_no
-      )?.name
+      )?.status
     );
-    await setCurrentJobcard(jobcardDetail);
+    console.log("currentJobcardStatus", jobCardList?.find(
+      (item) => item.custom_opti_no === e.value.custom_opti_no
+    ));
+
+    // Create an array of job card names
+    const jobCardNames = jobCardList
+      ?.filter((item) => item.custom_opti_no === e.value.custom_opti_no)
+      .map((item) => item.name);
+
+    console.log("Job Card Names:", jobCardNames);
+
+    await setCurrentJobcard(jobCardNames);
     setIsLoading(false);
   };
-
-  // const handleBarkodChange = async (e) => {
-  //   setIsLoading(true);
-  //   setCurrentBarkod(e.target.value);
-  //   setIsLoading(false);
-  // };
 
   const handlelogOut = async (e) => {
     try {
       // Only pause the job card if there's an active one in "Work In Progress" status
-      if (currentJobcard?.name && currentJobcard?.status === "Work In Progress") {
+      if (
+        currentJobcard?.name &&
+        currentJobcard?.status === "Work In Progress"
+      ) {
         console.log("Pausing job card before logout:", currentJobcard.name);
-        
+
         // Use JobCardAction to pause the job card with "Paydos" as reason
-        await JobCardAction(
-          currentJobcard,
-          employee,
-          "Paydos"
-        );
-        
+        await JobCardAction(currentJobcard, employee, "Paydos");
+
         toast.info("İş kartı duraklatıldı: Paydos");
       }
-      
+
       // Then logout as usual
       await logout();
       navigate("/login");
     } catch (error) {
       console.error("Error during logout:", error);
       toast.error("Çıkış yaparken bir hata oluştu");
-      
+
       // Still attempt to logout even if pausing the job card fails
       await logout();
       navigate("/login");
@@ -110,24 +121,36 @@ const Navbar = () => {
   };
 
   const handleClick = async (e) => {
-    const updatedJobCard = await JobCardAction(
-      currentJobcard,
-      employee?.name,
-      reason
-    );
-    console.log(currentJobcard)
-    setCurrentJobcard(updatedJobCard);
-    // mutate("jobcarddetails");
-    
+   
+    const status =
+      currentJobcardStatus === "Open" || currentJobcardStatus === "On Hold"
+        ? "Work In Progress"
+        : "On Hold";
+    setCurrentJobcardStatus(status);
+    console.log("status", status);
+    await updateJobCard({
+      job_cards: currentJobcard,
+      employee: employee?.name,
+      operation: currentOperation?.operations,
+      reason: reason,
+      status: status,
+    });
+   
   };
 
   const handleComplete = async (e) => {
-    if (currentOperation?.operations === "Profil Temin") {
-      await completeJobCard(currentJobcard, currentJobcard.for_quantity);
-      // updateProfilTeminOpt(currentOpt.name);
+    if (currentOperation?.operations === "Profil Temin" || currentOperation?.operations === "Sac Kesim") {
+      await updateJobCard({
+        job_cards: currentJobcard,
+        employee: employee?.name,
+        operation: currentOperation?.operations,
+        reason: reason,
+        status: "Completed",
+      });
+     
     } else if (currentOperation?.operations === "Süper Kesim") {
       try {
-        console.log(currentOpt)
+        console.log(currentOpt);
         // Get the opt_no from the current job card
         const optNo = currentOpt?.custom_opti_no;
         if (!optNo) {
@@ -136,15 +159,14 @@ const Navbar = () => {
         }
 
         // Update the Super Kesim record status
-        await completeSuperKesim(optNo)
-        await setCurrentOpt(null)
+        await completeSuperKesim(optNo);
+        await setCurrentOpt(null);
 
         // Invalidate both queries to refresh the data
         queryClient.invalidateQueries(["allSuperKesimRecords"]);
         queryClient.invalidateQueries(["superKesimInfo"]);
 
         toast.success("Süper Kesim kaydı başarıyla güncellendi");
-        
       } catch (error) {
         console.error("Super Kesim güncelleme hatası:", error);
         toast.error("Süper Kesim kaydı güncellenirken hata oluştu");
@@ -187,58 +209,62 @@ const Navbar = () => {
           ) : null
           // <InputText value={currentBarkod} onChange={(e) => handleBarkodChange(e)} />
         }
-       
       </div>
       <div className="w-full items-center">
         <h2 className="w-full h-12 bg-red-400 rounded-md px-2 text-white text-center content-center ">
           {currentUser}
         </h2>
       </div>
-   
+
       <div className="w-full flex items-center gap-1">
-
-      {(currentOperation?.operations === "Kalite" || currentOperation?.operations === "Cam") &&
-        <div aria-disabled={isAllSelected}
-        onClick={() => {
-          if (!isAllSelected) {
-            if (currentOperation?.operations === "Cam") {
-              document.querySelector('[data-testid="error-modal-trigger"]')?.click();
-            } else {
-              setErrorModalVisible(true);
-            }
-          }
-        }}
-        className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer ${isAllSelected ? 'cursor-not-allowed opacity-50' : 'hover:bg-red-200'}`}
-      >
-        <BiSolidError size="3rem" className="text-yellow-400 " />
-        <div  className="w-3/4 text-center text-xl ">
-          Hata
-        </div>
-      </div>
-    
-    }
-
-        {currentOperation?.operations !== "Cam" && currentOperation?.operations !== "Süper Kesim" && (
+        {(currentOperation?.operations === "Kalite" ||
+          currentOperation?.operations === "Cam") && (
           <div
-            onClick={() =>
-              currentJobcard?.status === "Work In Progress"
-                ? setVisible(true)
-                : handleClick()
-            }
-            className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+            aria-disabled={isAllSelected}
+            onClick={() => {
+              if (!isAllSelected) {
+                if (currentOperation?.operations === "Cam") {
+                  document
+                    .querySelector('[data-testid="error-modal-trigger"]')
+                    ?.click();
+                } else {
+                  setErrorModalVisible(true);
+                }
+              }
+            }}
+            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer ${
+              isAllSelected
+                ? "cursor-not-allowed opacity-50"
+                : "hover:bg-red-200"
+            }`}
           >
-            <FaPlayCircle size="2rem" className="text-red-500 " />
-            <div className="w-3/4 text-center text-xl ">
-              {jobCardLoading
-                ? "Loading..."
-                : currentJobcard?.status === "On Hold"
-                ? "Devam Et"
-                : currentJobcard?.status === "Work In Progress"
-                ? "Durdur"
-                : "Başlat"}
-            </div>
+            <BiSolidError size="3rem" className="text-yellow-400 " />
+            <div className="w-3/4 text-center text-xl ">Hata</div>
           </div>
         )}
+
+        {currentOperation?.operations !== "Cam" &&
+          currentOperation?.operations !== "Süper Kesim" && (
+            <div
+              onClick={() =>
+                currentJobcardStatus === "Work In Progress"
+                  ? setVisible(true)
+                  : handleClick()
+              }
+              className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+            >
+              <FaPlayCircle size="2rem" className="text-red-500 " />
+              <div className="w-3/4 text-center text-xl ">
+                {jobCardLoading
+                  ? "Loading..."
+                  : currentJobcardStatus === "On Hold"
+                  ? "Devam Et"
+                  : currentJobcardStatus === "Work In Progress"
+                  ? "Durdur"
+                  : "Başlat"}
+              </div>
+            </div>
+          )}
 
         {currentOperation?.operations === "Profil Temin" ? (
           <div
@@ -253,6 +279,18 @@ const Navbar = () => {
             <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
           </div>
         ) : null}
+
+        {currentOperation?.operations === "Sac Kesim" ? (
+          <div
+            onClick={() =>handleComplete()           }
+            className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+          >
+            <FaRegCircleStop size="2rem" className="text-red-500 " />
+            <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
+          </div>
+        ) : null}
+
+
         {currentOperation?.operations === "Süper Kesim" ? (
           <div
             onClick={() => handleComplete()}
@@ -277,12 +315,12 @@ const Navbar = () => {
           handleClick={handleClick}
         />
         <ErrorModal
-         errorModalVisible={errorModalVisible}
-         setErrorModalVisible={setErrorModalVisible}
-         onSubmitErrorData={(errorData) => {
-           // Handle error submission here
-           console.log("Error data:", errorData);
-         }}
+          errorModalVisible={errorModalVisible}
+          setErrorModalVisible={setErrorModalVisible}
+          onSubmitErrorData={(errorData) => {
+            // Handle error submission here
+            console.log("Error data:", errorData);
+          }}
         />
       </div>
     </div>
