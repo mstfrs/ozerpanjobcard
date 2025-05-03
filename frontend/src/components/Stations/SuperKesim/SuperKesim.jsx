@@ -160,6 +160,8 @@ const SuperKesim = () => {
       custom_opti_no: e.value.opti_no,
       name: e.value.name
     });
+    // Reset local input values
+    setLocalInputValues({});
     // Refresh superKesimInfo data
     queryClient.invalidateQueries(["superKesimInfo", e.value?.name]);
   }, [setCurrentOpt, queryClient]);

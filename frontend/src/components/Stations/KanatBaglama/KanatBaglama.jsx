@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { barcodeAction } from "../../../services/TesDetayServices";
+import { barcodeAction, revertLatestBarcodeOperation } from "../../../services/TesDetayServices";
 import CustomerInfoCard from "../../Cards/CustomerInfo";
 import AccessoryInfoCard from "../../Cards/AccessoryInfo";
 import { InputText } from "primereact/inputtext";
 import useJobcardsStore from "../../../store/jobcardStore";
 import Loading from "../../Loading";
 import KitInfoCard from "../../Cards/KitInfo";
+import { Button } from "primereact/button";
 import { toast } from "react-toastify";
 
 const KanatBaglama = () => {
@@ -16,6 +17,8 @@ const KanatBaglama = () => {
     currentBarkod,
     employee,
     currentOperation,
+    lastScannedBarkod,
+    setLastScannedBarkod,
   } = useJobcardsStore();
 
   const [tesDetay, setTesDetay] = useState();
@@ -44,10 +47,43 @@ const KanatBaglama = () => {
         setCurrentJobcard(barcodeDetails?.job_card);
         setTesDetay(barcodeDetails);
         setIsBgActive(true);
+        setLastScannedBarkod(barcodeValue); // Son okunan barkodu kaydet
       }   
     } finally {
       setLoading(false);
       setCurrentBarkod(""); // Inputu temizle ama tekrar sorgu atmasını engelle
+    }
+  };
+
+  const handleRevert = async () => {
+    if (!lastScannedBarkod || !currentOperation?.operations) {
+      toast.error("Barkod veya operasyon bilgisi eksik");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await revertLatestBarcodeOperation({
+        barcode: lastScannedBarkod,
+        operation: currentOperation.operations
+      });
+
+      console.log("Revert Response:", response);
+
+      if (response && response.tesdetays && response.tesdetays.length > 0) {
+        toast.success("İşlem başarıyla geri alındı");
+        setCurrentJobcard(null);
+        setTesDetay(null);
+        setIsBgActive(false);
+        setLastScannedBarkod(null);
+      } else {
+        toast.error("İşlem geri alınamadı");
+      }
+    } catch (error) {
+      console.error("Revert error:", error);
+      toast.error("İşlem geri alınırken bir hata oluştu");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -59,18 +95,25 @@ const KanatBaglama = () => {
 
   return (
     <>
-      <InputText
-        className="border-2 border-red-400 w-2/3 text-center text-xl font-semibold  mx-auto my-1 py-1"
-        value={currentBarkod}
-        disabled={currentJobcard?.status === "On Hold"}
-        onChange={(e) => setCurrentBarkod(e.target.value)}
-        // onBlur={(e) => handleBarkodChange(e)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            handleBarkodChange(e);
-          }
-        }}
-      />
+      <div className="flex items-center justify-center gap-2 my-2">
+        <InputText
+          className="border-2 border-red-400 w-1/2 text-center text-xl font-semibold"
+          value={currentBarkod}
+          disabled={currentJobcard?.status === "On Hold"}
+          onChange={(e) => setCurrentBarkod(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleBarkodChange(e);
+            }
+          }}
+        />
+        <Button 
+          label="Geri al" 
+          className="p-button-danger rounded-md" 
+          onClick={handleRevert}
+          disabled={!lastScannedBarkod || loading}
+        />
+      </div>
 
       {
         loading ? 

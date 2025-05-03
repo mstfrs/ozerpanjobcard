@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import { barcodeAction, getPozData } from "../../../services/TesDetayServices";
+import { barcodeAction, getPozData, revertLatestBarcodeOperation } from "../../../services/TesDetayServices";
 import CustomerInfoCard from "../../Cards/CustomerInfo";
 import { InputText } from "primereact/inputtext";
 import useJobcardsStore from "../../../store/jobcardStore";
 import Loading from "../../Loading";
+import { Button } from "primereact/button";
+import { toast } from "react-toastify";
 
 const KaynakKose = () => {
   const {
@@ -14,6 +16,8 @@ const KaynakKose = () => {
     maxSanalAdet,
     employee,
     currentOperation,
+    lastScannedBarkod,
+    setLastScannedBarkod,
   } = useJobcardsStore();
 
   const [barcodeDetails, setBarcodeDetails] = useState();
@@ -40,15 +44,46 @@ const KaynakKose = () => {
            setCurrentJobcard(barcodeDetails?.job_card);
            setTesDetay(barcodeDetails);
            setIsBgActive(true);
+           setLastScannedBarkod(barcodeValue); // Son okunan barkodu kaydet
          }
     } finally {
       setLoading(false);
       setCurrentBarkod(""); // Inputu temizle ama tekrar sorgu atmasını engelle
-      
     }
   };
 
-  
+  const handleRevert = async () => {
+    if (!lastScannedBarkod || !currentOperation?.operations) {
+      toast.error("Barkod veya operasyon bilgisi eksik");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await revertLatestBarcodeOperation({
+        barcode: lastScannedBarkod,
+        operation: currentOperation.operations
+      });
+
+      console.log("Revert Response:", response);
+
+      if (response && response.tesdetays && response.tesdetays.length > 0) {
+        toast.success("İşlem başarıyla geri alındı");
+        setCurrentJobcard(null);
+        setTesDetay(null);
+        setIsBgActive(false);
+        setLastScannedBarkod(null);
+      } else {
+        toast.error("İşlem geri alınamadı");
+      }
+    } catch (error) {
+      console.error("Revert error:", error);
+      toast.error("İşlem geri alınırken bir hata oluştu");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // useEffect(() => {
   //   if (currentBarkod) {
   //     handleBarkodChange({ target: { value: currentBarkod } });
@@ -57,18 +92,25 @@ const KaynakKose = () => {
 
   return (
     <>
+      <div className="flex items-center justify-center gap-2 my-2">
         <InputText
-        className="border-2 border-red-400 w-2/3 text-center text-xl font-semibold mx-auto my-1 py-1"
-        value={currentBarkod}
-        disabled={currentJobcard?.status === "On Hold"}
-        onChange={(e) => setCurrentBarkod(e.target.value)}
-        // onBlur={(e) => handleBarkodChange(e)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            handleBarkodChange(e);
-          }
-        }}
-      />
+          className="border-2 border-red-400 w-1/2 text-center text-xl font-semibold"
+          value={currentBarkod}
+          disabled={currentJobcard?.status === "On Hold"}
+          onChange={(e) => setCurrentBarkod(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleBarkodChange(e);
+            }
+          }}
+        />
+        <Button 
+          label="Geri al" 
+          className="p-button-danger rounded-md" 
+          onClick={handleRevert}
+          disabled={!lastScannedBarkod || loading}
+        />
+      </div>
 
       {loading ? (
         <div className="flex justify-center items-center h-full">

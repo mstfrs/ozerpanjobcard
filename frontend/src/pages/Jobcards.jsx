@@ -27,7 +27,7 @@ const Jobcards = () => {
     isLoading,
     filters,
     setCurrentUser,
-
+    currentOpt,
     setJobCardList,
     setEmployee,
   } = useJobcardsStore();
@@ -46,7 +46,7 @@ const Jobcards = () => {
     getJobCards(filters, 5).then((list) => {
       setJobCardList(list);
     });
-  }, [filters]);
+  }, [filters,currentOpt]);
 
   // useEffect(() => {
   //   getTesDetayDetails(currentOpt).then((list) => {
@@ -91,7 +91,7 @@ const Jobcards = () => {
         </div>
       )}
 
-      <div className=" pr-3 items-center flex justify-end bg-red-400">
+      {/* <div className=" pr-3 items-center flex justify-end bg-red-400">
         {currentJobcard?.status === "Work In Progress" ? (
           <ElapsedTimeCounter
             fromTime={currentJobcard?.time_logs?.at(-1).from_time}
@@ -108,7 +108,7 @@ const Jobcards = () => {
         ) : (
           <h2 className="font-semibold text-lg">Süre: 00:00:00</h2>
         )}
-      </div>
+      </div> */}
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import { create } from 'zustand'
 const useJobcardsStore = create((set) => ({
   currentUser: null,
@@ -8,6 +7,7 @@ const useJobcardsStore = create((set) => ({
   currentJobcardStatus: null,
   currentOpt: null,
   currentBarkod: null,
+  lastScannedBarkod: null,
   jobCardList: [],
   tesDetayList: [],
   employee: null,
@@ -28,6 +28,7 @@ const useJobcardsStore = create((set) => ({
   setCurrentJobcardStatus: (jobcardStatus) => set({ currentJobcardStatus: jobcardStatus }),
   setCurrentOpt: (opt) => set({ currentOpt: opt }),
   setCurrentBarkod: (barkod) => set({ currentBarkod: barkod }),
+  setLastScannedBarkod: (barkod) => set({ lastScannedBarkod: barkod }),
   setJobCardList: (list) => set({ jobCardList: list }),
   setTesDetayList: (list) => set({ tesDetayList: list }),
   setEmployee: (employee) => set({ employee: employee }),

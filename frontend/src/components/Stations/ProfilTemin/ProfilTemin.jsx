@@ -90,6 +90,12 @@ const ProfilTemin = () => {
 
   // Input değerlerini yönetmek için state
   const [localInputValues, setLocalInputValues] = useState({});
+  const [isInputDisabled, setIsInputDisabled] = useState(true);
+
+  // currentJobcardStatus değişikliğini takip et
+  useEffect(() => {
+    setIsInputDisabled(currentJobcardStatus !== "Work In Progress");
+  }, [currentJobcardStatus]);
 
   // Input değerlerini yönetmek için memoized state
   const inputValues = useMemo(() => {
@@ -142,7 +148,7 @@ const ProfilTemin = () => {
           buttonLayout="horizontal"
           max={rowData.amountboy}
           min={0}
-          disabled={currentJobcardStatus !== "Work In Progress"}
+          disabled={isInputDisabled}
           onChange={(e) => handleInputChange(e.value, rowData.item_code)}
           value={localInputValues[rowData.item_code] ?? inputValues[rowData.item_code]}
           size="small"
@@ -152,11 +158,11 @@ const ProfilTemin = () => {
           icon="pi pi-check"
           className="p-button-success p-button-sm"
           onClick={() => handleApprove(rowData.item_code)}
-          disabled={currentJobcardStatus !== "Work In Progress"}
+          disabled={isInputDisabled}
         />
       </div>
     );
-  }, [currentJobcard?.status, handleInputChange, handleApprove, inputValues, localInputValues]);
+  }, [currentJobcardStatus, handleInputChange, handleApprove, inputValues, localInputValues, isInputDisabled]);
 
   // Ürün kodu template'i
   const productCodeTemplate = useCallback((rowData) => {
