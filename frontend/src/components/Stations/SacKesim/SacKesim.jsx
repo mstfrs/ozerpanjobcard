@@ -19,6 +19,7 @@ const SacKesim = () => {
         currentJobcard,
         currentOperation,
         setIsLoading,
+        currentJobcardStatus
     } = useJobcardsStore();
     
     const toast = useRef(null);
@@ -26,7 +27,13 @@ const SacKesim = () => {
     const [progress, setProgress] = useState(0);
     const [isCompleting, setIsCompleting] = useState(false);
     const [showProgressDialog, setShowProgressDialog] = useState(false);
+    const [isInputDisabled, setIsInputDisabled] = useState(true);
     const queryClient = useQueryClient();
+
+    // currentJobcardStatus değişikliğini takip et
+    useEffect(() => {
+        setIsInputDisabled(currentJobcardStatus !== "Work In Progress");
+    }, [currentJobcardStatus]);
 
     // Sac Kesim Opt Detayları Query
     const {
@@ -141,6 +148,16 @@ const SacKesim = () => {
     }, [updateDSTListMutation]);
 
     const handleCompleteAll = useCallback(async () => {
+        if (isInputDisabled) {
+            toast.current.show({
+                severity: 'error',
+                summary: 'Hata',
+                detail: 'İş kartı "Devam Ediyor" durumunda değil',
+                life: 3000
+            });
+            return;
+        }
+
         try {
             setIsCompleting(true);
             setShowProgressDialog(true);
@@ -177,20 +194,20 @@ const SacKesim = () => {
             setIsCompleting(false);
             setShowProgressDialog(false);
         }
-    }, [sacKesimOptInfo?.dst_list, currentOperation, currentJobcard, updateDSTListMutation]);
+    }, [sacKesimOptInfo?.dst_list, currentOperation, currentJobcard, updateDSTListMutation, isInputDisabled]);
 
     // Template Functions
     const actionTemplate = useCallback((rowData) => {
         return (
             <button 
                 className='disabled:text-gray-400 font-bold' 
-                disabled={currentJobcard?.status !== "Work In Progress"}
+                disabled={isInputDisabled}
                 onClick={() => onRowDoubleClick(rowData)}
             >
                 Tamamla
             </button>
         );
-    }, [currentJobcard?.status, onRowDoubleClick]);
+    }, [isInputDisabled, onRowDoubleClick]);
 
     const rowClassName = useCallback((rowData) => {
         if (rowData === selectedRow) {
@@ -219,7 +236,7 @@ const SacKesim = () => {
                     <h3 className='text-lg font-medium'>İstasyon : {sacKesimOptInfo?.machine_no}</h3>
                     <Button 
                         onClick={handleCompleteAll} 
-                        disabled={currentJobcard?.status !== "Work In Progress" || isCompleting}
+                        disabled={isInputDisabled || isCompleting}
                         label="Toplu Bitir" 
                         icon="pi pi-complete" 
                         className="bg-red-400 p-button-raised p-button-rounded p-button-text px-2 py-1" 

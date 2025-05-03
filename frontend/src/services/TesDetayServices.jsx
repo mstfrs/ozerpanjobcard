@@ -148,6 +148,27 @@ export const getAllBarcodesOfPoz = async (pozNo,siparisNo) => {
     }
   };
 
- 
+  export const revertLatestBarcodeOperation = async (params) => {
+    try {
+      const response = await fetch(`${baseUrl}/method/ozerpan_ercom_sync.custom_api.api.revert_latest_barcode_operation`, {
+        credentials: 'include',
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params)
+      });
+
+      const data = await response.json();
+      console.log("API Response:", data); // Debug için
+
+      if (!response.ok) {
+        throw new Error(data.message?.message || `HTTP error! Status: ${response.status}`);
+      }
+
+      return data.message;
+    } catch (error) {
+      console.error("Hata:", error);
+      throw error;
+    }
+  };
 
   
