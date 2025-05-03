@@ -1,7 +1,7 @@
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 export const glassLabelPrint = async (selectedProduct) => {
-    const{product,glassDetails}=selectedProduct;
+    const{product,glassDetails}=selectedProduct;    
   const zpl = `     
 ^XA
 ^CWZ,E:ARIAL.TTF
@@ -10,7 +10,7 @@ export const glassLabelPrint = async (selectedProduct) => {
 ^PW679
 ^LL679
 ^FO220,415^A0N,20,20^FB256,2,5,L,8^FD${product?.order_no}^FS
-^FO220,470^A0N,20,20^FB256,2,5,L,8^FD${glassDetails?.custom_item_name}^FS
+^FO220,470^A0N,20,20^FB256,2,5,L,8^FD${product?.aciklama}^FS
 ^FO220,530^A0N,20,20^FB256,2,5,L,8^FD${product?.genislik} X ${product?.yukseklik}^FS
 ^FO220,565^A0N,20,20^FB256,2,5,L,8^FD${product?.cari_unvan} / ${product?.musteri}^FS
 ^FO520,240^A0N,20,20^FD1783^FS

@@ -58,7 +58,7 @@ const Navbar = () => {
     setCurrentOperation(e.value);
     setCurrentOpt({});
     setCurrentJobcard({});
-    setCurrentJobcardStatus("Open");
+    setCurrentJobcardStatus();
     setFilters([["operation", "=", e.value.operations]]);
   };
 
