@@ -157,7 +157,7 @@ const OrtaKayit = () => {
         </div>
       ) : (
         <div className="h-[600px] flex items-center justify-center">
-          <img src="/files/logobg.jpg" className=" h-2/3" alt="" />
+          <img src="/files/logobg.png" className=" h-2/3" alt="" />
         </div>
       )}
     </>

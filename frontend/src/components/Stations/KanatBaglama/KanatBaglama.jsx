@@ -123,8 +123,8 @@ const KanatBaglama = () => {
          : 
          isBgActive ?
          (
-         <div className="w-full flex justify-between h-[calc(100vh-150px)]  px-3 py-2">
-            <div className="flex flex-col flex-1 bg-slate-100 w-1/4 overflow-auto ">
+         <div className="w-full flex justify-between h-auto px-3 py-2">
+            <div className="flex flex-col flex-1 bg-slate-200 w-1/4 overflow-auto ">
               <div className="w-full flex justify-between items-center bg-slate-200 p-1 ">
               {currentJobcard && (
                 <h3 className="text-lg font-medium">
@@ -153,7 +153,7 @@ const KanatBaglama = () => {
           )
         : (
           <div className="h-[600px] flex items-center justify-center">
-            <img src="/files/logobg.jpg" className=" h-2/3" alt="" />
+            <img src="/files/logobg.png" className=" h-2/3" alt="" />
           </div>
         )
       }

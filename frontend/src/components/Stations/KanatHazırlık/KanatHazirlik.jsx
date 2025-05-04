@@ -7,6 +7,7 @@ import useJobcardsStore from "../../../store/jobcardStore";
 import Loading from "../../Loading";
 import { Button } from "primereact/button";
 import { toast } from "react-toastify";
+import KitInfoCard from "../../Cards/KitInfo";
 
 const KanatHazirlik = () => {
   const {
@@ -91,7 +92,7 @@ const KanatHazirlik = () => {
 
   return (
     <>
-      <div className="flex items-center justify-center gap-2 my-2">
+      <div className="flex items-center justify-center gap-2 my-1">
         <InputText
           className="border-2 border-red-400 w-1/2 text-center text-xl font-semibold"
           value={currentBarkod}
@@ -116,7 +117,7 @@ const KanatHazirlik = () => {
           <Loading />
         </div>
       ) : isBgActive ? (
-        <div className="w-full flex justify-between h-[calc(100vh-150px)] px-3 py-2">
+        <div className="w-full flex justify-between h-auto px-3 py-2 overflow-auto">
           <div className="flex flex-col flex-1 bg-slate-100 w-1/4 overflow-auto">
             <div className="w-full flex justify-between items-center bg-slate-200 p-1">
               {currentJobcard && (
@@ -127,6 +128,7 @@ const KanatHazirlik = () => {
             </div>
             <CustomerInfoCard tesDetay={tesDetay} />
             <AccessoryInfoCard tesDetay={tesDetay} />
+            <KitInfoCard tesDetay={tesDetay} />
           </div>
           <div className="w-2/4 p-4 flex gap-4 justify-center bg-slate-200">
             <img
@@ -158,7 +160,7 @@ const KanatHazirlik = () => {
         </div>
       ) : (
         <div className="h-[600px] flex items-center justify-center">
-          <img src="/files/logobg.jpg" className="h-2/3" alt="" />
+          <img src="/files/logobg.png" className="h-2/3" alt="" />
         </div>
       )}
     </>

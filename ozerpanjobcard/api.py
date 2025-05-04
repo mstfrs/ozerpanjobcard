@@ -2,7 +2,7 @@ import frappe
 
 @frappe.whitelist()
 def add_opt_no_to_work_orders(production_plan, opt_no):
-    # Production Plan’dan üretilen Work Order'ları bulun
+    # Production Plan'dan üretilen Work Order'ları bulun
     print(production_plan, opt_no)
     work_orders = frappe.get_all("Work Order", filters={"production_plan": production_plan}, fields=["name"])
 
@@ -76,7 +76,10 @@ def print_glass_label():
             return {"success": False, "message": f"Printer Error: {response.status_code}"}
 
     except Exception as e:
-        frappe.log_error(f"Printer Error: {str(e)}")
+        frappe.log_error(
+            title="Printer Error",
+            message=f"{e.__class__.__name__}: {str(e)[:500]}"
+        )
         return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
         
 @frappe.whitelist(allow_guest=True)
@@ -100,7 +103,11 @@ def print_quality_label():
             return {"success": False, "message": f"Printer Error: {response.status_code}"}
 
     except Exception as e:
-        frappe.log_error(f"Printer Error: {str(e)}")
+        frappe.log_error(
+            title="Printer Error",
+            message=f"{e.__class__.__name__}: {str(e)[:500]}"  # Description'a uzun yaz, title kısa kalsın
+        )
+
         return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
 
 import frappe
@@ -130,16 +137,28 @@ def get_quality_label_items(quality_check_code, total_mtul):
 
 @frappe.whitelist()
 def get_glass_list(order_no):
-    camlar = frappe.get_all(
-        "CamListe",
-        filters={"order_no": order_no},
-        fields=["*"]  # Tüm alanları getir
-    )
-
-    # Eğer child table varsa ve onu da getirmek istiyorsan:
-    for cam in camlar:
-        cam_doc = frappe.get_doc("CamListe", cam.name)
-        cam["job_cards"] = [g.as_dict() for g in cam_doc.job_cards]  # örnek olarak child table adı 'glasses'
-
-    return camlar
+    try:
+        frappe.logger().debug(f"Getting glass list for order: {order_no}")
+        
+        if not order_no:
+            frappe.throw("Order number is required")
+            
+        camlar = frappe.get_all(
+            "CamListe",
+            filters={"order_no": order_no},
+            fields=["*"]
+        )
+        
+        frappe.logger().debug(f"Found {len(camlar)} glass records")
+        
+        for cam in camlar:
+            cam_doc = frappe.get_doc("CamListe", cam.name)
+            cam["job_cards"] = [g.as_dict() for g in cam_doc.job_cards]
+            
+        frappe.logger().debug(f"Returning glass list with job cards")
+        return camlar
+        
+    except Exception as e:
+        frappe.logger().error(f"Error in get_glass_list: {str(e)}")
+        frappe.throw(f"Error getting glass list: {str(e)}")
 

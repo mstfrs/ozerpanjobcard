@@ -60,20 +60,8 @@ const Navbar = () => {
     setCurrentJobcard({});
     setCurrentJobcardStatus();
     setFilters([["operation", "=", e.value.operations]]);
-    console.log( Array.from(
-      new Set(
-        jobCardList
-          ?.filter(item => item.status !== "Completed")
-          .map(item => item.custom_opti_no)
-          .filter(Boolean)
-      )
-    ).map(optiNo => 
-      ({
-        label: `Opt No:`,
-        custom_opti_no: optiNo
-      })
-    ));};
-  console.log(jobCardList)
+ 
+  };
 
   const {
     data: jobCard,

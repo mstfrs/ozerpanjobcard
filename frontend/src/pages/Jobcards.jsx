@@ -59,7 +59,7 @@ const Jobcards = () => {
   }
 
   return (
-    <div className="h-dvh flex flex-col justify-between">
+    <div className="h-dvh flex flex-col bg-slate-200 ">
       <Navbar />
       {currentOperation?.operations === "Profil Temin" ? (
         <ProfilTemin />
@@ -87,7 +87,7 @@ const Jobcards = () => {
         <SuperKesim />
       ) : (
         <div className="h-1/4 w-1/3 flex mx-auto items-center justify-center">
-          <img src="/files/logobg.jpg" className="mx-auto" alt="" />
+          <img src="/files/logobg.png" className="mx-auto" alt="" />
         </div>
       )}
 

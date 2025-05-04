@@ -34,9 +34,8 @@ const Cam = () => {
   };
 
   const handleSearch = async () => {
-    const data = await getGlassList(inputValue);
+    const data = await getGlassList(inputValue);   
     const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
-    
     if (filteredData.length === 0) {
       toast.error("Siparişe ait üretilecek Cam bulunamadı");
       setGlassList([]);

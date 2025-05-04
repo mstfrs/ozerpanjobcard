@@ -13,6 +13,9 @@ import ErrorModal from "../../ErrorModal";
 import QualityCheck from "../../QuailtyCheck";
 import { qualityLabelPrint } from "../../../services/PrintServices";
 import { toast } from "react-toastify";
+import { QRCodeSVG } from "qrcode.react";
+import { Dialog } from "primereact/dialog";
+import UnfinishedOperationsModal from "../../Modals/UnfinishedOperationsModal";
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 const Kalite = () => {
@@ -36,6 +39,10 @@ const Kalite = () => {
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [totalMtul, setTotalMtul] = useState(0);
   const [labelInfo, setLabelInfo] = useState(null);
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrCodeValue, setQrCodeValue] = useState("");
+  const [showUnfinishedOpsModal, setShowUnfinishedOpsModal] = useState(false);
+  const [unfinishedOps, setUnfinishedOps] = useState([]);
 
   const handleCriteriaChange = useCallback((selectedCategories) => {
     const formattedCriteria = selectedCategories.map((category) => ({
@@ -89,6 +96,7 @@ const Kalite = () => {
         employee: employee?.name,
         operation: currentOperation?.operations,
       });
+      console.log("barcodeDetails", barcodeDetails);
       
       if (!barcodeDetails) {
         setLoading(false);
@@ -97,31 +105,8 @@ const Kalite = () => {
 
       // Check for unfinished operations
       if (barcodeDetails?.status === "error" && barcodeDetails?.error_type === "unfinished operations") {
-        const unfinishedOps = barcodeDetails.unfinished_operations;
-        
-        toast.error(
-          <div className="p-2">
-            <div className="font-bold text-lg mb-3 text-red-600">Tamamlanmamış Operasyonlar:</div>
-            <div className="space-y-2">
-              {unfinishedOps.map((op, index) => (
-                <div key={index} className="flex items-center">
-                  <span className="mr-2">•</span>
-                  <div>
-                    <div className="font-semibold text-xs:">{op.name}</div>
-                    <div className="text-xs text-gray-600">İş Kartı: {op.job_card}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>,
-          {
-            position: "top-center",
-            autoClose: false,
-            closeOnClick: true,
-            draggable: true,
-            className: "w-full max-w-md"
-          }
-        );
+        setUnfinishedOps(barcodeDetails.unfinished_operations);
+        setShowUnfinishedOpsModal(true);
         setLoading(false);
         return;
       }
@@ -139,6 +124,7 @@ const Kalite = () => {
       // Fetch label info after states are set
       const labelItems = await getQualityLabelItems(newQualityCheckCode, calculatedMtul);
       setLabelInfo(labelItems);
+      console.log("labelItems", labelItems);
     } catch (error) {
       console.error("Barkod işlemi sırasında hata:", error);
     } finally {
@@ -214,6 +200,19 @@ const Kalite = () => {
     }
   }, [tesDetay, labelInfo]);
 
+  const handlePVCKimlik = useCallback(() => {
+    if (!tesDetay?.poz_data) {
+      toast.error("Barkod okutulmamış!");
+      return;
+    }
+
+    const { siparis_no, poz_no, sanal_adet } = tesDetay.poz_data;
+    const serial = `${siparis_no}-${poz_no}-${sanal_adet}`;
+    const qrCodeUrl = `${baseUrl}/customer?serial=${serial}`;
+    setQrCodeValue(qrCodeUrl);
+    setShowQRCode(true);
+  }, [tesDetay, baseUrl]);
+
   useEffect(() => {
     setCurrentBarkod("");
   }, [setCurrentBarkod]);
@@ -255,12 +254,11 @@ const Kalite = () => {
           <div className="flex flex-col flex-1 bg-slate-100 w-1/4 overflow-auto">
             <div className="w-full flex justify-between items-center bg-slate-200 p-1">
               <ButtonGroup>
-                <Button label="PVC KİMLİK" icon="pi pi-qrcode" />
+                <Button label="PVC KİMLİK" icon="pi pi-qrcode" onClick={handlePVCKimlik} />
                 <Button
                   label="KALİTE"
                   icon="pi pi-print"
                   onClick={handlePrintLabel}
-                  // disabled={!tesDetay || !labelInfo}
                 />
               </ButtonGroup>
             </div>
@@ -304,6 +302,30 @@ const Kalite = () => {
           </div>
         </div>
       )}
+
+      <Dialog
+        header="PVC Kimlik QR Kodu"
+        visible={showQRCode}
+        style={{ width: '50vw' }}
+        onHide={() => setShowQRCode(false)}
+        modal
+      >
+        <div className="flex flex-col items-center justify-center p-4">
+          <QRCodeSVG
+            value={qrCodeValue}
+            size={256}
+            level="H"
+            includeMargin={true}
+          />
+          <p className="mt-4 text-sm text-gray-600 break-all">{qrCodeValue}</p>
+        </div>
+      </Dialog>
+
+      <UnfinishedOperationsModal
+        visible={showUnfinishedOpsModal}
+        onHide={() => setShowUnfinishedOpsModal(false)}
+        unfinishedOps={unfinishedOps}
+      />
     </>
   );
 };
