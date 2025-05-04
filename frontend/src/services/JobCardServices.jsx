@@ -35,7 +35,7 @@ export const updateJobCard=async(payload)=>{
 export const getJobCards = async (filters) => {
     try {
       const response = await fetch(
-        `${baseUrl}/resource/Job Card?fields=["*"]&filters=${JSON.stringify(filters)}`
+        `${baseUrl}/resource/Job Card?fields=["*"]&filters=${JSON.stringify(filters)}&limit=0`
       ,{
         method: "GET",
         credentials: 'include',  
