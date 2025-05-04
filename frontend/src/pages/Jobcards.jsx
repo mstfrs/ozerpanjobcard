@@ -86,7 +86,7 @@ const Jobcards = () => {
       ) : currentOperation?.operations === "Süper Kesim" ? (
         <SuperKesim />
       ) : (
-        <div className="h-1/4 w-1/3 flex mx-auto items-center justify-center">
+        <div className="h-full w-1/3 flex mx-auto items-center justify-center">
           <img src="/files/logobg.png" className="mx-auto" alt="" />
         </div>
       )}

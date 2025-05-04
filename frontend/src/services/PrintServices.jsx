@@ -137,7 +137,7 @@ export const surmeLabelPrint = async (pozDetails) => {
 ^XZ`;
 
   try {
-    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_label`, {
+    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_surme_label`, {
       credentials: "include",
       method: "POST",
       headers: { "Content-Type": "application/json" },
