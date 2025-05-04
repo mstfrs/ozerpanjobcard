@@ -208,7 +208,7 @@ const Navbar = () => {
               options={Array.from(
                 new Set(
                   jobCardList
-                    ?.filter(item => item.status !== "Completed")
+                    ?.filter(item => item.status !== "Completed" && item.operation === currentOperation?.operations)
                     .map(item => item.custom_opti_no)
                     .filter(Boolean)
                 )
