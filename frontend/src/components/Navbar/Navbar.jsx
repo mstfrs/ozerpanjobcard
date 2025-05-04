@@ -60,7 +60,20 @@ const Navbar = () => {
     setCurrentJobcard({});
     setCurrentJobcardStatus();
     setFilters([["operation", "=", e.value.operations]]);
-  };
+    console.log( Array.from(
+      new Set(
+        jobCardList
+          ?.filter(item => item.status !== "Completed")
+          .map(item => item.custom_opti_no)
+          .filter(Boolean)
+      )
+    ).map(optiNo => 
+      ({
+        label: `Opt No:`,
+        custom_opti_no: optiNo
+      })
+    ));};
+  console.log(jobCardList)
 
   const {
     data: jobCard,
@@ -196,12 +209,25 @@ const Navbar = () => {
               //   (item) => item.status !== "Completed"
               // )}
               options={Array.from(
-                new Map(
+                new Set(
                   jobCardList
-                    ?.filter((item) => item.status !== "Completed")
-                    .map((item) => [item.custom_opti_no, item]) // Map: key olarak opti_no, value olarak item
-                ).values()
+                    ?.filter(item => item.status !== "Completed")
+                    .map(item => item.custom_opti_no)
+                    .filter(Boolean)
+                )
+              ).map(optiNo => 
+                ({
+                  label: `Opt No:`,
+                  custom_opti_no: optiNo
+                })
               )}
+              // options={Array.from(
+              //   new Map(
+              //     jobCardList
+              //       ?.filter((item) => item.status !== "Completed")
+              //       .map((item) => [item.custom_opti_no, item]) // Map: key olarak opti_no, value olarak item
+              //   ).values()
+              // )}
               optionLabel="custom_opti_no"
               placeholder="Opt No Seçiniz"
               className="w-60 md:w-20rem border rounded "
