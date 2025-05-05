@@ -109,21 +109,11 @@ const SacKesim = () => {
                 );
                 return { ...oldData, dst_list: updatedDstList };
             });
-            toast.current.show({
-                severity: 'success',
-                summary: 'Başarılı',
-                detail: 'İşlem tamamlandı',
-                life: 3000
-            });
+        
         },
         onError: (error) => {
             console.error("Güncelleme hatası:", error);
-            toast.current.show({
-                severity: 'error',
-                summary: 'Hata',
-                detail: 'İşlem tamamlanırken hata oluştu',
-                life: 3000
-            });
+        
         },
     });
 
@@ -219,7 +209,7 @@ const SacKesim = () => {
         return colorMap[rowData.item_code];
     }, [selectedRow, colorMap]);
 
-    if (isSacKesimOptLoading || isImageLoading) return <Loading />;
+    // if (isSacKesimOptLoading || isImageLoading) return <Loading />;
     if (isOptError) {
         return (
             <div className="flex items-center justify-center h-full text-red-500">
