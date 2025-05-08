@@ -42,7 +42,8 @@ doc_events.update({
     # }
 #]
 fixtures = [
-    # {"dt": "Custom Field", "filters": [["module", "=", "Ozerpanjobcard"]]},
+    {"dt": "Custom Field", "filters": [["module", "=", "Ozerpanjobcard"]]},
+    # {"dt": "Web Page", "filters": [["module", "=", "Ozerpanjobcard"]]},
     # {"dt": "Property Setter", "filters": [["module", "=", "Ozerpanjobcard"]]},
     #{"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
     # {"dt": "Item Group"},
@@ -52,8 +53,8 @@ fixtures = [
     # {"dt": "Cam"},
     # {"dt": "Cam Recipe"},
     # {"dt": "Profile Type"},
-    {"dt": "Quality Label Items"},
-    {"dt": "Quality Label Frame Codes"},
+    # {"dt": "Quality Label Items"},
+    # {"dt": "Quality Label Frame Codes"},
 ]
 
 ozerpandoc = [
@@ -104,7 +105,8 @@ ozerpandoc = [
 # page_js = {"page" : "public/js/file.js"}
 
 # include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+
+doctype_js = {"Production Plan" : "public/js/production_plan/production_plan.js"}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -305,3 +307,6 @@ override_doctype_class = {
 
 
 website_route_rules = [{'from_route': '/ozerpanjobcard/<path:app_path>', 'to_route': 'ozerpanjobcard'},]
+app_include_js = [
+        "/assets/ozerpanjobcard/js/ozerpancustomer.js"
+]
