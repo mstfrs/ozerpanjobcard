@@ -36,10 +36,13 @@ frappe.ui.form.on("Production Plan", {
 			// Get selected rows data from po_items
 			selected_ids.forEach((id) => {
 				const row = frm.doc.po_items.find((item) => item.name === id);
-				if (row && row.custom_mtul_per_piece) {
-					const value = flt(row.custom_mtul_per_piece);
-					total += value;
-				}
+				console.log(row);
+				
+					const m2_value = flt(row.custom_mtul_per_piece);
+					const quantity = flt(row.planned_qty);
+					total += m2_value * quantity;
+					console.log(total);
+				
 			});
 		}
 
