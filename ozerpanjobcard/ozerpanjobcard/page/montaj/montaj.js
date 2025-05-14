@@ -5,9 +5,9 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 		single_column: true
 	});
 
-	// Require barcode scanner module
+	// Require barcode scanner library
 	frappe.require([
-		'assets/frappe/js/lib/barcode_scanner/barcode_scanner.js'
+		'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
 	], function() {
 		// Form container
 		let $form = $(`<div class="montaj-form"></div>`).appendTo(page.main);
@@ -23,6 +23,23 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 					</button>
 				</div>
 				<small class="form-text text-muted">Barkodu okutunuz veya manuel giriniz</small>
+			</div>
+
+			<!-- Barkod Tarayıcı Modal -->
+			<div class="modal fade" id="barcodeScannerModal" tabindex="-1" role="dialog">
+				<div class="modal-dialog" role="document">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title">Barkod Tarayıcı</h5>
+							<button type="button" class="close" data-dismiss="modal">
+								<span>&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							<div id="reader"></div>
+						</div>
+					</div>
+				</div>
 			</div>
 
 			<!-- Barkod Tablosu -->
@@ -73,70 +90,65 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 
 		$form.html(form_html);
 
-		// Barkod tablosu için veri saklama
-		let scannedItems = [];
-
-		// Barkod okutma işlemi
-		$('#barcode').on('keypress', function(e) {
-			if (e.which === 13) { // Enter tuşu
-				e.preventDefault();
-				let barcode = $(this).val();
-				
-				if (barcode) {
-					// TesDetay tablosundan bilgileri çek
-					frappe.get_barcode_details(barcode)
-						.then(result => {
-							if (result) {
-								let item = {
-									item_code: result.siparis_no + '-' + result.poz_no,
-									serial_no: result.siparis_no + '-' + result.poz_no + '-' + result.sanal_adet
-								};
-
-								// Tabloya ekle
-								addToTable(item);
-								// Veriyi sakla
-								scannedItems.push(item);
-								// Input'u temizle
-								$('#barcode').val('');
-							} else {
-								frappe.msgprint('Barkod bulunamadı!');
-							}
-						})
-						.catch(err => {
-							frappe.msgprint('Barkod sorgulanırken bir hata oluştu!');
-							console.error(err);
-						});
-				}
-			}
-		});
+		// Barkod tarayıcı değişkeni
+		let html5QrcodeScanner = null;
 
 		// Kamera butonu için event listener
 		$('#cameraBtn').on('click', function() {
-			// Mobil cihaz kontrolü
-			if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-				// Barkod tarayıcıyı başlat
-				frappe.barcode_scanner.start({
-					on_scan: function(barcode) {
-						$('#barcode').val(barcode);
-						$('#barcode').trigger('keypress', [{which: 13}]);
+			$('#barcodeScannerModal').modal('show');
+			
+			// Tarayıcıyı başlat
+			if (!html5QrcodeScanner) {
+				html5QrcodeScanner = new Html5Qrcode("reader");
+				html5QrcodeScanner.start(
+					{ facingMode: "environment" },
+					{
+						fps: 10,
+						qrbox: { width: 250, height: 250 },
+						formatsToSupport: [
+							Html5QrcodeSupportedFormats.CODE_128,
+							Html5QrcodeSupportedFormats.EAN_13,
+							Html5QrcodeSupportedFormats.EAN_8,
+							Html5QrcodeSupportedFormats.UPC_A,
+							Html5QrcodeSupportedFormats.UPC_E,
+							Html5QrcodeSupportedFormats.CODE_39
+						]
 					},
-					on_error: function(error) {
-						frappe.msgprint('Barkod tarama hatası: ' + error);
-					}
-				});
-			} else {
-				frappe.msgprint('Bu özellik sadece mobil cihazlarda kullanılabilir.');
+					onScanSuccess,
+					onScanFailure
+				);
 			}
 		});
 
-		// Barkod input alanına tıklandığında
-		$('#barcode').on('focus', function() {
-			// Mobil cihaz kontrolü
-			if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-				// Kamera butonuna tıkla
-				$('#cameraBtn').click();
+		// Modal kapandığında tarayıcıyı durdur
+		$('#barcodeScannerModal').on('hidden.bs.modal', function() {
+			if (html5QrcodeScanner) {
+				html5QrcodeScanner.stop().then(() => {
+					html5QrcodeScanner = null;
+				});
 			}
 		});
+
+		// Başarılı tarama
+		function onScanSuccess(decodedText, decodedResult) {
+			$('#barcode').val(decodedText);
+			$('#barcode').trigger('keypress', [{which: 13}]);
+			$('#barcodeScannerModal').modal('hide');
+		}
+
+		// Tarama hatası
+		function onScanFailure(error) {
+			// Hata durumunda sessizce devam et
+			console.warn(`Tarama hatası: ${error}`);
+		}
+
+		// Barkod input alanına tıklandığında
+		$('#barcode').on('focus', function() {
+			$('#cameraBtn').click();
+		});
+
+		// Barkod tablosu için veri saklama
+		let scannedItems = [];
 
 		// Barkod detaylarını getiren metod
 		frappe.get_barcode_details = function(barcode) {
@@ -329,202 +341,6 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 			});
 		});
 
-		// Add custom CSS
-		$('<style>')
-			.text(`
-				.montaj-form {
-					max-width: 800px;
-					margin: 20px auto;
-					padding: 30px;
-					background: #fff;
-					border-radius: 12px;
-					box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-				}
-				.form-group {
-					margin-bottom: 25px;
-				}
-				.form-group label {
-					display: block;
-					margin-bottom: 10px;
-					font-weight: 600;
-					color: #2c3e50;
-					font-size: 0.95rem;
-				}
-				.form-control {
-					width: 100%;
-					padding: 12px 15px;
-					border: 2px solid #e0e0e0;
-					border-radius: 8px;
-					font-size: 14px;
-					transition: all 0.3s ease;
-					background-color: #f8f9fa;
-				}
-				.form-control:focus {
-					border-color: #3498db;
-					outline: none;
-					box-shadow: 0 0 0 3px rgba(52,152,219,0.2);
-					background-color: #fff;
-				}
-				.form-text {
-					font-size: 12px;
-					color: #7f8c8d;
-					margin-top: 6px;
-				}
-				.btn-save {
-					background-color: #2ecc71;
-					color: white;
-					padding: 14px 28px;
-					border: none;
-					border-radius: 8px;
-					cursor: pointer;
-					font-size: 16px;
-					font-weight: 600;
-					transition: all 0.3s ease;
-					margin-top: 30px;
-					width: 100%;
-					text-transform: uppercase;
-					letter-spacing: 0.5px;
-				}
-				.btn-save:hover {
-					background-color: #27ae60;
-					transform: translateY(-2px);
-					box-shadow: 0 4px 12px rgba(46,204,113,0.2);
-				}
-				.btn-save:active {
-					transform: translateY(0);
-				}
-				.barcode-table-container {
-					margin: 30px 0;
-					padding: 20px;
-					background: #f8f9fa;
-					border-radius: 8px;
-					box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-				}
-				.barcode-table-container h4 {
-					margin-bottom: 20px;
-					color: #2c3e50;
-					font-weight: 600;
-				}
-				.table {
-					width: 100%;
-					margin-bottom: 1rem;
-					background-color: transparent;
-					border-collapse: separate;
-					border-spacing: 0;
-				}
-				.table th,
-				.table td {
-					padding: 14px;
-					vertical-align: middle;
-					border: 1px solid #e0e0e0;
-				}
-				.table thead th {
-					background-color: #f1f2f6;
-					border-bottom: 2px solid #e0e0e0;
-					font-weight: 600;
-					color: #2c3e50;
-				}
-				.table tbody tr:hover {
-					background-color: #f8f9fa;
-				}
-				.btn-danger {
-					background-color: #e74c3c;
-					color: white;
-					padding: 6px 12px;
-					border: none;
-					border-radius: 6px;
-					cursor: pointer;
-					transition: all 0.3s ease;
-				}
-				.btn-danger:hover {
-					background-color: #c0392b;
-					transform: translateY(-1px);
-				}
-				.barcode-input-group,
-				.address-input-group {
-					display: flex;
-					gap: 12px;
-				}
-				.camera-btn,
-				.location-btn {
-					background-color: #3498db;
-					color: white;
-					border: none;
-					border-radius: 8px;
-					padding: 12px 20px;
-					cursor: pointer;
-					transition: all 0.3s ease;
-					display: flex;
-					align-items: center;
-					justify-content: center;
-					gap: 8px;
-					font-weight: 500;
-					min-width: 120px;
-				}
-				.camera-btn:hover,
-				.location-btn:hover {
-					background-color: #2980b9;
-					transform: translateY(-1px);
-				}
-				.camera-btn i,
-				.location-btn i {
-					font-size: 18px;
-				}
-				.camera-btn.loading,
-				.location-btn.loading {
-					opacity: 0.7;
-					cursor: wait;
-				}
-				.camera-btn.loading i,
-				.location-btn.loading i {
-					animation: spin 1s linear infinite;
-				}
-				@keyframes spin {
-					0% { transform: rotate(0deg); }
-					100% { transform: rotate(360deg); }
-				}
-
-				/* Responsive tasarım için medya sorguları */
-				@media screen and (max-width: 768px) {
-					.montaj-form {
-						margin: 10px;
-						padding: 20px;
-					}
-					.form-group {
-						margin-bottom: 20px;
-					}
-					.form-control {
-						font-size: 16px;
-						padding: 14px;
-					}
-					.btn-save {
-						padding: 16px 24px;
-					}
-					.barcode-input-group,
-					.address-input-group {
-						flex-direction: column;
-					}
-					.camera-btn,
-					.location-btn {
-						width: 100%;
-						margin-top: 8px;
-					}
-					.table th,
-					.table td {
-						padding: 10px;
-						font-size: 14px;
-					}
-				}
-
-				/* Tablet için orta boyut ekran */
-				@media screen and (min-width: 769px) and (max-width: 1024px) {
-					.montaj-form {
-						max-width: 90%;
-					}
-				}
-			`)
-			.appendTo('head');
-
 		// Konum alma fonksiyonu
 		function getCurrentLocation() {
 			const locationBtn = $('#locationBtn');
@@ -582,4 +398,200 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 		// Konum butonu için event listener
 		$('#locationBtn').on('click', getCurrentLocation);
 	});
+
+	// Add custom CSS
+	$('<style>')
+		.text(`
+			.montaj-form {
+				max-width: 800px;
+				margin: 20px auto;
+				padding: 30px;
+				background: #fff;
+				border-radius: 12px;
+				box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+			}
+			.form-group {
+				margin-bottom: 25px;
+			}
+			.form-group label {
+				display: block;
+				margin-bottom: 10px;
+				font-weight: 600;
+				color: #2c3e50;
+				font-size: 0.95rem;
+			}
+			.form-control {
+				width: 100%;
+				padding: 12px 15px;
+				border: 2px solid #e0e0e0;
+				border-radius: 8px;
+				font-size: 14px;
+				transition: all 0.3s ease;
+				background-color: #f8f9fa;
+			}
+			.form-control:focus {
+				border-color: #3498db;
+				outline: none;
+				box-shadow: 0 0 0 3px rgba(52,152,219,0.2);
+				background-color: #fff;
+			}
+			.form-text {
+				font-size: 12px;
+				color: #7f8c8d;
+				margin-top: 6px;
+			}
+			.btn-save {
+				background-color: #2ecc71;
+				color: white;
+				padding: 14px 28px;
+				border: none;
+				border-radius: 8px;
+				cursor: pointer;
+				font-size: 16px;
+				font-weight: 600;
+				transition: all 0.3s ease;
+				margin-top: 30px;
+				width: 100%;
+				text-transform: uppercase;
+				letter-spacing: 0.5px;
+			}
+			.btn-save:hover {
+				background-color: #27ae60;
+				transform: translateY(-2px);
+				box-shadow: 0 4px 12px rgba(46,204,113,0.2);
+			}
+			.btn-save:active {
+				transform: translateY(0);
+			}
+			.barcode-table-container {
+				margin: 30px 0;
+				padding: 20px;
+				background: #f8f9fa;
+				border-radius: 8px;
+				box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+			}
+			.barcode-table-container h4 {
+				margin-bottom: 20px;
+				color: #2c3e50;
+				font-weight: 600;
+			}
+			.table {
+				width: 100%;
+				margin-bottom: 1rem;
+				background-color: transparent;
+				border-collapse: separate;
+				border-spacing: 0;
+			}
+			.table th,
+			.table td {
+				padding: 14px;
+				vertical-align: middle;
+				border: 1px solid #e0e0e0;
+			}
+			.table thead th {
+				background-color: #f1f2f6;
+				border-bottom: 2px solid #e0e0e0;
+				font-weight: 600;
+				color: #2c3e50;
+			}
+			.table tbody tr:hover {
+				background-color: #f8f9fa;
+			}
+			.btn-danger {
+				background-color: #e74c3c;
+				color: white;
+				padding: 6px 12px;
+				border: none;
+				border-radius: 6px;
+				cursor: pointer;
+				transition: all 0.3s ease;
+			}
+			.btn-danger:hover {
+				background-color: #c0392b;
+				transform: translateY(-1px);
+			}
+			.barcode-input-group,
+			.address-input-group {
+				display: flex;
+				gap: 12px;
+			}
+			.camera-btn,
+			.location-btn {
+				background-color: #3498db;
+				color: white;
+				border: none;
+				border-radius: 8px;
+				padding: 12px 20px;
+				cursor: pointer;
+				transition: all 0.3s ease;
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 8px;
+				font-weight: 500;
+				min-width: 120px;
+			}
+			.camera-btn:hover,
+			.location-btn:hover {
+				background-color: #2980b9;
+				transform: translateY(-1px);
+			}
+			.camera-btn i,
+			.location-btn i {
+				font-size: 18px;
+			}
+			.camera-btn.loading,
+			.location-btn.loading {
+				opacity: 0.7;
+				cursor: wait;
+			}
+			.camera-btn.loading i,
+			.location-btn.loading i {
+				animation: spin 1s linear infinite;
+			}
+			@keyframes spin {
+				0% { transform: rotate(0deg); }
+				100% { transform: rotate(360deg); }
+			}
+
+			/* Responsive tasarım için medya sorguları */
+			@media screen and (max-width: 768px) {
+				.montaj-form {
+					margin: 10px;
+					padding: 20px;
+				}
+				.form-group {
+					margin-bottom: 20px;
+				}
+				.form-control {
+					font-size: 16px;
+					padding: 14px;
+				}
+				.btn-save {
+					padding: 16px 24px;
+				}
+				.barcode-input-group,
+				.address-input-group {
+					flex-direction: column;
+				}
+				.camera-btn,
+				.location-btn {
+					width: 100%;
+					margin-top: 8px;
+				}
+				.table th,
+				.table td {
+					padding: 10px;
+					font-size: 14px;
+				}
+			}
+
+			/* Tablet için orta boyut ekran */
+			@media screen and (min-width: 769px) and (max-width: 1024px) {
+				.montaj-form {
+					max-width: 90%;
+				}
+			}
+		`)
+		.appendTo('head');
 }
