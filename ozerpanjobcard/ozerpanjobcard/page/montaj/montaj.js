@@ -5,6 +5,106 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 		single_column: true
 	});
 
+	// Add QuaggaJS library
+	frappe.require([
+		'https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js'
+	], function() {
+		// Initialize barcode scanner
+		function initBarcodeScanner() {
+			Quagga.init({
+				inputStream: {
+					name: "Live",
+					type: "LiveStream",
+					target: document.querySelector("#interactive"),
+					constraints: {
+						facingMode: "environment"
+					},
+				},
+				decoder: {
+					readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader", "upc_reader", "upc_e_reader"]
+				}
+			}, function(err) {
+				if (err) {
+					console.error(err);
+					frappe.msgprint('Barkod tarayıcı başlatılamadı!');
+					return;
+				}
+				Quagga.start();
+			});
+
+			Quagga.onDetected(function(result) {
+				if (result.codeResult.code) {
+					// Barkod bulundu
+					$('#barcode').val(result.codeResult.code);
+					// Barkod okutma işlemini tetikle
+					$('#barcode').trigger('keypress', [{which: 13}]);
+					// Tarayıcıyı durdur
+					Quagga.stop();
+					// Modal'ı kapat
+					$('#barcodeScannerModal').modal('hide');
+				}
+			});
+		}
+
+		// Add scanner modal to the page
+		let scannerModal = $(`
+			<div class="modal fade" id="barcodeScannerModal" tabindex="-1" role="dialog">
+				<div class="modal-dialog" role="document">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title">Barkod Tarayıcı</h5>
+							<button type="button" class="close" data-dismiss="modal">
+								<span>&times;</span>
+							</button>
+						</div>
+						<div class="modal-body">
+							<div id="interactive" class="viewport"></div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-dismiss="modal">Kapat</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		`).appendTo('body');
+
+		// Add scanner styles
+		$('<style>')
+			.text(`
+				#interactive.viewport {
+					position: relative;
+					width: 100%;
+					height: 300px;
+				}
+				#interactive.viewport > canvas, #interactive.viewport > video {
+					max-width: 100%;
+					width: 100%;
+				}
+				canvas.drawing, canvas.drawingBuffer {
+					position: absolute;
+					left: 0;
+					top: 0;
+				}
+			`)
+			.appendTo('head');
+
+		// Update camera button click handler
+		$('#cameraBtn').on('click', function() {
+			// Mobil cihaz kontrolü
+			if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+				$('#barcodeScannerModal').modal('show');
+				initBarcodeScanner();
+			} else {
+				frappe.msgprint('Bu özellik sadece mobil cihazlarda kullanılabilir.');
+			}
+		});
+
+		// Clean up when modal is closed
+		$('#barcodeScannerModal').on('hidden.bs.modal', function() {
+			Quagga.stop();
+		});
+	});
+
 	// Barkod detaylarını getiren metod
 	frappe.get_barcode_details = function(barcode) {
 		return new Promise((resolve, reject) => {
@@ -492,46 +592,6 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 			}
 		`)
 		.appendTo('head');
-
-	// Kamera butonu için event listener
-	$('#cameraBtn').on('click', function() {
-		// Mobil cihaz kontrolü
-		if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-			// Kamera erişimi için input oluştur
-			let cameraInput = document.createElement('input');
-			cameraInput.type = 'file';
-			cameraInput.accept = 'image/*';
-			cameraInput.capture = 'environment'; // Arka kamerayı kullan
-			
-			// Input'a tıklandığında
-			cameraInput.onchange = function(e) {
-				if (e.target.files && e.target.files[0]) {
-					// Burada barkod okuma işlemi yapılabilir
-					// Şimdilik sadece dosya adını gösteriyoruz
-					$('#barcode').val(e.target.files[0].name);
-					// Barkod okutma işlemini tetikle
-					$('#barcode').trigger('keypress', [{which: 13}]);
-				}
-			};
-			
-			// Input'u gizle ve tıkla
-			cameraInput.style.display = 'none';
-			document.body.appendChild(cameraInput);
-			cameraInput.click();
-			document.body.removeChild(cameraInput);
-		} else {
-			frappe.msgprint('Bu özellik sadece mobil cihazlarda kullanılabilir.');
-		}
-	});
-
-	// Barkod input alanına tıklandığında
-	$('#barcode').on('focus', function() {
-		// Mobil cihaz kontrolü
-		if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-			// Kamera butonuna tıkla
-			$('#cameraBtn').click();
-		}
-	});
 
 	// Konum alma fonksiyonu
 	function getCurrentLocation() {
