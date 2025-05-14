@@ -189,3 +189,129 @@ def get_glass_list(order_no):
         frappe.logger().error(f"Error in get_glass_list: {str(e)}")
         frappe.throw(f"Error getting glass list: {str(e)}")
 
+
+
+@frappe.whitelist(allow_guest=True)
+def get_serial_details(serial):
+    print(serial)
+    try:
+        frappe.logger().debug(f"Getting details for serial: {serial}")
+        
+        # Get the serial number details from the database with all fields
+        serial_doc = frappe.get_all("Serial No", 
+            filters={"name": serial},
+            fields=["*"]
+        )
+        
+        if not serial_doc:
+            frappe.logger().error(f"No serial document found for: {serial}")
+            return None
+            
+        serial_doc = serial_doc[0]  # Get the first (and should be only) result
+        print(serial_doc)
+        frappe.logger().debug(f"Serial doc found: {serial_doc}")
+
+        # Get the sales order details
+        sales_order = None
+        if serial_doc.get("purchase_document_type") == "Sales Order":
+            frappe.logger().debug(f"Getting sales order: {serial_doc.get('purchase_document_no')}")
+            sales_order = frappe.get_doc("Sales Order", serial_doc.get("purchase_document_no"))
+            frappe.logger().debug(f"Sales order found: {sales_order}")
+
+        # Get the customer details
+        customer = None
+        if sales_order:
+            frappe.logger().debug(f"Getting customer: {sales_order.customer}")
+            customer = frappe.get_doc("Customer", sales_order.customer)
+            frappe.logger().debug(f"Customer found: {customer}")
+
+        # Get the item details
+        frappe.logger().debug(f"Getting item: {serial_doc.get('item_code')}")
+        item = frappe.get_doc("Item", serial_doc.get("item_code"))
+        frappe.logger().debug(f"Item found: {item}")
+
+        # Get any existing issues for this serial number
+        frappe.logger().debug(f"Getting issues for serial: {serial}")
+        issues = frappe.get_all("Issue",
+            filters={"serial_no": serial},
+            fields=["name", "description", "status", "creation"],
+            order_by="creation desc"
+        )
+        frappe.logger().debug(f"Found {len(issues)} issues")
+
+        # Get tasks for each issue
+        for issue in issues:
+            frappe.logger().debug(f"Getting tasks for issue: {issue.name}")
+            issue["tasks"] = frappe.get_all("Task",
+                filters={"issue": issue.name},
+                fields=["name", "subject", "status", "assigned_to"]
+            )
+            frappe.logger().debug(f"Found {len(issue['tasks'])} tasks")
+
+        response = {
+            "serial": serial,
+            "serial_details": serial_doc,  # This will contain all fields from Serial No
+            "item_code": serial_doc.get("item_code"),
+            "sales_order_no": sales_order.name if sales_order else None,
+            "customer": customer.name if customer else None,
+            "address_display": customer.address_display if customer else None,
+            "contact_mobile": customer.mobile_no if customer else None,
+            "custom_serial": item.custom_serial if item else None,
+            "custom_color": item.custom_color if item else None,
+            "cam_text": item.custom_cam_text if item else None,
+            "warranty_expiry": serial_doc.get("warranty_expiry_date"),
+            "issues": issues
+        }
+        
+        frappe.logger().debug(f"Returning response: {response}")
+        return response
+
+    except Exception as e:
+        frappe.logger().error(f"Error in get_serial_details: {str(e)}")
+        frappe.logger().error(frappe.get_traceback())
+        return None
+
+@frappe.whitelist(allow_guest=True)
+def guest_create_issue(subject, description, custom_name_surname, custom_phone, custom_address, serial_no, customer, item_code, sales_order):
+    try:
+        # Create a new issue
+        issue = frappe.get_doc({
+            "doctype": "Issue",
+            "subject": subject,
+            "description": description,
+            "custom_name_surname": custom_name_surname,
+            "custom_phone": custom_phone,
+            "custom_address": custom_address,
+            "serial_no": serial_no,
+            "customer": customer,
+            "item_code": item_code,
+            "sales_order": sales_order,
+            "status": "Open"
+        })
+        issue.insert(ignore_permissions=True)
+        return issue.name
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), _("Error in guest_create_issue"))
+        return None 
+    try:
+        # Create a new issue
+        issue = frappe.get_doc({
+            "doctype": "Issue",
+            "subject": subject,
+            "description": description,
+            "custom_name_surname": custom_name_surname,
+            "custom_phone": custom_phone,
+            "custom_address": custom_address,
+            "serial_no": serial_no,
+            "customer": customer,
+            "item_code": item_code,
+            "sales_order": sales_order,
+            "status": "Open"
+        })
+        issue.insert(ignore_permissions=True)
+        return issue.name
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), _("Error in guest_create_issue"))
+        return None
