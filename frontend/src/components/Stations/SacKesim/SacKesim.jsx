@@ -32,7 +32,10 @@ const SacKesim = () => {
 
     // currentJobcardStatus değişikliğini takip et
     useEffect(() => {
-        setIsInputDisabled(currentJobcardStatus !== "Work In Progress");
+        console.log("currentJobcardStatus değişti:", currentJobcardStatus);
+        const shouldDisable = currentJobcardStatus !== "Work In Progress";
+        console.log("Input'lar disabled olmalı mı:", shouldDisable);
+        setIsInputDisabled(shouldDisable);
     }, [currentJobcardStatus]);
 
     // Sac Kesim Opt Detayları Query
@@ -132,10 +135,26 @@ const SacKesim = () => {
                 custom_status: "Tamamlandı",
             };
             await updateDSTListMutation(profilePayload);
+            
+            // Başarılı güncelleme sonrası sayfayı yenile
+            await queryClient.invalidateQueries(['sacKesimOptInfo', currentOpt?.custom_opti_no]);
+            
+            toast.current.show({
+                severity: 'success',
+                summary: 'Başarılı',
+                detail: 'İşlem tamamlandı',
+                life: 3000
+            });
         } catch (error) {
             console.error("İşlem tamamlama hatası:", error);
+            toast.current.show({
+                severity: 'error',
+                summary: 'Hata',
+                detail: 'İşlem tamamlanırken hata oluştu',
+                life: 3000
+            });
         }
-    }, [updateDSTListMutation]);
+    }, [updateDSTListMutation, queryClient, currentOpt?.custom_opti_no]);
 
     const handleCompleteAll = useCallback(async () => {
         if (isInputDisabled) {
@@ -169,9 +188,15 @@ const SacKesim = () => {
                 setProgress(Math.round((completedItems / totalItems) * 100));
             }
 
-            if (currentOperation?.operations === "Sac Kesim") {
-                await completeJobCard(currentJobcard, currentJobcard.for_quantity);
-            }
+            // Toplu işlem sonrası sayfayı yenile
+            await queryClient.invalidateQueries(['sacKesimOptInfo', currentOpt?.custom_opti_no]);
+            
+            toast.current.show({
+                severity: 'success',
+                summary: 'Başarılı',
+                detail: 'Tüm işlemler tamamlandı',
+                life: 3000
+            });
         } catch (error) {
             console.error("Toplu tamamlama hatası:", error);
             toast.current.show({
@@ -184,20 +209,22 @@ const SacKesim = () => {
             setIsCompleting(false);
             setShowProgressDialog(false);
         }
-    }, [sacKesimOptInfo?.dst_list, currentOperation, currentJobcard, updateDSTListMutation, isInputDisabled]);
+    }, [sacKesimOptInfo?.dst_list, currentOperation, currentJobcard, updateDSTListMutation, isInputDisabled, queryClient, currentOpt?.custom_opti_no]);
 
     // Template Functions
     const actionTemplate = useCallback((rowData) => {
+        console.log("actionTemplate render - isInputDisabled:", isInputDisabled, "currentJobcardStatus:", currentJobcardStatus);
         return (
             <button 
                 className='disabled:text-gray-400 font-bold' 
                 disabled={isInputDisabled}
                 onClick={() => onRowDoubleClick(rowData)}
+                key={`action-${rowData.item_code}-${isInputDisabled}`}
             >
                 Tamamla
             </button>
         );
-    }, [isInputDisabled, onRowDoubleClick]);
+    }, [isInputDisabled, onRowDoubleClick, currentJobcardStatus]);
 
     const rowClassName = useCallback((rowData) => {
         if (rowData === selectedRow) {
@@ -248,14 +275,17 @@ const SacKesim = () => {
                 </Dialog>
 
                 <div className='overflow-auto'>
-                    <DataTable 
+                    <DataTable
+                        value={sacKesimOptInfo?.dst_list}
+                        scrollable
+                        scrollHeight="calc(100vh - 200px)"
+                        size="small"
+                        stripedRows
+                        responsiveLayout="scroll"
+                        emptyMessage="Sac Kesim bulunamadı"
                         onRowClick={onRowClick}
-                        onRowDoubleClick={onRowDoubleClick}
-                        rowClassName={rowClassName} 
-                        stripedRows 
-                        size='small' 
-                        value={sacKesimOptInfo?.dst_list} 
-                        tableStyle={{ minWidth: '50rem' }}
+                        rowClassName={rowClassName}
+                        key={`table-${currentJobcardStatus}-${isInputDisabled}`}
                     >
                         <Column field="item_code" sortable header="Ürün No"></Column>
                         <Column field="item_name" header="Ürün Adı"></Column>

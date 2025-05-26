@@ -55,11 +55,17 @@ const Navbar = () => {
   const queryClient = useQueryClient();
 
   const handleOperationChange = (e) => {
+    
     setCurrentOperation(e.value);
     setCurrentOpt({});
     setCurrentJobcard({});
     setCurrentJobcardStatus();
-    setFilters([["operation", "=", e.value.operations]]);
+    console.log(currentOpt)
+    // setFilters([["operation", "=", e.value.operations]]);
+    setFilters([
+      ["operation", "=", e.value.operations],
+      ["status", "not in", ["Completed", "Cancelled"]]
+  ]);
  
   };
 
@@ -71,23 +77,19 @@ const Navbar = () => {
 
   const handleOptiChange = async (e) => {
     setIsLoading(true);
-    console.log(e.value.custom_opti_no);
     setCurrentOpt(e.value);
     setCurrentJobcardStatus(
       jobCardList?.find(
         (item) => item.custom_opti_no === e.value.custom_opti_no
       )?.status
     );
-    console.log("currentJobcardStatus", jobCardList?.find(
-      (item) => item.custom_opti_no === e.value.custom_opti_no
-    ));
+  
 
     // Create an array of job card names
     const jobCardNames = jobCardList
       ?.filter((item) => item.custom_opti_no === e.value.custom_opti_no)
       .map((item) => item.name);
 
-    console.log("Job Card Names:", jobCardNames);
 
     await setCurrentJobcard(jobCardNames);
     setIsLoading(false);
@@ -100,7 +102,6 @@ const Navbar = () => {
         currentJobcard?.name &&
         currentJobcard?.status === "Work In Progress"
       ) {
-        console.log("Pausing job card before logout:", currentJobcard.name);
 
         // Use JobCardAction to pause the job card with "Paydos" as reason
         await JobCardAction(currentJobcard, employee, "Paydos");
@@ -128,7 +129,6 @@ const Navbar = () => {
         ? "Work In Progress"
         : "On Hold";
     setCurrentJobcardStatus(status);
-    console.log("status", status);
     await updateJobCard({
       job_cards: currentJobcard,
       employee: employee?.name,
@@ -148,10 +148,11 @@ const Navbar = () => {
         reason: reason,
         status: "Completed",
       });
+      await setCurrentOpt(null);
+      await setCurrentJobcard(null);
      
     } else if (currentOperation?.operations === "Süper Kesim") {
       try {
-        console.log(currentOpt);
         // Get the opt_no from the current job card
         const optNo = currentOpt?.custom_opti_no;
         if (!optNo) {
@@ -253,10 +254,15 @@ const Navbar = () => {
                   ? setVisible(true)
                   : handleClick()
               }
-              className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${
+                 !currentJobcard || Object.keys(currentJobcard).length === 0
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : 'cursor-pointer hover:bg-red-200'
+              }`}
+              style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
             >
-              <FaPlayCircle size="2rem" className="text-red-500 " />
-              <div className="w-3/4 text-center text-xl ">
+              <FaPlayCircle size="2rem" className="text-red-500" />
+              <div className="w-3/4 text-center text-xl">
                 {jobCardLoading
                   ? "Loading..."
                   : currentJobcardStatus === "On Hold"
@@ -275,7 +281,12 @@ const Navbar = () => {
                 ? handleComplete()
                 : toast.error("Tüm profillleri aktarmanız gerekmektedir")
             }
-            className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${
+              !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'cursor-pointer hover:bg-red-200'
+            }`}
+            style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
           >
             <FaRegCircleStop size="2rem" className="text-red-500 " />
             <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
@@ -284,19 +295,28 @@ const Navbar = () => {
 
         {currentOperation?.operations === "Sac Kesim" ? (
           <div
-            onClick={() =>handleComplete()           }
-            className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+            onClick={() =>handleComplete()}
+            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${
+              !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'cursor-pointer hover:bg-red-200'
+            }`}
+            style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
           >
             <FaRegCircleStop size="2rem" className="text-red-500 " />
             <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
           </div>
         ) : null}
 
-
         {currentOperation?.operations === "Süper Kesim" ? (
           <div
             onClick={() => handleComplete()}
-            className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${
+              !currentOpt || Object.keys(currentOpt).length === 0
+                ? 'opacity-50 cursor-not-allowed' 
+                : 'cursor-pointer hover:bg-red-200'
+            }`}
+            style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 ? 'none' : 'auto' }}
           >
             <FaRegCircleStop size="2rem" className="text-red-500 " />
             <div className="w-3/4 text-center text-xl "> TAMAMLA</div>

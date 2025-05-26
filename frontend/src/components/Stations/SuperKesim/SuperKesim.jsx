@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Image } from "primereact/image";
@@ -12,20 +12,20 @@ import Loading from "../../Loading";
 import useJobcardsStore from "../../../store/jobcardStore";
 import { InputNumber } from "primereact/inputnumber";
 import { Toast } from 'primereact/toast';
-import { useRef } from "react";
 import { Button } from "primereact/button";
 import { updateSuperKesimProfileList, getAllSuperKesimRecords, getSuperKesimProfilDetails, completeSuperKesim } from "../../../services/SuperKesimServices";
 import { Dropdown } from "primereact/dropdown";
 
 const SuperKesim = () => {
-  const { currentOpt, currentJobcard, setIsAllProfileTransferred, setCurrentOpt } = useJobcardsStore();
+  const { currentOpt, currentJobcard, setIsAllProfileTransferred, setCurrentOpt, currentJobcardStatus } = useJobcardsStore();
   const toast = useRef(null);
   const queryClient = useQueryClient();
+  const localInputValuesRef = useRef([]);
+  const [tableData, setTableData] = useState([]);
 
   // Local states
   const [selectedMachine, setSelectedMachine] = useState(null);
   const [selectedOptiNo, setSelectedOptiNo] = useState(null);
-  const [localInputValues, setLocalInputValues] = useState({});
 
   // Tüm Super Kesim kayıtlarını getir
   const { data: allRecords, isLoading: isRecordsLoading } = useQuery({
@@ -57,8 +57,6 @@ const SuperKesim = () => {
       }));
   }, [allRecords, selectedMachine]);
 
-  console.log("Selected Opti No State:", selectedOptiNo); // Debug log
-
   // Super Kesim detayları query
   const {
     data: superKesimInfo,
@@ -67,14 +65,15 @@ const SuperKesim = () => {
   } = useQuery({
     queryKey: ["superKesimInfo", selectedOptiNo?.name],
     queryFn: () => getSuperKesimProfilDetails(selectedOptiNo?.name),
-    enabled: !!selectedOptiNo?.name,
+    enabled: !!selectedOptiNo?.name && !!selectedMachine,
     staleTime: 30000,
+    onSuccess: (data) => {
+      setTableData(data?.profile_list || []);
+    },
     onError: (error) => {
       console.error("Super Kesim Details Error:", error);
     }
   });
-
-  console.log("Super Kesim Info:", superKesimInfo); // Debug log
 
   // Ürün görselleri query
   const { data: images, isLoading: isImageLoading } = useQuery({
@@ -128,6 +127,11 @@ const SuperKesim = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(["allSuperKesimRecords"]);
       setSelectedOptiNo(null);
+      setSelectedMachine(null);
+      localInputValuesRef.current = [];
+      setTableData([]); // Clear table data
+      queryClient.setQueryData(["superKesimInfo", selectedOptiNo?.name], null);
+      queryClient.invalidateQueries(["superKesimInfo"]);
       toast.current.show({
         severity: 'success',
         summary: 'Başarılı',
@@ -149,34 +153,40 @@ const SuperKesim = () => {
   // Handlers
   const handleMachineChange = useCallback((e) => {
     setSelectedMachine(e.value);
-    setSelectedOptiNo(null); // Makine değiştiğinde opti no'yu sıfırla
+    setSelectedOptiNo(null);
+    localInputValuesRef.current = [];
   }, []);
 
   const handleOptiNoChange = useCallback((e) => {
-    console.log("Opti No Change Event:", e.value); // Debug log
     setSelectedOptiNo(e.value);
-    // Update the store's currentOpt
     setCurrentOpt({
       custom_opti_no: e.value.opti_no,
       name: e.value.name
     });
-    // Reset local input values
-    setLocalInputValues({});
-    // Refresh superKesimInfo data
+    localInputValuesRef.current = [];
     queryClient.invalidateQueries(["superKesimInfo", e.value?.name]);
   }, [setCurrentOpt, queryClient]);
 
   const handleInputChange = useCallback((value, itemCode) => {
     if (value === null || value === undefined) return;
-    setLocalInputValues(prev => ({
-      ...prev,
-      [itemCode]: value
-    }));
+    
+    const existingIndex = localInputValuesRef.current.findIndex(item => item.itemCode === itemCode);
+    const newValues = [...localInputValuesRef.current];
+    
+    if (existingIndex !== -1) {
+      newValues[existingIndex] = { itemCode, value };
+    } else {
+      newValues.push({ itemCode, value });
+    }
+    
+    localInputValuesRef.current = newValues;
   }, []);
 
   const handleCutConfirm = useCallback((itemCode) => {
-    const value = localInputValues[itemCode];
-    if (value === null || value === undefined) return;
+    const currentItem = localInputValuesRef.current.find(item => item.itemCode === itemCode);
+    const currentValue = currentItem?.value;
+
+    if (currentValue === null || currentValue === undefined) return;
 
     const profileItem = superKesimInfo?.profile_list.find(
       item => item.item_code === itemCode
@@ -186,57 +196,19 @@ const SuperKesim = () => {
 
     const profilePayload = {
       name: profileItem.name,
-      cutoff: value,
+      cutoff: currentValue,
     };
-
-    console.log("Updating profile:", profileItem.name, profilePayload); // Debug log
 
     updateProfile({
       id: profileItem.name,
       payload: profilePayload
     });
-  }, [superKesimInfo?.profile_list, updateProfile, localInputValues]);
-
-  const handleComplete = async () => {
-    if (!selectedOptiNo) {
-      toast.current.show({
-        severity: 'error',
-        summary: 'Hata',
-        detail: 'Lütfen bir Opti No seçiniz',
-        life: 3000
-      });
-      return;
-    }
-
-    try {
-      await completeSuperKesim(selectedOptiNo.name);
-      toast.current.show({
-        severity: 'success',
-        summary: 'Başarılı',
-        detail: 'Süper Kesim işlemi tamamlandı',
-        life: 3000
-      });
-      
-      // Refresh the data
-      queryClient.invalidateQueries(['superKesimDetails']);
-      
-      // Reset selections
-      setSelectedOptiNo(null);
-      setSelectedMachine(null);
-      
-    } catch (error) {
-      console.error('Error completing super kesim:', error);
-      toast.current.show({
-        severity: 'error',
-        summary: 'Hata',
-        detail: 'İşlem tamamlanırken bir hata oluştu',
-        life: 3000
-      });
-    }
-  };
+  }, [superKesimInfo?.profile_list, updateProfile]);
 
   // Templates
   const inputColumnTemplate = useCallback((rowData) => {
+    const currentValue = localInputValuesRef.current.find(item => item.itemCode === rowData.item_code)?.value;
+    
     return (
       <div className="flex items-center gap-2">
         <InputNumber
@@ -244,9 +216,9 @@ const SuperKesim = () => {
           mode="decimal"
           showButtons
           buttonLayout="horizontal"
-          max={rowData.quantity_length}
-          min={0}
-          value={localInputValues[rowData.item_code] ?? rowData.cutoff}
+          max={rowData.amountboy}
+          min={rowData.cutoff || 0}
+          value={currentValue ?? rowData.cutoff}
           onChange={(e) => handleInputChange(e.value, rowData.item_code)}
           size="small"
           className="p-inputnumber-sm"
@@ -258,7 +230,7 @@ const SuperKesim = () => {
         />
       </div>
     );
-  }, [handleInputChange, handleCutConfirm, localInputValues]);
+  }, [handleInputChange, handleCutConfirm]);
 
   const statusTemplate = useCallback((rowData) => {
     return (
@@ -348,7 +320,6 @@ const SuperKesim = () => {
               style={{ width: "12%" }}
               className="text-center"
             />
-         
           </DataTable>
         </div>
 

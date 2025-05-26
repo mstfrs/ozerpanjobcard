@@ -21,6 +21,8 @@ import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 
 const PozCard = ({ poz, isSelected, onClick, orderNo }) => {
+
+  
   // Status için renk belirleme
   const getStatusColor = (status) => {
     const colors = {
@@ -74,6 +76,7 @@ const SurmeHazirlama = () => {
   const [searchInput, setSearchInput] = useState("");
   const [selectedPoz, setSelectedPoz] = useState(null);
   const queryClient = useQueryClient();
+  const [pdfUrl, setPdfUrl] = useState(null);
 
   // Siparişleri getiren query
   const { data: ordersData, isLoading: isOrdersLoading } = useQuery({
@@ -94,109 +97,55 @@ const SurmeHazirlama = () => {
       if (!searchInput) return null;
       const response = await fetch(`/api/method/ozerpan_ercom_sync.custom_api.api.get_surme_poz_by_order_no?order_no=${searchInput}`);
       const data = await response.json();
+      setCurrentJobcard([data?.message?.job_card?.name]);
+      console.log(data?.message);
       return data.message;
     },
+
     enabled: !!searchInput,
     staleTime: 30000,
     cacheTime: 1000 * 60 * 5,
   });
 
-  // Sipariş numarasına göre sorgu yapma
-  const handleSearch = useCallback(async () => {
-    if (!searchInput) {
-      toast.current.show({
-        severity: 'warn',
-        summary: 'Uyarı',
-        detail: 'Lütfen sipariş numarası seçiniz',
-        life: 3000
-      });
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const [details, list] = await Promise.all([
-        getOrderDetails(searchInput),
-        // getPozList(searchInput)
-      ]);
-      
-      setSelectedPoz(null);
-    } catch (error) {
-      toast.current.show({
-        severity: 'error',
-        summary: 'Hata',
-        detail: 'Sipariş bilgileri alınamadı',
-        life: 3000
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [searchInput]);
-
   // Dropdown değişikliğinde otomatik arama
   useEffect(() => {
+    const handleJobcardOnHold = async () => {
+      if (currentJobcard?.status === "Work In Progress") {
+        await JobCardAction(currentJobcard, employee, "Başka işe geçildi");
+        toast.current.show({
+          severity: "info",
+          summary: "Duraklatıldı",
+          detail: "Önceki iş kartı duraklatıldı: Başka işe geçildi",
+          life: 3000,
+        });
+      }
+    };
+
     if (searchInput) {
+      handleJobcardOnHold();
       setSelectedPoz(null); // Yeni sipariş seçildiğinde seçili pozu sıfırla
     }
-  }, [searchInput]);
+  }, [searchInput, currentJobcard, employee]);
 
-  // Poz seçildiğinde detayları gösterme
+  // Poz seçildiğinde detayları gösterme ve PDF'i yükleme
   const handlePozSelect = useCallback((poz) => {
     setSelectedPoz(poz);
-  }, []);
-
-  // İşlem durumunu güncelleme
-  const handleStatusUpdate = useCallback(async (status) => {
-    if (!selectedPoz) return;
-
-    try {
-      const response = await fetch('/api/method/ozerpan_ercom_sync.custom_api.api.update_surme_poz_status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          order_no: searchInput,
-          poz_no: selectedPoz.poz_no,
-          status: status,
-          employee: employee?.name
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Status update failed');
-      }
-
-      // Query'yi yenile
-      queryClient.invalidateQueries(['surmePozDetails', searchInput]);
-
-      toast.current.show({
-        severity: 'success',
-        summary: 'Başarılı',
-        detail: 'İşlem durumu güncellendi',
-        life: 3000
-      });
-    } catch (error) {
-      console.error('Status update error:', error);
-      toast.current.show({
-        severity: 'error',
-        summary: 'Hata',
-        detail: 'Durum güncellenemedi',
-        life: 3000
-      });
-    }
-  }, [searchInput, selectedPoz, employee, queryClient]);
-
-  // Status için renk ve etiket belirleme
-  const getStatusTag = (status) => {
-    const statusConfig = {
-      "Pending": { severity: "warning", label: "Bekliyor" },
-      "In Progress": { severity: "info", label: "İşlemde" },
-      "Completed": { severity: "success", label: "Tamamlandı" }
-    };
-    const config = statusConfig[status] || { severity: "secondary", label: status };
-    return <Tag value={config.label} severity={config.severity} />;
-  };
+    // PDF URL'ini oluştur
+    const pdfPath = `/files/share/${(poz.poz_no).split("-")[0]}.pdf`;
+    setPdfUrl(pdfPath);
+    
+    // Poz seçildiğinde jobcard bilgilerini güncelle
+    queryClient.setQueryData(['surmePozDetails', searchInput], (oldData) => {
+      if (!oldData) return oldData;
+      return {
+        ...oldData,
+        job_card: {
+          ...oldData.job_card,
+          name: poz.job_card_name
+        }
+      };
+    });
+  }, [searchInput, queryClient]);
 
   // Etiket yazdırma fonksiyonu
   const handlePrintLabel = useCallback(async () => {
@@ -236,7 +185,7 @@ const SurmeHazirlama = () => {
   }, [selectedPoz, pozDetails, searchInput]);
 
   return (
-    <div className="flex h-[calc(100vh-100px)] p-4 gap-4">
+    <div className="flex h-screen p-4 gap-4">
       <Toast ref={toast} />
       
       {/* Sol Panel - Arama ve Sipariş Bilgileri */}
@@ -268,70 +217,26 @@ const SurmeHazirlama = () => {
             ? pozDetails.order_poz_details[Object.keys(pozDetails?.order_poz_details)[0]]
             : null} />
         )}
-
-        {/* {pozDetails?.order_poz_details && Object.keys(pozDetails.order_poz_details).length > 0 && (
-          <Card className="mt-2">
-            <h3 className="text-lg font-semibold mb-2">Sipariş Bilgileri</h3>
-            <div className="text-sm">
-              {Object.entries(pozDetails.order_poz_details).map(([pozNo, details]) => (
-                <div key={pozNo} className="mb-4">
-                  <p><strong>Poz No:</strong> {pozNo}</p>
-                  <p><strong>Cari Kod:</strong> {details.cari_kod}</p>
-                  <p><strong>Bayi:</strong> {details.bayi_adi}</p>
-                  <p><strong>Seri:</strong> {details.seri}</p>
-                  <p><strong>Renk:</strong> {details.renk}</p>
-                  <p><strong>Sipariş Tarihi:</strong> {details.siparis_tarihi}</p>
-                  <p><strong>Sevkiyat Tarihi:</strong> {details.sevkiyat_tarihi}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )} */}
-
-        {/* {pozDetails?.job_card && (
-          <Card className="mt-2">
-            <h3 className="text-lg font-semibold mb-2">İş Emri Bilgileri</h3>
-            <div className="text-sm">
-              <p><strong>İş Emri No:</strong> {pozDetails.job_card.name}</p>
-              <p><strong>Üretim Emri:</strong> {pozDetails.job_card.work_order}</p>
-              <p><strong>BOM No:</strong> {pozDetails.job_card.bom_no}</p>
-              <p><strong>Durum:</strong> {pozDetails.job_card.status}</p>
-              <p><strong>Miktar:</strong> {pozDetails.job_card.for_quantity.parsedValue}</p>
-              <p><strong>İş İstasyonu:</strong> {pozDetails.job_card.workstation}</p>
-            </div>
-          </Card>
-        )} */}
       </div>
 
-      {/* Orta Panel - Seçili Poz Detayları */}
+      {/* Orta Panel - Seçili Poz Detayları ve PDF */}
       <div className="w-4/6 bg-white rounded-lg p-4 overflow-auto">
         {loading ? (
           <Loading />
-        ) : selectedPoz && pozDetails?.order_poz_details?.[selectedPoz.poz_no]?.tesdetay ? (
+        ) : selectedPoz ? (
           <div className="flex flex-col gap-4">
-            <div className="bg-white rounded-lg">
-              <h2 className="text-xl font-bold mb-4 text-center">PROFİL KESİM LİSTESİ</h2>
-              <DataTable
-                value={pozDetails.order_poz_details[selectedPoz.poz_no].tesdetay}
-                scrollable
-                scrollHeight="calc(100vh - 200px)"
-                showGridlines
-                stripedRows
-                size="small"
-                className="p-datatable-sm text-xs"
-              >
-                <Column field="stok_kodu" header="Stok Kodu" style={{ width: '100px', fontSize: '0.75rem' }} />
-                <Column field="profil" header="Açıklama" style={{ width: '300px', fontSize: '0.75rem' }} />
-                <Column field="sanal_adet" header="Adet" style={{ width: '80px', fontSize: '0.75rem' }} />
-                <Column header="Yatay" style={{ width: '100px', fontSize: '0.75rem' }} 
-                  body={(rowData) => rowData.pozisyon === 'Y' ? rowData.olcu : ''} />
-                <Column header="Dikey" style={{ width: '100px', fontSize: '0.75rem' }} 
-                  body={(rowData) => rowData.pozisyon === 'D' ? rowData.olcu : ''} />
-                <Column header="K.Açısı" style={{ width: '100px', fontSize: '0.75rem' }} 
-                  body={(rowData) => `${rowData.aci1}°/${rowData.aci2}°`} />
-                <Column field="ds_boyu" header="D.Sacı" style={{ width: '100px', fontSize: '0.75rem' }} />
-              </DataTable>
-            </div>
+            {pdfUrl ? (
+              <iframe
+                src={pdfUrl + "#toolbar=0"}
+                title="Poz PDF"
+                className="w-full"
+                style={{ minHeight: "80vh", border: "none" }}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                PDF bulunamadı
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex items-center justify-center h-full text-gray-500">
@@ -376,4 +281,4 @@ const SurmeHazirlama = () => {
   );
 };
 
-export default SurmeHazirlama; 
+export default SurmeHazirlama;

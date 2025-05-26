@@ -14,7 +14,6 @@ export const getAllSuperKesimRecords = async () => {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
-    console.log("All Records Response:", data); // Debug için detaylı log
     return data.data;
   } catch (error) {
     console.error("Super Kesim Records Fetch Error:", error);
@@ -29,7 +28,6 @@ export const completeSuperKesim = async (name) => {
     throw new Error("Name is required");
   }
 
-  console.log("Completing Super Kesim record:", name);
 
   try {
     const response = await fetch(
@@ -53,7 +51,6 @@ export const completeSuperKesim = async (name) => {
     }
 
     const data = await response.json();
-    console.log("Complete successful:", data);
     return data.data;
   } catch (error) {
     console.error("Error completing super kesim record:", error);
@@ -69,7 +66,6 @@ export const getSuperKesimProfilDetails = async (name) => {
     return null;
   }
 
-  console.log("Fetching details for name:", name); // Debug için log
   try {
     const response = await fetch(
       `${baseUrl}/resource/Super Kesim/${encodeURIComponent(name)}?fields=["*"]`,
@@ -84,7 +80,6 @@ export const getSuperKesimProfilDetails = async (name) => {
     }
 
     const data = await response.json();
-    console.log("Profile Details Response:", data); // Debug için detaylı log
     return data.data;
   } catch (error) {
     console.error("Super Kesim Details Fetch Error:", error);
@@ -98,8 +93,6 @@ export const updateSuperKesimProfileList = async (id, payload) => {
     throw new Error("ID and payload are required");
   }
 
-  console.log("Updating profile with ID:", id);
-  console.log("Payload:", payload);
 
   try {
     const response = await fetch(
@@ -121,7 +114,6 @@ export const updateSuperKesimProfileList = async (id, payload) => {
     }
 
     const data = await response.json();
-    console.log("Update successful:", data);
     return data.data;
   } catch (error) {
     console.error("Error updating super kesim profile:", error);

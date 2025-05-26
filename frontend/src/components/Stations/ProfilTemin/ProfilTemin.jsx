@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import {
@@ -11,7 +11,6 @@ import Loading from "../../Loading";
 import useJobcardsStore from "../../../store/jobcardStore";
 import { InputNumber } from "primereact/inputnumber";
 import { Toast } from 'primereact/toast';
-import { useRef } from "react";
 import { Button } from "primereact/button";
 
 const ProfilTemin = () => {
@@ -38,15 +37,11 @@ const ProfilTemin = () => {
     queryFn: async () => {
       if (!profileOptInfo?.profile_list) return [];
 
-      console.log("Fetching images for profile list:", profileOptInfo.profile_list);
       const uniqueItems = [...new Set(profileOptInfo.profile_list.map(item => item.item_code))];
-      console.log("Unique items to fetch:", uniqueItems);
       
       const imageRequests = uniqueItems.map(async (item) => {
         try {
-          console.log(`Fetching details for item: ${item}`);
           const itemData = await getItemDetails(item);
-          console.log(`Received data for item ${item}:`, itemData);
           return { item, image: itemData.image };
         } catch (error) {
           console.error(`Error fetching image for item ${item}:`, error);
@@ -88,13 +83,17 @@ const ProfilTemin = () => {
     },
   });
 
-  // Input değerlerini yönetmek için state
-  const [localInputValues, setLocalInputValues] = useState({});
+  // Input değerlerini yönetmek için state ve ref
+  const [localInputValues, setLocalInputValues] = useState([]);
+  const localInputValuesRef = useRef([]);
   const [isInputDisabled, setIsInputDisabled] = useState(true);
 
   // currentJobcardStatus değişikliğini takip et
   useEffect(() => {
-    setIsInputDisabled(currentJobcardStatus !== "Work In Progress");
+    console.log("currentJobcardStatus değişti:", currentJobcardStatus);
+    const shouldDisable = currentJobcardStatus !== "Work In Progress";
+    console.log("Input'lar disabled olmalı mı:", shouldDisable);
+    setIsInputDisabled(shouldDisable);
   }, [currentJobcardStatus]);
 
   // Input değerlerini yönetmek için memoized state
@@ -107,18 +106,33 @@ const ProfilTemin = () => {
   }, [profileOptInfo?.profile_list]);
 
   // Input değişiklik handler'ı
-  const handleInputChange = useCallback((value, itemNo) => {
-    if (value === null || value === undefined) return;
-    setLocalInputValues(prev => ({
-      ...prev,
-      [itemNo]: value
-    }));
-  }, []);
+  const handleInputChange = (value, itemNo) => {
+    setLocalInputValues(prev => {
+      const existingIndex = prev.findIndex(item => item.itemNo === itemNo);
+      let newState;
+      
+      if (existingIndex !== -1) {
+        // Mevcut öğeyi güncelle
+        newState = [...prev];
+        newState[existingIndex] = { ...newState[existingIndex], value };
+      } else {
+        // Yeni öğe ekle
+        newState = [...prev, { itemNo, value }];
+      }
+      
+      // Ref'i güncelle
+      localInputValuesRef.current = newState;
+      return newState;
+    });
+  };
 
   // Onaylama handler'ı
   const handleApprove = useCallback((itemNo) => {
-    const value = localInputValues[itemNo];
-    if (value === null || value === undefined) return;
+    
+    const currentItem = localInputValuesRef.current.find(item => item.itemNo === itemNo);
+    const currentValue = currentItem?.value;
+    
+    if (currentValue === null || currentValue === undefined) return;
     
     const profileItem = profileOptInfo?.profile_list.find(
       item => item.item_code === itemNo
@@ -131,16 +145,23 @@ const ProfilTemin = () => {
       parent: profileItem.parent,
       parenttype: "Opt Genel",
       parentfield: "profile_list",
-      custom_transfered: value,
+      custom_transfered: currentValue,
     };
 
     updateProfile(profilePayload);
-  }, [profileOptInfo?.profile_list, updateProfile, localInputValues]);
+  }, [profileOptInfo?.profile_list, updateProfile]);
+
+  
 
   // Input kolonu template'i
   const inputColumnTemplate = useCallback((rowData) => {
+    const currentItem = localInputValues.find(item => item.itemNo === rowData.item_code);
+    const currentValue = currentItem?.value ?? inputValues[rowData.item_code];
+    
+    console.log("inputColumnTemplate render - isInputDisabled:", isInputDisabled, "currentJobcardStatus:", currentJobcardStatus);
+    
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" key={`input-${rowData.item_code}-${isInputDisabled}`}>
         <InputNumber
           inputStyle={{ width: "60px" }}
           mode="decimal"
@@ -150,7 +171,7 @@ const ProfilTemin = () => {
           min={0}
           disabled={isInputDisabled}
           onChange={(e) => handleInputChange(e.value, rowData.item_code)}
-          value={localInputValues[rowData.item_code] ?? inputValues[rowData.item_code]}
+          value={currentValue}
           size="small"
           className="p-inputnumber-sm"
         />
@@ -162,7 +183,7 @@ const ProfilTemin = () => {
         />
       </div>
     );
-  }, [currentJobcardStatus, handleInputChange, handleApprove, inputValues, localInputValues, isInputDisabled]);
+  }, [currentJobcardStatus, inputValues, localInputValues, isInputDisabled, handleApprove]);
 
   // Ürün kodu template'i
   const productCodeTemplate = useCallback((rowData) => {
@@ -221,6 +242,7 @@ const ProfilTemin = () => {
             stripedRows
             responsiveLayout="scroll"
             emptyMessage="Profil bulunamadı"
+            key={`table-${currentJobcardStatus}-${isInputDisabled}`}
           >
             <Column
               field="item_code"
