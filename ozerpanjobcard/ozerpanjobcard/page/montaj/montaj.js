@@ -5,9 +5,9 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 		single_column: true
 	});
 
-	// Require QuaggaJS library
+	// Require barcode scanner library
 	frappe.require([
-		'https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js'
+		'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
 	], function() {
 		// Form container
 		let $form = $(`<div class="montaj-form"></div>`).appendTo(page.main);
@@ -36,7 +36,7 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 							</button>
 						</div>
 						<div class="modal-body">
-							<div id="interactive" class="viewport"></div>
+							<div id="reader"></div>
 						</div>
 					</div>
 				</div>
@@ -91,102 +91,60 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 		$form.html(form_html);
 
 		// Barkod tarayıcı değişkeni
-		let scanner = null;
+		let html5QrcodeScanner = null;
 
 		// Kamera butonu için event listener
 		$('#cameraBtn').on('click', function() {
 			$('#barcodeScannerModal').modal('show');
 			
 			// Tarayıcıyı başlat
-			if (!scanner) {
-				Quagga.init({
-					inputStream: {
-						name: "Live",
-						type: "LiveStream",
-						target: document.querySelector("#interactive"),
-						constraints: {
-							facingMode: "environment",
-							width: { min: 640 },
-							height: { min: 480 }
-						},
+			if (!html5QrcodeScanner) {
+				html5QrcodeScanner = new Html5Qrcode("reader");
+				html5QrcodeScanner.start(
+					{ facingMode: "environment" },
+					{
+						fps: 10,
+						qrbox: { width: 250, height: 250 },
+						formatsToSupport: [
+							Html5QrcodeSupportedFormats.CODE_128,
+							Html5QrcodeSupportedFormats.EAN_13,
+							Html5QrcodeSupportedFormats.EAN_8,
+							Html5QrcodeSupportedFormats.UPC_A,
+							Html5QrcodeSupportedFormats.UPC_E,
+							Html5QrcodeSupportedFormats.CODE_39
+						]
 					},
-					decoder: {
-						readers: [
-							"code_128_reader",
-							"ean_reader",
-							"ean_8_reader",
-							"upc_reader",
-							"upc_e_reader",
-							"code_39_reader"
-						],
-						multiple: false
-					}
-				}, function(err) {
-					if (err) {
-						console.error("Quagga başlatılamadı:", err);
-						frappe.msgprint('Kamera erişimi sağlanamadı. Lütfen kamera izinlerini kontrol edin.');
-						return;
-					}
-					console.log("Quagga başlatıldı");
-					Quagga.start();
-				});
-
-				// Barkod tespit edildiğinde
-				Quagga.onDetected(function(result) {
-					if (result.codeResult.code) {
-						$('#barcode').val(result.codeResult.code);
-						$('#barcode').trigger('keypress', [{which: 13}]);
-						$('#barcodeScannerModal').modal('hide');
-					}
-				});
+					onScanSuccess,
+					onScanFailure
+				);
 			}
 		});
 
 		// Modal kapandığında tarayıcıyı durdur
 		$('#barcodeScannerModal').on('hidden.bs.modal', function() {
-			if (Quagga.isRunning) {
-				Quagga.stop();
-				scanner = null;
+			if (html5QrcodeScanner) {
+				html5QrcodeScanner.stop().then(() => {
+					html5QrcodeScanner = null;
+				});
 			}
 		});
+
+		// Başarılı tarama
+		function onScanSuccess(decodedText, decodedResult) {
+			$('#barcode').val(decodedText);
+			$('#barcode').trigger('keypress', [{which: 13}]);
+			$('#barcodeScannerModal').modal('hide');
+		}
+
+		// Tarama hatası
+		function onScanFailure(error) {
+			// Hata durumunda sessizce devam et
+			console.warn(`Tarama hatası: ${error}`);
+		}
 
 		// Barkod input alanına tıklandığında
 		$('#barcode').on('focus', function() {
 			$('#cameraBtn').click();
-		});
-
-		// Barkod okutma işlemi
-		$('#barcode').on('keypress', function(e) {
-			if (e.which === 13) { // Enter tuşu
-				e.preventDefault();
-				let barcode = $(this).val();
-				
-				if (barcode) {
-					// TesDetay tablosundan bilgileri çek
-					frappe.get_barcode_details(barcode)
-						.then(result => {
-							if (result) {
-								let item = {
-									item_code: result.siparis_no + '-' + result.poz_no,
-									serial_no: result.siparis_no + '-' + result.poz_no + '-' + result.sanal_adet
-								};
-
-								// Tabloya ekle
-								addToTable(item);
-								// Veriyi sakla
-								scannedItems.push(item);
-								// Input'u temizle
-								$('#barcode').val('');
-							} else {
-								frappe.msgprint('Barkod bulunamadı!');
-							}
-						})
-						.catch(err => {
-							frappe.msgprint('Barkod sorgulanırken bir hata oluştu!');
-							console.error(err);
-						});
-				}
-			}
 		});
 
 		// Barkod tablosu için veri saklama
@@ -594,22 +552,6 @@ frappe.pages['montaj'].on_page_load = function(wrapper) {
 			@keyframes spin {
 				0% { transform: rotate(0deg); }
 				100% { transform: rotate(360deg); }
-			}
-
-			/* Quagga tarayıcı stilleri */
-			#interactive.viewport {
-				position: relative;
-				width: 100%;
-				height: 300px;
-			}
-			#interactive.viewport > canvas, #interactive.viewport > video {
-				max-width: 100%;
-				width: 100%;
-			}
-			canvas.drawing, canvas.drawingBuffer {
-				position: absolute;
-				left: 0;
-				top: 0;
 			}
 
 			/* Responsive tasarım için medya sorguları */
