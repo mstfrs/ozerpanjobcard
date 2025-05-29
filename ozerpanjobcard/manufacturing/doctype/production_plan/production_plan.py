@@ -1,10 +1,60 @@
+# Copyright (c) 2024, Ozerpan and contributors
+# For license information, please see license.txt
+
 from __future__ import unicode_literals
 import frappe
-from erpnext.manufacturing.doctype.production_plan.production_plan import ProductionPlan
+from erpnext.manufacturing.doctype.production_plan.production_plan import ProductionPlan as ERPNextProductionPlan
 from erpnext.manufacturing.doctype.work_order.work_order import get_item_details
 from frappe.utils import now_datetime
 
-class CustomProductionPlan(ProductionPlan):
+class CustomProductionPlan(ERPNextProductionPlan):
+    def validate(self):
+        super().validate()
+        self.validate_custom_fields()
+    
+    def validate_custom_fields(self):
+        """Validate custom fields added to Production Plan"""
+        if self.custom_order_serial and not frappe.db.exists("Serial No", self.custom_order_serial):
+            frappe.throw("Seçilen Seri Numarası sistemde bulunamadı!")
+            
+        if self.custom_order_color and not frappe.db.exists("Item", self.custom_order_color):
+            frappe.throw("Seçilen Renk sistemde bulunamadı!")
+            
+    def on_submit(self):
+        super().on_submit()
+        self.update_custom_fields()
+        
+    def update_custom_fields(self):
+        """Update custom fields in related documents"""
+        if self.custom_order_serial:
+            # Update Serial No with Production Plan reference
+            frappe.db.set_value("Serial No", self.custom_order_serial, {
+                "production_plan": self.name,
+                "status": "In Production"
+            })
+            
+        if self.custom_order_color:
+            # Update Work Orders with color
+            work_orders = frappe.get_all("Work Order", 
+                filters={"production_plan": self.name},
+                fields=["name"]
+            )
+            
+            for wo in work_orders:
+                frappe.db.set_value("Work Order", wo.name, "custom_order_color", self.custom_order_color)
+                
+    def on_cancel(self):
+        super().on_cancel()
+        self.reset_custom_fields()
+        
+    def reset_custom_fields(self):
+        """Reset custom fields when Production Plan is cancelled"""
+        if self.custom_order_serial:
+            frappe.db.set_value("Serial No", self.custom_order_serial, {
+                "production_plan": "",
+                "status": "Available"
+            })
+
     def add_items(self, items):
         print("items", items)
         refs = {}
