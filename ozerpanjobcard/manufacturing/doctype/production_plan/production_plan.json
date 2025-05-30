@@ -1,5 +1,18 @@
 {
-    "actions": [],
+    "actions": [
+        {
+            "label": "Get Items",
+            "action": "get_items",
+            "condition": "eval:!doc.__islocal",
+            "class": "btn-get-items"
+        },
+        {
+            "label": "Get Glass for Manufacture",
+            "action": "custom_get_glass_items",
+            "condition": "eval:!doc.__islocal",
+            "class": "btn-get-glass-items"
+        }
+    ],
     "allow_rename": 1,
     "creation": "2024-03-19 10:00:00.000000",
     "doctype": "DocType",
