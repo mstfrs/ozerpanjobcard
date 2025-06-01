@@ -38,6 +38,13 @@ frappe.ui.form.on("Production Plan", {
 			'padding': '8px 15px',
 			'border-radius': '4px'
 		});
+		frm.$wrapper.find('button[data-fieldname="custom_get_pvc_items"]').css({
+			'background-color': '#fc0373',
+			'color': 'white',
+			'border': 'none',
+			'padding': '8px 15px',
+			'border-radius': '4px'
+		});
 	},
 	setup(frm) {
 		frm.trigger("calculate_custom_total_mtul");
@@ -58,6 +65,9 @@ frappe.ui.form.on("Production Plan", {
 	},
 	custom_get_glass_items(frm) {
 		getGlassItems(frm);
+	},
+	custom_get_pvc_items(frm) {
+		getPvcItems(frm);
 	},
 	calculate_custom_total_mtul(frm) {
 		let total = 0;
@@ -98,7 +108,6 @@ function getGlassItems(frm) {
 						frm.set_value("po_items", r.message.po_items);
 					}
 					frm.refresh_field("po_items");
-					frm.reload_doc();
 					resolve(r);
 				} else {
 					reject(new Error("No response message"));
@@ -106,6 +115,31 @@ function getGlassItems(frm) {
 			},
 			error: function(err) {
 				console.error("Error getting glass items:", err);
+				reject(err);
+			}
+		});
+	});
+}
+
+function getPvcItems(frm) {
+	return new Promise((resolve, reject) => {
+		frappe.call({
+			method: "custom_get_pvc_items",
+			freeze: true,
+			doc: frm.doc,
+			callback: function(r) {
+				if (r.message) {
+					if (r.message.po_items) {
+						frm.set_value("po_items", r.message.po_items);
+					}
+					frm.refresh_field("po_items");
+					resolve(r);
+				} else {
+					reject(new Error("No response message"));
+				}
+			},
+			error: function(err) {
+				console.error("Error getting PVC items:", err);
 				reject(err);
 			}
 		});
