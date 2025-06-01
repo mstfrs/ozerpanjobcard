@@ -65,10 +65,10 @@ frappe.ui.form.on("Production Plan", {
 			});
 	},
 	custom_get_glass_items(frm) {
-		getGlassItems(frm);
+		getFilteredGlassItems(frm);
 	},
 	custom_get_pvc_items(frm) {
-		getPvcItems(frm);
+		getFilteredPvcItems(frm);
 	},
 	calculate_custom_total_mtul(frm) {
 		let total = 0;
@@ -97,10 +97,10 @@ frappe.ui.form.on("Production Plan", {
 	},
 });
 
-function getGlassItems(frm) {
+function getFilteredGlassItems(frm) {
 	return new Promise((resolve, reject) => {
 		frappe.call({
-			method: "custom_get_glass_items",
+			method: "get_filtered_glass_items",
 			freeze: true,
 			doc: frm.doc,
 			callback: function(r) {
@@ -122,10 +122,10 @@ function getGlassItems(frm) {
 	});
 }
 
-function getPvcItems(frm) {
+function getFilteredPvcItems(frm) {
 	return new Promise((resolve, reject) => {
 		frappe.call({
-			method: "custom_get_pvc_items",
+			method: "get_filtered_pvc_items",
 			freeze: true,
 			doc: frm.doc,
 			callback: function(r) {

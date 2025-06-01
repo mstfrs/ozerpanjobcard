@@ -114,9 +114,9 @@ class CustomProductionPlan(ProductionPlan):
         print("Final po_items:", self.po_items)
 
     @frappe.whitelist()
-    def custom_get_glass_items(self):
+    def get_filtered_glass_items(self):
         """Get only glass items from selected sales orders"""
-        print("=== custom_get_glass_items started ===")
+        print("=== get_filtered_glass_items started ===")
         if not self.get("sales_orders"):
             frappe.throw(_("Please select Sales Orders first"))
 
@@ -198,7 +198,7 @@ class CustomProductionPlan(ProductionPlan):
         print("Calculating total planned qty")
         self.calculate_total_planned_qty()
         
-        print("=== custom_get_glass_items completed ===")
+        print("=== get_filtered_glass_items completed ===")
         print("Final po_items:", self.po_items)
         
         # Convert po_items to list of dicts for JSON serialization
@@ -213,9 +213,9 @@ class CustomProductionPlan(ProductionPlan):
         }
 
     @frappe.whitelist()
-    def custom_get_pvc_items(self):
+    def get_filtered_pvc_items(self):
         """Get only PVC items from selected sales orders"""
-        print("=== custom_get_pvc_items started ===")
+        print("=== get_filtered_pvc_items started ===")
         if not self.get("sales_orders"):
             frappe.throw(_("Please select Sales Orders first"))
 
@@ -297,7 +297,7 @@ class CustomProductionPlan(ProductionPlan):
         print("Calculating total planned qty")
         self.calculate_total_planned_qty()
         
-        print("=== custom_get_pvc_items completed ===")
+        print("=== get_filtered_pvc_items completed ===")
         print("Final po_items:", self.po_items)
         
         # Convert po_items to list of dicts for JSON serialization
