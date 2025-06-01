@@ -45,6 +45,7 @@ frappe.ui.form.on("Production Plan", {
 			'padding': '8px 15px',
 			'border-radius': '4px'
 		});
+		
 	},
 	setup(frm) {
 		frm.trigger("calculate_custom_total_mtul");
