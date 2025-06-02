@@ -74,6 +74,7 @@ class CustomProductionPlan(ProductionPlan):
                     "product_bundle_item": data.parent_item,
                     "custom_serial": item_doc.custom_serial,
                     "custom_color": item_doc.custom_color,
+                    "custom_mtul_per_piece": item_doc.custom_total_main_profiles_mtul,
                     "sales_order": data.parent,
                     "sales_order_item": data.name,
                     "material_request": "",
@@ -283,7 +284,7 @@ class CustomProductionPlan(ProductionPlan):
                 error_msg.append(_("Found PVC items without BOM: {0}").format(", ".join(items_without_bom)))
             
             if error_msg:
-                frappe.throw(_("No valid PVC items found. Details: {0}").format(" | ".join(error_msg)))
+                frappe.throw(_("No valid PVC items found."))
             else:
                 frappe.throw(_("No PVC items found in selected sales orders"))
 
