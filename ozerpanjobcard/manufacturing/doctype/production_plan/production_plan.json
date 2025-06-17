@@ -11,6 +11,12 @@
             "action": "custom_get_glass_items",
             "condition": "eval:!doc.__islocal",
             "class": "btn-get-glass-items"
+        },
+        {
+            "label": "Transfer Profiles",
+            "action": "custom_transfer_profiles",
+            "condition": "eval:!doc.__islocal",
+            "class": "btn-transfer-profiles"
         }
     ],
     "allow_rename": 1,
@@ -19,11 +25,19 @@
     "editable_grid": 1,
     "engine": "InnoDB",
     "field_order": [
+        "custom_opti_no",
         "custom_order_serial",
         "custom_order_color",
         "column_break_1"
     ],
     "fields": [
+        {
+            "fieldname": "custom_opti_no",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "OPT No",
+            "options": "Opt Genel"
+        },
         {
             "fieldname": "custom_order_serial",
             "fieldtype": "Link",

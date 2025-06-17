@@ -491,3 +491,45 @@ class CustomProductionPlan(ProductionPlan):
                 },
             )
 
+@frappe.whitelist()
+def get_opt_profiles(opt_no):
+    """Get profiles from OPT Genel based on OPT number"""
+    if not opt_no:
+        frappe.throw(_("OPT No is required"))
+
+    # Get OPT Genel document
+    opt_genel = frappe.get_doc("Opt Genel", opt_no)
+    if not opt_genel:
+        frappe.throw(_("OPT Genel document not found"))
+
+    # Get profiles from OPT Genel Profile List
+    profiles = []
+    
+    # Try different possible table field names
+    table_field = None
+    possible_table_fields = ['opt_genel_profile_list', 'opt_genel_profiles', 'profiles', 'profile_list']
+    
+    for field in possible_table_fields:
+        if hasattr(opt_genel, field):
+            table_field = field
+            break
+    
+    if not table_field:
+        frappe.throw(_("Could not find profile list table in Opt Genel document"))
+    
+    for profile in getattr(opt_genel, table_field):
+        # Convert custom_boy to float and format it
+        try:
+            boy_value = float(profile.boy)
+            formatted_boy = f"{boy_value:.1f}"  # Format as one decimal place
+        except (ValueError, TypeError):
+            formatted_boy = profile.boy  # If conversion fails, use original value
+
+        profiles.append({
+            "item_code": profile.item_code,
+            "boy": formatted_boy,
+            "amountboy": profile.amountboy
+        })
+
+    return profiles
+

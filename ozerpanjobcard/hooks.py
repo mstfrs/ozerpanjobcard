@@ -88,7 +88,9 @@ ozerpandoc = [
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/ozerpanjobcard/css/ozerpanjobcard.css"
-# app_include_js = "/assets/ozerpanjobcard/js/ozerpanjobcard.js"
+app_include_js = [
+    "/assets/ozerpanjobcard/js/production_plan/production_plan.js"
+]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/ozerpanjobcard/css/ozerpanjobcard.css"
