@@ -252,6 +252,12 @@ const ProfilTemin = () => {
               style={{ width: "15%" }}
             />
             <Column
+              field="boy"
+              header="Ürün Boyu"
+              sortable
+              style={{ width: "15%" }}
+            />
+            <Column
               field="item_name"
               header="Ürün Adı"
               style={{ width: "40%" }}
