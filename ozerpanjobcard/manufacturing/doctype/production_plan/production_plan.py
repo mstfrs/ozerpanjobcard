@@ -117,200 +117,218 @@ class CustomProductionPlan(ProductionPlan):
     @frappe.whitelist()
     def get_filtered_glass_items(self):
         """Get only glass items from selected sales orders"""
-        print("=== get_filtered_glass_items started ===")
-        if not self.get("sales_orders"):
-            frappe.throw(_("Please select Sales Orders first"))
+        try:
+            print("=== get_filtered_glass_items started ===")
+            if not self.get("sales_orders"):
+                frappe.throw(_("Please select Sales Orders first"))
 
-        so_list = [d.sales_order for d in self.sales_orders if d.sales_order]
-        print("Sales Orders:", so_list)
-        
-        # Get all items from selected sales orders
-        so_items = frappe.get_all(
-            "Sales Order Item",
-            filters={
-                "parent": ["in", so_list],
-                "docstatus": 1,
-                "qty": [">", "production_plan_qty"]
-            },
-            fields=["parent", "item_code", "warehouse", "qty", "work_order_qty", 
-                   "delivered_qty", "conversion_factor", "description", "name", "bom_no"]
-        )
-        print("SO Items:", so_items)
-
-        if not so_items:
-            frappe.throw(_("No items found in selected sales orders"))
-
-        # Filter only glass items
-        glass_items = []
-        non_glass_items = []
-        items_without_bom = []
-        
-        for item in so_items:
-            item_group = frappe.db.get_value("Item", item.item_code, "item_group")
-            print(f"Item {item.item_code} group:", item_group)
+            so_list = [d.sales_order for d in self.sales_orders if d.sales_order]
+            print("Sales Orders:", so_list)
             
-            if item_group == "Camlar":
-                item.pending_qty = (
-                    flt(item.qty) - max(item.work_order_qty, item.delivered_qty, 0)
-                ) * item.conversion_factor
+            # Get all items from selected sales orders
+            so_items = frappe.get_all(
+                "Sales Order Item",
+                filters={
+                    "parent": ["in", so_list],
+                    "docstatus": 1,
+                    "qty": [">", "production_plan_qty"]
+                },
+                fields=["parent", "item_code", "warehouse", "qty", "work_order_qty", 
+                       "delivered_qty", "conversion_factor", "description", "name", "bom_no"]
+            )
+            print("SO Items:", so_items)
+
+            if not so_items:
+                frappe.throw(_("No items found in selected sales orders"))
+
+            # Filter only glass items
+            glass_items = []
+            non_glass_items = []
+            items_without_bom = []
+            
+            for item in so_items:
+                item_group = frappe.db.get_value("Item", item.item_code, "item_group")
+                print(f"Item {item.item_code} group:", item_group)
                 
-                # Get BOM for the item if not already set
-                if not item.bom_no:
-                    item.bom_no = frappe.db.get_value("BOM", {
-                        "item": item.item_code,
-                        "is_active": 1,
-                        "is_default": 1
-                    }, "name")
-                
-                if item.bom_no:
-                    glass_items.append(item)
-                    print(f"Added glass item: {item.item_code}")
+                if item_group == "Camlar":
+                    item.pending_qty = (
+                        flt(item.qty) - max(item.work_order_qty, item.delivered_qty, 0)
+                    ) * item.conversion_factor
+                    
+                    # Get BOM for the item if not already set
+                    if not item.bom_no:
+                        item.bom_no = frappe.db.get_value("BOM", {
+                            "item": item.item_code,
+                            "is_active": 1,
+                            "is_default": 1
+                        }, "name")
+                    
+                    if item.bom_no:
+                        glass_items.append(item)
+                        print(f"Added glass item: {item.item_code}")
+                    else:
+                        items_without_bom.append(item.item_code)
+                        print(f"Glass item without BOM: {item.item_code}")
                 else:
-                    items_without_bom.append(item.item_code)
-                    print(f"Glass item without BOM: {item.item_code}")
-            else:
-                non_glass_items.append(item.item_code)
-                print(f"Non-glass item: {item.item_code}")
+                    non_glass_items.append(item.item_code)
+                    print(f"Non-glass item: {item.item_code}")
 
-        print("Glass items:", glass_items)
-        print("Non-glass items:", non_glass_items)
-        print("Items without BOM:", items_without_bom)
+            print("Glass items:", glass_items)
+            print("Non-glass items:", non_glass_items)
+            print("Items without BOM:", items_without_bom)
 
-        # Prepare detailed error message
-        if not glass_items:
-            error_msg = []
-            if non_glass_items:
-                error_msg.append(_("Found non-glass items: {0}").format(", ".join(non_glass_items)))
-            if items_without_bom:
-                error_msg.append(_("Found glass items without BOM: {0}").format(", ".join(items_without_bom)))
+            # Prepare detailed error message
+            if not glass_items:
+                error_msg = []
+                if non_glass_items:
+                    error_msg.append(_("Found non-glass items: {0}").format(", ".join(non_glass_items)))
+                if items_without_bom:
+                    error_msg.append(_("Found glass items without BOM: {0}").format(", ".join(items_without_bom)))
+                
+                if error_msg:
+                    frappe.throw(_("No valid glass items found. Details: {0}").format(" | ".join(error_msg)))
+                else:
+                    frappe.throw(_("No glass items found in selected sales orders"))
+
+            # Clear existing items and add new ones
+            print("Clearing existing po_items")
+            self.set("po_items", [])
+            print("Adding glass items")
+            self.add_items(glass_items)
             
-            if error_msg:
-                frappe.throw(_("No valid glass items found. Details: {0}").format(" | ".join(error_msg)))
-            else:
-                frappe.throw(_("No glass items found in selected sales orders"))
+            # Calculate totals
+            print("Calculating total planned qty")
+            self.calculate_total_planned_qty()
+            
+            print("=== get_filtered_glass_items completed ===")
+            print("Final po_items:", self.po_items)
+            
+            # Convert po_items to list of dicts for JSON serialization
+            po_items_list = []
+            for item in self.po_items:
+                po_items_list.append(item.as_dict())
+            
+            return {
+                "status": "success",
+                "message": _("Glass items added successfully"),
+                "items": glass_items,
+                "po_items": po_items_list
+            }
 
-        # Clear existing items and add new ones
-        print("Clearing existing po_items")
-        self.set("po_items", [])
-        print("Adding glass items")
-        self.add_items(glass_items)
-        
-        # Calculate totals
-        print("Calculating total planned qty")
-        self.calculate_total_planned_qty()
-        
-        print("=== get_filtered_glass_items completed ===")
-        print("Final po_items:", self.po_items)
-        
-        # Convert po_items to list of dicts for JSON serialization
-        po_items_list = []
-        for item in self.po_items:
-            po_items_list.append(item.as_dict())
-        
-        return {
-            "message": _("Glass items added successfully"),
-            "items": glass_items,
-            "po_items": po_items_list
-        }
+        except Exception as e:
+            frappe.log_error(frappe.get_traceback(), _("Error in get_filtered_glass_items"))
+            return {
+                "status": "error",
+                "message": str(e)
+            }
 
     @frappe.whitelist()
     def get_filtered_pvc_items(self):
         """Get only PVC items from selected sales orders"""
-        print("=== get_filtered_pvc_items started ===")
-        if not self.get("sales_orders"):
-            frappe.throw(_("Please select Sales Orders first"))
+        try:
+            print("=== get_filtered_pvc_items started ===")
+            if not self.get("sales_orders"):
+                frappe.throw(_("Please select Sales Orders first"))
 
-        so_list = [d.sales_order for d in self.sales_orders if d.sales_order]
-        print("Sales Orders:", so_list)
-        
-        # Get all items from selected sales orders
-        so_items = frappe.get_all(
-            "Sales Order Item",
-            filters={
-                "parent": ["in", so_list],
-                "docstatus": 1,
-                "qty": [">", "production_plan_qty"]
-            },
-            fields=["parent", "item_code", "warehouse", "qty", "work_order_qty", 
-                   "delivered_qty", "conversion_factor", "description", "name", "bom_no"]
-        )
-        print("SO Items:", so_items)
-
-        if not so_items:
-            frappe.throw(_("No items found in selected sales orders"))
-
-        # Filter only PVC items
-        pvc_items = []
-        non_pvc_items = []
-        items_without_bom = []
-        
-        for item in so_items:
-            item_group = frappe.db.get_value("Item", item.item_code, "item_group")
-            print(f"Item {item.item_code} group:", item_group)
+            so_list = [d.sales_order for d in self.sales_orders if d.sales_order]
+            print("Sales Orders:", so_list)
             
-            if item_group == "PVC":
-                item.pending_qty = (
-                    flt(item.qty) - max(item.work_order_qty, item.delivered_qty, 0)
-                ) * item.conversion_factor
+            # Get all items from selected sales orders
+            so_items = frappe.get_all(
+                "Sales Order Item",
+                filters={
+                    "parent": ["in", so_list],
+                    "docstatus": 1,
+                    "qty": [">", "production_plan_qty"]
+                },
+                fields=["parent", "item_code", "warehouse", "qty", "work_order_qty", 
+                       "delivered_qty", "conversion_factor", "description", "name", "bom_no"]
+            )
+            print("SO Items:", so_items)
+
+            if not so_items:
+                frappe.throw(_("No items found in selected sales orders"))
+
+            # Filter only PVC items
+            pvc_items = []
+            non_pvc_items = []
+            items_without_bom = []
+            
+            for item in so_items:
+                item_group = frappe.db.get_value("Item", item.item_code, "item_group")
+                print(f"Item {item.item_code} group:", item_group)
                 
-                # Get BOM for the item if not already set
-                if not item.bom_no:
-                    item.bom_no = frappe.db.get_value("BOM", {
-                        "item": item.item_code,
-                        "is_active": 1,
-                        "is_default": 1
-                    }, "name")
-                
-                if item.bom_no:
-                    pvc_items.append(item)
-                    print(f"Added PVC item: {item.item_code}")
+                if item_group == "PVC":
+                    item.pending_qty = (
+                        flt(item.qty) - max(item.work_order_qty, item.delivered_qty, 0)
+                    ) * item.conversion_factor
+                    
+                    # Get BOM for the item if not already set
+                    if not item.bom_no:
+                        item.bom_no = frappe.db.get_value("BOM", {
+                            "item": item.item_code,
+                            "is_active": 1,
+                            "is_default": 1
+                        }, "name")
+                    
+                    if item.bom_no:
+                        pvc_items.append(item)
+                        print(f"Added PVC item: {item.item_code}")
+                    else:
+                        items_without_bom.append(item.item_code)
+                        print(f"PVC item without BOM: {item.item_code}")
                 else:
-                    items_without_bom.append(item.item_code)
-                    print(f"PVC item without BOM: {item.item_code}")
-            else:
-                non_pvc_items.append(item.item_code)
-                print(f"Non-PVC item: {item.item_code}")
+                    non_pvc_items.append(item.item_code)
+                    print(f"Non-PVC item: {item.item_code}")
 
-        print("PVC items:", pvc_items)
-        print("Non-PVC items:", non_pvc_items)
-        print("Items without BOM:", items_without_bom)
+            print("PVC items:", pvc_items)
+            print("Non-PVC items:", non_pvc_items)
+            print("Items without BOM:", items_without_bom)
 
-        # Prepare detailed error message
-        if not pvc_items:
-            error_msg = []
-            if non_pvc_items:
-                error_msg.append(_("Found non-PVC items: {0}").format(", ".join(non_pvc_items)))
-            if items_without_bom:
-                error_msg.append(_("Found PVC items without BOM: {0}").format(", ".join(items_without_bom)))
+            # Prepare detailed error message
+            if not pvc_items:
+                error_msg = []
+                if non_pvc_items:
+                    error_msg.append(_("Found non-PVC items: {0}").format(", ".join(non_pvc_items)))
+                if items_without_bom:
+                    error_msg.append(_("Found PVC items without BOM: {0}").format(", ".join(items_without_bom)))
+                
+                if error_msg:
+                    frappe.throw(_("No valid PVC items found. Details: {0}").format(" | ".join(error_msg)))
+                else:
+                    frappe.throw(_("No PVC items found in selected sales orders"))
+
+            # Clear existing items and add new ones
+            print("Clearing existing po_items")
+            self.set("po_items", [])
+            print("Adding PVC items")
+            self.add_items(pvc_items)
             
-            if error_msg:
-                frappe.throw(_("No valid PVC items found."))
-            else:
-                frappe.throw(_("No PVC items found in selected sales orders"))
+            # Calculate totals
+            print("Calculating total planned qty")
+            self.calculate_total_planned_qty()
+            
+            print("=== get_filtered_pvc_items completed ===")
+            print("Final po_items:", self.po_items)
+            
+            # Convert po_items to list of dicts for JSON serialization
+            po_items_list = []
+            for item in self.po_items:
+                po_items_list.append(item.as_dict())
+            
+            return {
+                "status": "success",
+                "message": _("PVC items added successfully"),
+                "items": pvc_items,
+                "po_items": po_items_list
+            }
 
-        # Clear existing items and add new ones
-        print("Clearing existing po_items")
-        self.set("po_items", [])
-        print("Adding PVC items")
-        self.add_items(pvc_items)
-        
-        # Calculate totals
-        print("Calculating total planned qty")
-        self.calculate_total_planned_qty()
-        
-        print("=== get_filtered_pvc_items completed ===")
-        print("Final po_items:", self.po_items)
-        
-        # Convert po_items to list of dicts for JSON serialization
-        po_items_list = []
-        for item in self.po_items:
-            po_items_list.append(item.as_dict())
-        
-        return {
-            "message": _("PVC items added successfully"),
-            "items": pvc_items,
-            "po_items": po_items_list
-        }
+        except Exception as e:
+            frappe.log_error(frappe.get_traceback(), _("Error in get_filtered_pvc_items"))
+            return {
+                "status": "error",
+                "message": str(e)
+            }
 
     def get_sales_orders(self):
         print("=== get_sales_orders started ===")

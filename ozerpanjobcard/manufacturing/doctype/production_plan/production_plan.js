@@ -67,5 +67,65 @@ frappe.ui.form.on("Production Plan", {
                 }
             }
         });
+    },
+
+    custom_get_glass_items(frm) {
+        if (!frm.doc.sales_orders || frm.doc.sales_orders.length === 0) {
+            frappe.msgprint(__('Please select Sales Orders first'));
+            return;
+        }
+
+        frappe.call({
+            method: 'ozerpanjobcard.manufacturing.doctype.production_plan.production_plan.get_filtered_glass_items',
+            doc: frm.doc,
+            callback: function(r) {
+                if (r.message) {
+                    if (r.message.items && r.message.items.length > 0) {
+                        frappe.msgprint(__('Glass items added successfully'));
+                        frm.refresh();
+                    } else {
+                        frappe.msgprint(__('No glass items found in selected sales orders'));
+                    }
+                }
+            },
+            error: function(err) {
+                console.error('Error getting glass items:', err);
+                frappe.msgprint({
+                    title: __('Error'),
+                    message: __('Error getting glass items. Please try again.'),
+                    indicator: 'red'
+                });
+            }
+        });
+    },
+
+    custom_get_pvc_items(frm) {
+        if (!frm.doc.sales_orders || frm.doc.sales_orders.length === 0) {
+            frappe.msgprint(__('Please select Sales Orders first'));
+            return;
+        }
+
+        frappe.call({
+            method: 'ozerpanjobcard.manufacturing.doctype.production_plan.production_plan.get_filtered_pvc_items',
+            doc: frm.doc,
+            callback: function(r) {
+                if (r.message) {
+                    if (r.message.items && r.message.items.length > 0) {
+                        frappe.msgprint(__('PVC items added successfully'));
+                        frm.refresh();
+                    } else {
+                        frappe.msgprint(__('No PVC items found in selected sales orders'));
+                    }
+                }
+            },
+            error: function(err) {
+                console.error('Error getting PVC items:', err);
+                frappe.msgprint({
+                    title: __('Error'),
+                    message: __('Error getting PVC items. Please try again.'),
+                    indicator: 'red'
+                });
+            }
+        });
     }
 }); 
