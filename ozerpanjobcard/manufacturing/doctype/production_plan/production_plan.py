@@ -545,7 +545,7 @@ def get_opt_profiles(opt_no):
 
         profiles.append({
             "item_code": profile.item_code,
-            "boy": formatted_boy,
+            "custom_boy": formatted_boy,
             "amountboy": profile.amountboy
         })
 

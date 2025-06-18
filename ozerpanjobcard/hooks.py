@@ -44,7 +44,7 @@ doc_events.update({
 fixtures = [
     {"dt": "Custom Field", "filters": [["module", "=", "Ozerpanjobcard"]]},
     # {"dt": "Web Page", "filters": [["module", "=", "Ozerpanjobcard"]]},
-    # {"dt": "Property Setter", "filters": [["module", "=", "Ozerpanjobcard"]]},
+    {"dt": "Property Setter", "filters": [["module", "=", "Ozerpanjobcard"]]},
     #{"dt": "Item", "filters": [["custom_poz_id", "=", ""], ["custom_serial", "=", ""]]},
     # {"dt": "Item Group"},
     # {"dt": "Workstation"},
@@ -88,9 +88,9 @@ ozerpandoc = [
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/ozerpanjobcard/css/ozerpanjobcard.css"
-app_include_js = [
-    "/assets/ozerpanjobcard/js/production_plan/production_plan.js"
-]
+# app_include_js = [
+#     "/assets/ozerpanjobcard/js/production_plan/production_plan.js"
+# ]
 
 # include js, css files in header of web template
 # web_include_css = "/assets/ozerpanjobcard/css/ozerpanjobcard.css"
