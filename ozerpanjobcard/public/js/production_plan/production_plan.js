@@ -45,13 +45,7 @@ frappe.ui.form.on("Production Plan", {
 			'padding': '8px 15px',
 			'border-radius': '4px'
 		});
-		frm.$wrapper.find('button[data-fieldname="custom_transfer_profiles"]').css({
-			'background-color': '#3498db',
-			'color': 'white',
-			'border': 'none',
-			'padding': '8px 15px',
-			'border-radius': '4px'
-		});
+
 		
 	},
 	setup(frm) {
@@ -102,126 +96,126 @@ frappe.ui.form.on("Production Plan", {
 	// 	frm.set_value("custom_total_mtül", total);
 	// 	frm.refresh_field("custom_total_mtül");
 	// },
-	custom_transfer_profiles: function(frm) {
-		if (!frm.doc.custom_opti_no) {
-			frappe.throw(__("Please enter OPT No first"));
-			return;
-		}
+	// custom_transfer_profiles: function(frm) {
+	// 	if (!frm.doc.custom_opti_no) {
+	// 		frappe.throw(__("Please enter OPT No first"));
+	// 		return;
+	// 	}
 
-		if (!frm.doc.for_warehouse) {
-			frappe.throw(__("Please select For Warehouse first"));
-			return;
-		}
+	// 	if (!frm.doc.for_warehouse) {
+	// 		frappe.throw(__("Please select For Warehouse first"));
+	// 		return;
+	// 	}
 
-		frappe.call({
-			method: "ozerpanjobcard.manufacturing.doctype.production_plan.production_plan.get_opt_profiles",
-			args: {
-				opt_no: frm.doc.custom_opti_no
-			},
-			callback: function(r) {
-				if (r.message) {
-					// First check if all items exist
-					let missing_items = [];
-					let all_items_exist = true;
+	// 	frappe.call({
+	// 		method: "ozerpanjobcard.manufacturing.doctype.production_plan.production_plan.get_opt_profiles",
+	// 		args: {
+	// 			opt_no: frm.doc.custom_opti_no
+	// 		},
+	// 		callback: function(r) {
+	// 			if (r.message) {
+	// 				// First check if all items exist
+	// 				let missing_items = [];
+	// 				let all_items_exist = true;
 
-					// Check all items first
-					r.message.forEach((profile) => {
-						let new_item_code = profile.item_code + "-" + profile.custom_boy;
-						frappe.call({
-							method: "frappe.client.get",
-							args: {
-								doctype: "Item",
-								name: new_item_code
-							},
-							async: false, // Make it synchronous
-							callback: function(item_r) {
-								if (!item_r.message) {
-									missing_items.push(new_item_code);
-									all_items_exist = false;
-								}
-							}
-						});
-					});
+	// 				// Check all items first
+	// 				r.message.forEach((profile) => {
+	// 					let new_item_code = profile.item_code + "-" + profile.custom_boy;
+	// 					frappe.call({
+	// 						method: "frappe.client.get",
+	// 						args: {
+	// 							doctype: "Item",
+	// 							name: new_item_code
+	// 						},
+	// 						async: false, // Make it synchronous
+	// 						callback: function(item_r) {
+	// 							if (!item_r.message) {
+	// 								missing_items.push(new_item_code);
+	// 								all_items_exist = false;
+	// 							}
+	// 						}
+	// 					});
+	// 				});
 
-					// If any item is missing, show error and return
-					if (!all_items_exist) {
-						frappe.msgprint({
-							title: __('Items Not Found'),
-							message: __('Following items do not exist in the system: {0}', [missing_items.join(', ')]),
-							indicator: 'red'
-						});
-						return;
-					}
+	// 				// If any item is missing, show error and return
+	// 				if (!all_items_exist) {
+	// 					frappe.msgprint({
+	// 						title: __('Items Not Found'),
+	// 						message: __('Following items do not exist in the system: {0}', [missing_items.join(', ')]),
+	// 						indicator: 'red'
+	// 					});
+	// 					return;
+	// 				}
 
-					// If all items exist, proceed with the update
-					// Get existing items that need to be replaced
-					let existing_items = frm.doc.mr_items || [];
-					let items_to_keep = [];
-					let base_items_to_replace = new Set();
+	// 				// If all items exist, proceed with the update
+	// 				// Get existing items that need to be replaced
+	// 				let existing_items = frm.doc.mr_items || [];
+	// 				let items_to_keep = [];
+	// 				let base_items_to_replace = new Set();
 
-					// First, identify which base items need to be replaced
-					r.message.forEach((profile) => {
-						let base_item = profile.item_code.split('-')[0];
-						base_items_to_replace.add(base_item);
-					});
+	// 				// First, identify which base items need to be replaced
+	// 				r.message.forEach((profile) => {
+	// 					let base_item = profile.item_code.split('-')[0];
+	// 					base_items_to_replace.add(base_item);
+	// 				});
 
-					// Filter out items that need to be replaced
-					existing_items.forEach((item) => {
-						let item_base = item.item_code.split('-')[0];
-						if (!base_items_to_replace.has(item_base)) {
-							items_to_keep.push(item);
-						}
-					});
+	// 				// Filter out items that need to be replaced
+	// 				existing_items.forEach((item) => {
+	// 					let item_base = item.item_code.split('-')[0];
+	// 					if (!base_items_to_replace.has(item_base)) {
+	// 						items_to_keep.push(item);
+	// 					}
+	// 				});
 
-					// Clear mr_items and add back items to keep
-					frm.set_value("mr_items", items_to_keep);
+	// 				// Clear mr_items and add back items to keep
+	// 				frm.set_value("mr_items", items_to_keep);
 
-					// Add new items from OPT profiles
-					r.message.forEach((profile) => {
-						let new_item_code = profile.item_code + "-" + profile.custom_boy;
+	// 				// Add new items from OPT profiles
+	// 				r.message.forEach((profile) => {
+	// 					let new_item_code = profile.item_code + "-" + profile.custom_boy;
 						
-						// Get item details including stock_uom
-						frappe.call({
-							method: "frappe.client.get",
-							args: {
-								doctype: "Item",
-								name: new_item_code
-							},
-							callback: function(item_r) {
-								if (item_r.message) {
-									// Check stock availability
-									frappe.call({
-										method: "erpnext.stock.get_item_details.get_bin_details",
-										args: {
-											item_code: new_item_code,
-											warehouse: frm.doc.for_warehouse
-										},
-										callback: function(stock_r) {
-											let d = frm.add_child("mr_items");
-											d.item_code = new_item_code;
-											d.quantity = profile.amountboy;
-											d.required_bom_qty = profile.amountboy;
-											d.warehouse = frm.doc.for_warehouse;
-											d.uom = item_r.message.stock_uom; // Add stock_uom to UOM field
+	// 					// Get item details including stock_uom
+	// 					frappe.call({
+	// 						method: "frappe.client.get",
+	// 						args: {
+	// 							doctype: "Item",
+	// 							name: new_item_code
+	// 						},
+	// 						callback: function(item_r) {
+	// 							if (item_r.message) {
+	// 								// Check stock availability
+	// 								frappe.call({
+	// 									method: "erpnext.stock.get_item_details.get_bin_details",
+	// 									args: {
+	// 										item_code: new_item_code,
+	// 										warehouse: frm.doc.for_warehouse
+	// 									},
+	// 									callback: function(stock_r) {
+	// 										let d = frm.add_child("mr_items");
+	// 										d.item_code = new_item_code;
+	// 										d.quantity = profile.amountboy;
+	// 										d.required_bom_qty = profile.amountboy;
+	// 										d.warehouse = frm.doc.for_warehouse;
+	// 										d.uom = item_r.message.stock_uom; // Add stock_uom to UOM field
 											
-											// Set material request type based on stock availability
-											if (stock_r.message && stock_r.message.actual_qty >= profile.amountboy) {
-												d.material_request_type = "Material Transfer";
-											} else {
-												d.material_request_type = "Purchase";
-											}
+	// 										// Set material request type based on stock availability
+	// 										if (stock_r.message && stock_r.message.actual_qty >= profile.amountboy) {
+	// 											d.material_request_type = "Material Transfer";
+	// 										} else {
+	// 											d.material_request_type = "Purchase";
+	// 										}
 											
-											refresh_field("mr_items");
-										}
-									});
-								}
-							}
-						});
-					});
-				}
-			}
-		});
-	}
+	// 										refresh_field("mr_items");
+	// 									}
+	// 								});
+	// 							}
+	// 						}
+	// 					});
+	// 				});
+	// 			}
+	// 		}
+	// 	});
+	// }
 });
 
 function getFilteredGlassItems(frm) {
