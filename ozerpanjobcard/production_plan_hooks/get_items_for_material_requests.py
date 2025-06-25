@@ -42,17 +42,17 @@ def get_items_for_material_requests(doc, warehouses=None, get_parent_warehouse_d
         parts = op.get("item_code").split("-")
         item_codes_to_remove.append(parts[0])
         # mr_items.append(op)
-        mr_items.insert(0,op)
+        # mr_items.insert(0,op)
 
     # Delete Template Profiles
     mr_items = [m for m in mr_items if m.get("item_code") not in item_codes_to_remove]
 
-    new_mr_items = []
-    for item in mr_items:
-        print("Item:", item)
-        get_materials_from_other_locations(item, warehouses, new_mr_items, doc.company)
+    # new_mr_items = []
+    # for item in mr_items:
+    #     print("Item:", item)
+    #     get_materials_from_other_locations(item, warehouses, new_mr_items, doc.company)
 
-        mr_items = new_mr_items
+    #     mr_items = new_mr_items
 
     print("\nDebug:", 3, "\n")
     # You can modify the items here before returning
