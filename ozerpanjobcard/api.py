@@ -189,6 +189,20 @@ def get_glass_list(order_no):
         frappe.logger().error(f"Error in get_glass_list: {str(e)}")
         frappe.throw(f"Error getting glass list: {str(e)}")
 
+@frappe.whitelist(allow_guest=False)
+def update_profile_stock_ledger_qty(profile_type, length, qty):
+    doc = frappe.get_all(
+        "Profile Stock Ledger",
+        filters={"profile_type": profile_type, "length": length},
+        fields=["name"]
+    )
+    if not doc:
+        frappe.throw(_("No matching Profile Stock Ledger record found."))
+    docname = doc[0]["name"]
+    ledger_doc = frappe.get_doc("Profile Stock Ledger", docname)
+    ledger_doc.qty = (ledger_doc.qty or 0) - float(qty)
+    ledger_doc.save()
+    return {"name": docname, "qty": ledger_doc.qty}
 
 
 @frappe.whitelist(allow_guest=True)

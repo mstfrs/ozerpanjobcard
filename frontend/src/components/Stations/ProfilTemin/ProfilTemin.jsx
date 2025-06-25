@@ -12,6 +12,7 @@ import useJobcardsStore from "../../../store/jobcardStore";
 import { InputNumber } from "primereact/inputnumber";
 import { Toast } from 'primereact/toast';
 import { Button } from "primereact/button";
+import { updateProfileStockLedgerQty } from "../../../services/ProfilTeminServices";
 
 const ProfilTemin = () => {
   const { currentOpt, currentJobcard, setIsAllProfileTransferred,currentJobcardStatus } = useJobcardsStore();
@@ -90,9 +91,7 @@ const ProfilTemin = () => {
 
   // currentJobcardStatus değişikliğini takip et
   useEffect(() => {
-    console.log("currentJobcardStatus değişti:", currentJobcardStatus);
     const shouldDisable = currentJobcardStatus !== "Work In Progress";
-    console.log("Input'lar disabled olmalı mı:", shouldDisable);
     setIsInputDisabled(shouldDisable);
   }, [currentJobcardStatus]);
 
@@ -127,9 +126,9 @@ const ProfilTemin = () => {
   };
 
   // Onaylama handler'ı
-  const handleApprove = useCallback((itemNo) => {
+  const handleApprove = useCallback((rowData,itemNo) => {   
     
-    const currentItem = localInputValuesRef.current.find(item => item.itemNo === itemNo);
+    const currentItem = localInputValuesRef.current.find(item => String(item.itemNo) === String(itemNo));
     const currentValue = currentItem?.value;
     
     if (currentValue === null || currentValue === undefined) return;
@@ -147,8 +146,8 @@ const ProfilTemin = () => {
       parentfield: "profile_list",
       custom_transfered: currentValue,
     };
-
     updateProfile(profilePayload);
+    updateProfileStockLedgerQty(rowData.item_code, rowData.boy, currentValue-rowData.custom_transfered);
   }, [profileOptInfo?.profile_list, updateProfile]);
 
   
@@ -158,7 +157,6 @@ const ProfilTemin = () => {
     const currentItem = localInputValues.find(item => item.itemNo === rowData.item_code);
     const currentValue = currentItem?.value ?? inputValues[rowData.item_code];
     
-    console.log("inputColumnTemplate render - isInputDisabled:", isInputDisabled, "currentJobcardStatus:", currentJobcardStatus);
     
     return (
       <div className="flex items-center gap-2" key={`input-${rowData.item_code}-${isInputDisabled}`}>
@@ -178,7 +176,7 @@ const ProfilTemin = () => {
         <Button
           icon="pi pi-check"
           className="p-button-success p-button-sm"
-          onClick={() => handleApprove(rowData.item_code)}
+          onClick={() => handleApprove(rowData,rowData.item_code)}
           disabled={isInputDisabled}
         />
       </div>
