@@ -30,11 +30,18 @@ const Cam = () => {
   } = useJobcardsStore();
 
   const handleInputChange = (e) => {
-    setInputValue(e.target.value);
+    setInputValue(e.target.value.slice(0, 7));
   };
 
-  const handleSearch = async () => {
-    const data = await getGlassList(inputValue);   
+  const handleInputKeyDown = async (e) => {
+    if (e.key === "Enter" && inputValue.length === 7) {
+      await handleSearchWithValue(inputValue);
+      setInputValue(""); // Okutma sonrası inputu temizle
+    }
+  };
+
+  const handleSearchWithValue = async (value) => {
+    const data = await getGlassList(value);
     const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
     if (filteredData.length === 0) {
       toast.error("Siparişe ait üretilecek Cam bulunamadı");
@@ -42,9 +49,12 @@ const Cam = () => {
       setSelectedProduct(null);
       return;
     }
-    
     setGlassList(filteredData);
     setSelectedProduct(null);
+  };
+
+  const handleSearch = async () => {
+    await handleSearchWithValue(inputValue);
   };
 
   const handleRowClick = async (e) => {
@@ -133,23 +143,28 @@ const Cam = () => {
           placeholder="Sipariş numarası"
           value={inputValue}
           onChange={handleInputChange}
-          className="w-full"
+          onKeyDown={handleInputKeyDown}
+          className="w-full h-12 pl-2 text-sm"
           // disabled={currentJobcard?.status === "Work In Progress"}
         />
       </span>
-      <div className="flex justify-between gap-2 mr-2">
-        <Button
+      <div className="flex justify-between gap-2">
+        <button
           label="Cam Etiketi Bas"
-          className="p-button-primary"
+          className="w-28 h-10 bg-blue-400 rounded-md cursor-pointer"
           onClick={handlePrintLabel}
           disabled={!selectedProduct}
-        />
-        <Button
+        >
+          Cam Etiketi Bas
+        </button>
+        <button
           onClick={handleSearch}
           label="Sorgula"
-          className="p-button-primary"
+          className="w-28 h-10 bg-green-400 rounded-md cursor-pointer"
           // disabled={currentJobcard?.status === "Work In Progress"}
-        />
+        >
+          Sorgula
+        </button>
       </div>
     </div>
   );
@@ -243,7 +258,10 @@ const Cam = () => {
 
       <div className="mr-2 flex flex-col">
         {header}
-        <Card
+      
+        {glassTypes && (
+          <>
+            <Card
           className="mb-4"
           title={
             <span className="text-sm font-semibold">
@@ -259,8 +277,7 @@ const Cam = () => {
             </span>
           }
         />
-        {glassTypes && (
-          <Card className="mb-1 items-center">
+             <Card className="mb-1 items-center">
             <h3 className="text-sm font-semibold mb-2">Cam Çeşitleri ve Adetleri</h3>
             <ul className="text-xs">
               {Object.entries(glassTypes).map(([type, count]) => (
@@ -271,6 +288,8 @@ const Cam = () => {
               ))}
             </ul>
           </Card>
+          </>
+       
         )}
         {statusCounts && (
           <Card className="mb-1 items-center">
