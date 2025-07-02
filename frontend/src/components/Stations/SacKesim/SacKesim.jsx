@@ -236,6 +236,17 @@ const SacKesim = () => {
         return colorMap[rowData.item_code];
     }, [selectedRow, colorMap]);
 
+    // dst_list'i önce item_code'a göre, sonra aynı item_code'lar arasında size'a göre büyükten küçüğe sırala
+    const sortedDstList = useMemo(() => {
+        if (!sacKesimOptInfo?.dst_list) return [];
+        return [...sacKesimOptInfo.dst_list].sort((a, b) => {
+            if (a.item_code < b.item_code) return -1;
+            if (a.item_code > b.item_code) return 1;
+            // item_code eşitse, size'a göre büyükten küçüğe sırala
+            return (parseFloat(b.size) || 0) - (parseFloat(a.size) || 0);
+        });
+    }, [sacKesimOptInfo?.dst_list]);
+
     // if (isSacKesimOptLoading || isImageLoading) return <Loading />;
     if (isOptError) {
         return (
@@ -276,7 +287,7 @@ const SacKesim = () => {
 
                 <div className='overflow-auto'>
                     <DataTable
-                        value={sacKesimOptInfo?.dst_list}
+                        value={sortedDstList}
                         scrollable
                         scrollHeight="calc(100vh - 200px)"
                         size="small"
@@ -291,7 +302,7 @@ const SacKesim = () => {
                         <Column field="item_name" header="Ürün Adı"></Column>
                         <Column header="" body={actionTemplate}></Column>
                         <Column field="quantity" header="Adet"></Column>
-                        <Column field="size" header="Ölçü"></Column>
+                        <Column field="size" sortable header="Ölçü"></Column>
                     </DataTable>
                 </div>
             </div>
