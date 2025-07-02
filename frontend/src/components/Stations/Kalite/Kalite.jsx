@@ -253,12 +253,13 @@ const Kalite = () => {
         <div className="w-full flex justify-between h-[calc(100vh-150px)] px-3 py-2">
           <div className="flex flex-col flex-1 bg-slate-100 w-1/4 overflow-auto">
             <div className="w-full flex justify-between items-center bg-slate-200 p-1">
-              <ButtonGroup>
-                <Button label="PVC KİMLİK" icon="pi pi-qrcode" onClick={handlePVCKimlik} />
+              <ButtonGroup className="flex md:flex-row flex-col gap-2 w-full">
+                <Button label="PVC KİMLİK" icon="pi pi-qrcode" onClick={handlePVCKimlik} className="bg-blue-500 w-full text-white p-1 rounded-md"/>
                 <Button
                   label="KALİTE"
                   icon="pi pi-print"
                   onClick={handlePrintLabel}
+                  className="bg-green-500 w-full text-white p-1 rounded-md"
                 />
               </ButtonGroup>
             </div>

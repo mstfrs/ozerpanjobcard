@@ -148,23 +148,25 @@ const Cam = () => {
           // disabled={currentJobcard?.status === "Work In Progress"}
         />
       </span>
+    
       <div className="flex justify-between gap-2">
         <button
-          label="Cam Etiketi Bas"
-          className="w-28 h-10 bg-blue-400 rounded-md cursor-pointer"
+          className="w-full h-10 bg-blue-400 rounded-md cursor-pointer flex items-center justify-center gap-2"
           onClick={handlePrintLabel}
           disabled={!selectedProduct}
         >
+          <i className="pi pi-print"></i>
           Cam Etiketi Bas
         </button>
-        <button
+       
+        {/* <button
           onClick={handleSearch}
           label="Sorgula"
           className="w-28 h-10 bg-green-400 rounded-md cursor-pointer"
           // disabled={currentJobcard?.status === "Work In Progress"}
         >
           Sorgula
-        </button>
+        </button> */}
       </div>
     </div>
   );
