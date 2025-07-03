@@ -296,8 +296,9 @@ const Kalite = () => {
                 onClick={() => handleOnayla(errorData)}
               />
               <div className="space-y-4">
+              <KitInfoCard tesDetay={tesDetay} />
                 <AccessoryInfoCard tesDetay={tesDetay} />
-                <KitInfoCard tesDetay={tesDetay} />
+                
               </div>
             </div>
           </div>

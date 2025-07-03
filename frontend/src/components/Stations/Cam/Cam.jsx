@@ -21,6 +21,7 @@ const Cam = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorNote, setErrorNote] = useState("");
+  const [lastSearchedValue, setLastSearchedValue] = useState("");
 
   const {
     employee,
@@ -51,6 +52,7 @@ const Cam = () => {
     }
     setGlassList(filteredData);
     setSelectedProduct(null);
+    setLastSearchedValue(value); // Son aranan değeri sakla
   };
 
   const handleSearch = async () => {
@@ -82,7 +84,7 @@ const Cam = () => {
     if (result) {
       toast.success("Cam operasyonu başarıyla işlendi");
       glassLabelPrint(selectedProduct);
-      const data = await getGlassList(inputValue);
+      const data = await getGlassList(lastSearchedValue); // inputValue yerine lastSearchedValue kullan
       const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
       setGlassList(filteredData);
     }
@@ -122,7 +124,7 @@ const Cam = () => {
         toast.success("Hata kaydı başarıyla oluşturuldu");
         setErrorModalVisible(false);
         setErrorNote("");
-        const data = await getGlassList(inputValue);
+        const data = await getGlassList(lastSearchedValue); // inputValue yerine lastSearchedValue kullan
         const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
         setGlassList(filteredData);
       }
