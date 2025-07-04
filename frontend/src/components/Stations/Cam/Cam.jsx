@@ -22,6 +22,7 @@ const Cam = () => {
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorNote, setErrorNote] = useState("");
   const [lastSearchedValue, setLastSearchedValue] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState("Pending");
 
   const {
     employee,
@@ -43,6 +44,7 @@ const Cam = () => {
 
   const handleSearchWithValue = async (value) => {
     const data = await getGlassList(value);
+    console.log("glasslist",data)
     const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
     if (filteredData.length === 0) {
       toast.error("Siparişe ait üretilecek Cam bulunamadı");
@@ -53,6 +55,7 @@ const Cam = () => {
     setGlassList(filteredData);
     setSelectedProduct(null);
     setLastSearchedValue(value); // Son aranan değeri sakla
+    setSelectedStatus("Pending"); // Yeni sorguda status tekrar Pending olsun
   };
 
   const handleSearch = async () => {
@@ -125,6 +128,7 @@ const Cam = () => {
         setErrorModalVisible(false);
         setErrorNote("");
         const data = await getGlassList(lastSearchedValue); // inputValue yerine lastSearchedValue kullan
+        
         const filteredData = data.filter(item => item.job_cards && item.job_cards.length > 0);
         setGlassList(filteredData);
       }
@@ -208,6 +212,10 @@ const Cam = () => {
     return acc;
   }, {});
 
+  const filteredGlassList = selectedStatus
+    ? glassList?.filter(item => item.job_cards?.[0]?.status === selectedStatus)
+    : glassList;
+
   const errorModalFooter = (
     <div className="flex justify-end gap-2">
       <Button
@@ -260,7 +268,7 @@ const Cam = () => {
         </div>
       </Dialog>
 
-      <div className="mr-2 flex flex-col">
+      <div className="mr-2 flex flex-col w-1/5">
         {header}
       
         {glassTypes && (
@@ -300,13 +308,19 @@ const Cam = () => {
             <h3 className="text-sm font-semibold mb-2">Durumlar</h3>
             <ul className="text-xs">
               {Object.entries(statusCounts).map(([status, count]) => (
-                <li key={status} className="flex justify-between">
+                <li
+                  key={status}
+                  className={`flex justify-between cursor-pointer ${selectedStatus === status ? "font-bold text-blue-600" : ""}`}
+                  onClick={() => setSelectedStatus(status)}
+                >
                   <span>
                     {status === "Pending"
                       ? "Yeni"
                       : status === "In Progress"
                       ? "İşlemde"
-                      : "Tamamlanan"}
+                      : status === "Completed"
+                      ? "Tamamlanan"
+                      : status}
                   </span>
                   <span className="text-sm font-semibold">{count}</span>
                 </li>
@@ -318,7 +332,7 @@ const Cam = () => {
 
       <div className="flex-1 overflow-hidden">
         <DataTable
-          value={glassList}
+          value={filteredGlassList}
           className="p-datatable-sm text-xs h-full"
           rows={10}
           scrollable
