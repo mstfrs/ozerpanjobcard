@@ -23,6 +23,7 @@ const Cam = () => {
   const [errorNote, setErrorNote] = useState("");
   const [lastSearchedValue, setLastSearchedValue] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Pending");
+  const [selectedGlassType, setSelectedGlassType] = useState(null);
 
   const {
     employee,
@@ -150,19 +151,19 @@ const Cam = () => {
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleInputKeyDown}
-          className="w-full h-12 pl-2 text-sm"
+          className="w-full h-12 pl-2 text-base"
           // disabled={currentJobcard?.status === "Work In Progress"}
         />
       </span>
     
       <div className="flex justify-between gap-2">
         <button
-          className="w-full h-10 bg-blue-400 rounded-md cursor-pointer flex items-center justify-center gap-2"
+          className="w-full h-10 bg-blue-400 rounded-md cursor-pointer flex items-center justify-center gap-2 text-lg"
           onClick={handlePrintLabel}
           disabled={!selectedProduct}
         >
-          <i className="pi pi-print"></i>
-          Cam Etiketi Bas
+          <i className="pi pi-print text-xl"></i>
+          Etiket Yazdır
         </button>
        
         {/* <button
@@ -185,8 +186,8 @@ const Cam = () => {
 
     return (
       <Tag
-        value={isCorrective ? `${status} (Düzeltme)` : status}
-        severity={status === "Pending" ? "success" : "warning"}
+        value={isCorrective ? `${status} (Düzeltme)` :status==="Completed"?"Tamamlandı": "Yeni"}
+        severity={status === "Pending" ? "warning" : "success"}
         className={isCorrective ? "bg-yellow-500" : ""}
       />
     );
@@ -212,9 +213,10 @@ const Cam = () => {
     return acc;
   }, {});
 
-  const filteredGlassList = selectedStatus
-    ? glassList?.filter(item => item.job_cards?.[0]?.status === selectedStatus)
-    : glassList;
+  // Filtreleme: hem durum hem cam türü
+  const filteredGlassList = glassList
+    ?.filter(item => (selectedStatus ? item.job_cards?.[0]?.status === selectedStatus : true))
+    ?.filter(item => (selectedGlassType ? item.aciklama === selectedGlassType : true));
 
   const errorModalFooter = (
     <div className="flex justify-end gap-2">
@@ -290,12 +292,18 @@ const Cam = () => {
           }
         />
              <Card className="mb-1 items-center">
-            <h3 className="text-sm font-semibold mb-2">Cam Çeşitleri ve Adetleri</h3>
-            <ul className="text-xs">
+            <h3 className="text-base font-semibold mb-2">Cam Çeşitleri ve Adetleri</h3>
+            <ul className="text-base">
               {Object.entries(glassTypes).map(([type, count]) => (
-                <li key={type} className="flex justify-between">
+                <li
+                  key={type}
+                  className={`flex justify-between cursor-pointer border-1 border px-1 py-3 text-base mb-2 rounded-lg ${
+                    selectedGlassType === type ? "font-bold bg-green-500 text-white" : ""
+                  }`}
+                  onClick={() => setSelectedGlassType(selectedGlassType === type ? null : type)}
+                >
                   <span>{type}</span>
-                  <span className="text-sm font-semibold">{count}</span>
+                  <span className="text-base font-semibold">{count}</span>
                 </li>
               ))}
             </ul>
@@ -305,12 +313,12 @@ const Cam = () => {
         )}
         {statusCounts && (
           <Card className="mb-1 items-center">
-            <h3 className="text-sm font-semibold mb-2">Durumlar</h3>
-            <ul className="text-xs">
+            <h3 className="text-base font-semibold mb-2">Durumlar</h3>
+            <ul className="text-base">
               {Object.entries(statusCounts).map(([status, count]) => (
                 <li
                   key={status}
-                  className={`flex justify-between cursor-pointer ${selectedStatus === status ? "font-bold text-blue-600" : ""}`}
+                  className={`flex justify-between cursor-pointer border-1 border px-1 py-3 text-base mb-2 rounded-lg ${selectedStatus === status ? "font-bold bg-green-500 text-white" : ""}`}
                   onClick={() => setSelectedStatus(status)}
                 >
                   <span>
@@ -322,7 +330,7 @@ const Cam = () => {
                       ? "Tamamlanan"
                       : status}
                   </span>
-                  <span className="text-sm font-semibold">{count}</span>
+                  <span className="text-base font-semibold">{count}</span>
                 </li>
               ))}
             </ul>
@@ -333,7 +341,7 @@ const Cam = () => {
       <div className="flex-1 overflow-hidden">
         <DataTable
           value={filteredGlassList}
-          className="p-datatable-sm text-xs h-full"
+          className="p-datatable-sm text-sm h-full"
           rows={10}
           scrollable
           scrollHeight="calc(100vh - 100px)"
