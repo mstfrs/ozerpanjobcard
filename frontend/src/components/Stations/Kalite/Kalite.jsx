@@ -16,6 +16,7 @@ import { toast } from "react-toastify";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog } from "primereact/dialog";
 import UnfinishedOperationsModal from "../../Modals/UnfinishedOperationsModal";
+import PozSelectionModal from "../../Modals/PozSelectionModal";
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 const Kalite = () => {
@@ -43,6 +44,10 @@ const Kalite = () => {
   const [qrCodeValue, setQrCodeValue] = useState("");
   const [showUnfinishedOpsModal, setShowUnfinishedOpsModal] = useState(false);
   const [unfinishedOps, setUnfinishedOps] = useState([]);
+  const [pozModalVisible, setPozModalVisible] = useState(false);
+  const [pozOptions, setPozOptions] = useState([]);
+  const [pendingBarcode, setPendingBarcode] = useState(""); // Modal için barkod saklama
+  const [selectedPoz, setSelectedPoz] = useState()
 
   const handleCriteriaChange = useCallback((selectedCategories) => {
     const formattedCriteria = selectedCategories.map((category) => ({
@@ -110,7 +115,14 @@ const Kalite = () => {
         setLoading(false);
         return;
       }
-      
+      // Poz selection ekle
+      if (barcodeDetails.status === "multiple_options") {
+        setPozOptions(barcodeDetails.options);
+        setPendingBarcode(barcodeValue); // Barkodu sakla
+        setPozModalVisible(true);
+        setLoading(false);
+        return; // Diğer işlemleri durdur
+      }
       setCurrentJobcard(barcodeDetails?.message?.job_card);
       setTesDetay(barcodeDetails);
       
@@ -250,7 +262,7 @@ const Kalite = () => {
           <Loading />
         </div>
       ) : (
-        <div className="w-full flex justify-between h-[calc(100vh-150px)] px-3 py-2">
+        <div className="w-full flex justify-between h-auto overflow-auto px-3 py-2">
           <div className="flex flex-col flex-1 bg-slate-100 w-1/4 overflow-auto">
             <div className="w-full flex justify-between items-center bg-slate-200 p-1">
               <ButtonGroup className="flex md:flex-row flex-col gap-2 w-full">
@@ -327,6 +339,49 @@ const Kalite = () => {
         visible={showUnfinishedOpsModal}
         onHide={() => setShowUnfinishedOpsModal(false)}
         unfinishedOps={unfinishedOps}
+      />
+
+      <PozSelectionModal
+        visible={pozModalVisible}
+        data={pozOptions}
+        onHide={() => setPozModalVisible(false)}
+        onSelect={async (selected) => {
+          setPozModalVisible(false);
+          setSelectedPoz(selected)
+          setLoading(true);
+          try {
+            const barcodeDetails = await barcodeAction({
+              barcode: pendingBarcode, // Saklanan barkod kullanılır
+              employee: employee?.name,
+              operation: currentOperation?.operations,
+              order_no: selected.siparis_no,
+              poz_no: selected.poz_no,
+            });
+             // Check for unfinished operations
+      if (barcodeDetails?.status === "error" && barcodeDetails?.error_type === "unfinished operations") {
+        setUnfinishedOps(barcodeDetails.unfinished_operations);
+        setShowUnfinishedOpsModal(true);
+        setLoading(false);
+        return;
+      }
+             else {
+              setCurrentJobcard(barcodeDetails?.message?.job_card);
+              setTesDetay(barcodeDetails);
+              // Kalite için ek state güncellemeleri
+              const frameCode = barcodeDetails?.poz_data?.items?.ana_profil?.[0]?.item_code.slice(0, 5);
+              const newQualityCheckCode = parseInt(frameCode);
+              setQualityCheckCode(newQualityCheckCode);
+              const calculatedMtul = barcodeDetails?.poz_data?.items?.ana_profil?.[0]?.quantity * 1000 || 0;
+              setTotalMtul(calculatedMtul);
+              const labelItems = await getQualityLabelItems(newQualityCheckCode, calculatedMtul);
+              setLabelInfo(labelItems);
+            }
+          } finally {
+            setLoading(false);
+            setCurrentBarkod("");
+            setPendingBarcode(""); // Temizle
+          }
+        }}
       />
     </>
   );

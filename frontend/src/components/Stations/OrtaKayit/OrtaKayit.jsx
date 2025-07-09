@@ -6,6 +6,7 @@ import useJobcardsStore from "../../../store/jobcardStore";
 import Loading from "../../Loading";
 import { toast } from "react-toastify";
 import { Button } from "primereact/button";
+import PozSelectionModal from "../../Modals/PozSelectionModal";
 
 const OrtaKayit = () => {
   const {
@@ -22,6 +23,10 @@ const OrtaKayit = () => {
   const [tesDetay, setTesDetay] = useState();
   const [loading, setLoading] = useState(false); // Loading state
   const [isBgActive, setIsBgActive] = useState(false);    
+  const [pozModalVisible, setPozModalVisible] = useState(false);
+  const [pozOptions, setPozOptions] = useState([]);
+  const [pendingBarcode, setPendingBarcode] = useState(""); // Modal için barkod saklama
+  const [selectedPoz, setSelectedPoz] = useState()
 
   const handleBarkodChange = async (e) => {
     setIsBgActive(false);
@@ -36,6 +41,13 @@ const OrtaKayit = () => {
         employee: employee?.name,
         operation: currentOperation?.operations,
       });
+      if (barcodeDetails.status === "multiple_options") {
+        setPozOptions(barcodeDetails.options);
+        setPendingBarcode(barcodeValue); // Barkodu sakla
+        setPozModalVisible(true);
+        setLoading(false);
+        return; // Diğer işlemleri durdur
+      }
       if (barcodeDetails?.status === "error") {
         toast.error(barcodeDetails?.message);
         setIsBgActive(false);
@@ -46,6 +58,7 @@ const OrtaKayit = () => {
         setLastScannedBarkod(barcodeValue); // Son okunan barkodu kaydet
       }
     } finally {
+      console.log(tesDetay)
       setLoading(false);
       setCurrentBarkod(""); // Inputu temizle ama tekrar sorgu atmasını engelle
     }
@@ -60,8 +73,10 @@ const OrtaKayit = () => {
     try {
       setLoading(true);
       const response = await revertLatestBarcodeOperation({
-        barcode: lastScannedBarkod,
-        operation: currentOperation.operations
+        barcode: pendingBarcode || lastScannedBarkod, // Saklanan barkod kullanılır
+        operation: currentOperation?.operations,
+        order_no: selectedPoz?.siparis_no,
+        poz_no: selectedPoz?.poz_no,
       });
 
       console.log("Revert Response:", response); // Debug için
@@ -141,7 +156,7 @@ const OrtaKayit = () => {
             />
           </div>
           <div className="w-1/4 h-full p-4 grid grid-cols-1 gap-4 justify-center items-start place-items-center bg-slate-200 overflow-auto">
-            {tesDetay?.poz_data?.items?.orta_kayit?.map((item) => (
+            {tesDetay?.poz_data?.items?.ana_profil?.map((item) => (
               <img
                 key={item.item_code}
                 src={
@@ -160,6 +175,40 @@ const OrtaKayit = () => {
           <img src="/files/logobg.png" className=" h-2/3" alt="" />
         </div>
       )}
+      <PozSelectionModal
+        visible={pozModalVisible}
+        data={pozOptions}
+        onHide={() => setPozModalVisible(false)}
+        onSelect={async (selected) => {
+          setPozModalVisible(false);
+          setSelectedPoz(selected)
+          setLoading(true);
+          try {
+            const barcodeDetails = await barcodeAction({
+              barcode: pendingBarcode, // Saklanan barkod kullanılır
+              employee: employee?.name,
+              operation: currentOperation?.operations,
+              order_no: selected.siparis_no,
+              poz_no: selected.poz_no,
+            });
+            console.log(barcodeDetails)
+            if (barcodeDetails?.status === "error") {
+              toast.error(barcodeDetails?.message);
+              setIsBgActive(false);
+            } else {
+              setCurrentJobcard(barcodeDetails?.job_card);
+              setTesDetay(barcodeDetails);
+              setIsBgActive(true);
+              setLastScannedBarkod(pendingBarcode); // Son okunan barkodu kaydet
+            }
+          } finally {
+            console.log("barcodeDetails after modal",tesDetay)
+            setLoading(false);
+            setCurrentBarkod("");
+            setPendingBarcode(""); // Temizle
+          }
+        }}
+      />
     </>
   );
 };

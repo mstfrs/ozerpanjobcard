@@ -5,7 +5,7 @@ const RemarksInfo = ({tesDetay}) => {
       <h2 className="font-bold text-red-600 text-base mb-1 border-b-2 border-black">
         Açıklama
       </h2>
-      <div className="text-sm">
+      <div className="text-md">
         <span className="font-bold text-red-600 ">{remarks}</span>
       </div>
     </div>
