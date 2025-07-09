@@ -80,9 +80,17 @@ const SurmeHazirlama = () => {
 
   // Siparişleri getiren query
   const { data: ordersData, isLoading: isOrdersLoading } = useQuery({
-    queryKey: ['surmeOrders'],
+    queryKey: ['surmeOrders',currentOperation],
     queryFn: async () => {
-      const response = await fetch('/api/method/ozerpan_ercom_sync.custom_api.api.get_surme_orders');
+      const response = await fetch('/api/method/ozerpan_ercom_sync.custom_api.api.get_surme_orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          operation_type: currentOperation.operations,
+        }),
+      });
       const data = await response.json();
       return data.message.orders;
     },
@@ -95,7 +103,15 @@ const SurmeHazirlama = () => {
     queryKey: ['surmePozDetails', searchInput],
     queryFn: async () => {
       if (!searchInput) return null;
-      const response = await fetch(`/api/method/ozerpan_ercom_sync.custom_api.api.get_surme_poz_by_order_no?order_no=${searchInput}`);
+      const response = await fetch('/api/method/ozerpan_ercom_sync.custom_api.api.get_surme_poz_by_order_no', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          operation_type: currentOperation.operations,
+          order_no: searchInput }),
+      });
       const data = await response.json();
       setCurrentJobcard([data?.message?.job_card?.name]);
       console.log(data?.message);
