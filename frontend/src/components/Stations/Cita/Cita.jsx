@@ -27,7 +27,7 @@ const Cita = () => {
   const [pozModalVisible, setPozModalVisible] = useState(false);
   const [pozOptions, setPozOptions] = useState([]);
   const [pendingBarcode, setPendingBarcode] = useState(""); // Modal için barkod saklama
-  const [selectedPoz, setSelectedPoz] = useState()
+  const [selectedPoz, setSelectedPoz] = useState({})
 
   const handleBarkodChange = async (e) => {
     setIsBgActive(false);
@@ -80,6 +80,8 @@ const Cita = () => {
         operation: currentOperation?.operations,
         order_no: selectedPoz?.siparis_no,
         poz_no: selectedPoz?.poz_no,
+        sanal_adet: selectedPoz?.sanal_adet,
+
       });
 
       console.log("Revert Response:", response);
@@ -203,6 +205,8 @@ const Cita = () => {
               operation: currentOperation?.operations,
               order_no: selected.siparis_no,
               poz_no: selected.poz_no,
+              sanal_adet: selected.sanal_adet,
+
             });
             if (barcodeDetails?.status === "error") {
               toast.error(barcodeDetails?.message);

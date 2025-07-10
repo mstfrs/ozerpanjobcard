@@ -47,7 +47,7 @@ const Kalite = () => {
   const [pozModalVisible, setPozModalVisible] = useState(false);
   const [pozOptions, setPozOptions] = useState([]);
   const [pendingBarcode, setPendingBarcode] = useState(""); // Modal için barkod saklama
-  const [selectedPoz, setSelectedPoz] = useState()
+  const [selectedPoz, setSelectedPoz] = useState({})
 
   const handleCriteriaChange = useCallback((selectedCategories) => {
     const formattedCriteria = selectedCategories.map((category) => ({
@@ -356,6 +356,8 @@ const Kalite = () => {
               operation: currentOperation?.operations,
               order_no: selected.siparis_no,
               poz_no: selected.poz_no,
+              sanal_adet: selected.sanal_adet,
+
             });
              // Check for unfinished operations
       if (barcodeDetails?.status === "error" && barcodeDetails?.error_type === "unfinished operations") {
