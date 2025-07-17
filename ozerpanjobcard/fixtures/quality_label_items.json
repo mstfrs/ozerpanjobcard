@@ -2,25 +2,30 @@
  {
   "acoustic_performance": "NPD",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "SAFİR 76",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  Sabit alt parçalı tek kanatlı  çift açılımlı pencere",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10304"
    },
    {
+    "custom_serial": null,
     "frame_code": "10305"
    },
    {
+    "custom_serial": null,
     "frame_code": "10309"
    },
    {
+    "custom_serial": null,
     "frame_code": "10324"
    },
    {
+    "custom_serial": null,
     "frame_code": "10314"
    }
   ],
@@ -40,25 +45,30 @@
  {
   "acoustic_performance": "NPD",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "SAFİR 76",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Ev benzeri alanlar ile ticari alanlarda  kullanımı tasarlanan  çift kanatlı pencere kapı",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10304"
    },
    {
+    "custom_serial": null,
     "frame_code": "10305"
    },
    {
+    "custom_serial": null,
     "frame_code": "10309"
    },
    {
+    "custom_serial": null,
     "frame_code": "10324"
    },
    {
+    "custom_serial": null,
     "frame_code": "10314"
    }
   ],
@@ -78,25 +88,30 @@
  {
   "acoustic_performance": "NPD",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "SAFİR 76",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan tek kanatlı çift açılımlı pencere-kapı",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10304"
    },
    {
+    "custom_serial": null,
     "frame_code": "10305"
    },
    {
+    "custom_serial": null,
     "frame_code": "10309"
    },
    {
+    "custom_serial": null,
     "frame_code": "10324"
    },
    {
+    "custom_serial": null,
     "frame_code": "10314"
    }
   ],
@@ -116,25 +131,30 @@
  {
   "acoustic_performance": "NPD",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "SAFİR 76",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı  tasarlanan  sabit yan parçalı tek kanatlı çekmeli ve sürgülü kapı",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10304"
    },
    {
+    "custom_serial": null,
     "frame_code": "10305"
    },
    {
+    "custom_serial": null,
     "frame_code": "10309"
    },
    {
+    "custom_serial": null,
     "frame_code": "10324"
    },
    {
+    "custom_serial": null,
     "frame_code": "10314"
    }
   ],
@@ -154,22 +174,26 @@
  {
   "acoustic_performance": "30(-1;-5)d B",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "DORADO 76",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan çift açılımlı sabit bölmeli hazır pencere",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10300"
    },
    {
+    "custom_serial": null,
     "frame_code": "10302"
    },
    {
+    "custom_serial": null,
     "frame_code": "10320"
    },
    {
+    "custom_serial": null,
     "frame_code": "10310"
    }
   ],
@@ -189,19 +213,22 @@
  {
   "acoustic_performance": "31(-1;-5)d B",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "REVOTECH",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  Sabit cam alt tabanlı içe açılır iki eksenli pencere",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10200"
    },
    {
+    "custom_serial": null,
     "frame_code": "10202"
    },
    {
+    "custom_serial": null,
     "frame_code": "10220"
    }
   ],
@@ -221,19 +248,22 @@
  {
   "acoustic_performance": "32(-1;-5)d B",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "REVOTECH",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  içeri çift açılımlıtek kanat kapı",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10200"
    },
    {
+    "custom_serial": null,
     "frame_code": "10202"
    },
    {
+    "custom_serial": null,
     "frame_code": "10220"
    }
   ],
@@ -253,19 +283,22 @@
  {
   "acoustic_performance": "32(-1;-5)d B",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "REVOTECH",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan içeri bir çift açılımlı bir tek açılımlıiki kanat pencere kapı",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10200"
    },
    {
+    "custom_serial": null,
     "frame_code": "10202"
    },
    {
+    "custom_serial": null,
     "frame_code": "10220"
    }
   ],
@@ -285,19 +318,22 @@
  {
   "acoustic_performance": "30(-1;-5)d B",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "REVOTECH",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  içeri çek sür tek kanat,sabit yan bölmeli kapı sürme",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10200"
    },
    {
+    "custom_serial": null,
     "frame_code": "10202"
    },
    {
+    "custom_serial": null,
     "frame_code": "10220"
    }
   ],
@@ -317,16 +353,18 @@
  {
   "acoustic_performance": "NPD",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "LOTUS",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Sabit sürme doğrama",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10261"
    },
    {
+    "custom_serial": null,
     "frame_code": "10263"
    }
   ],
@@ -346,16 +384,18 @@
  {
   "acoustic_performance": "NPD",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "LOTUS",
+  "custom_serial": null,
   "dangerous_goods": "İçermez",
   "description": "Çift kanat sürme doğrama",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "10260"
    },
    {
+    "custom_serial": null,
     "frame_code": "10262"
    }
   ],
@@ -375,13 +415,14 @@
  {
   "acoustic_performance": "30(-1;-5)d B",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "COMFORT SLİDE",
+  "custom_serial": null,
   "dangerous_goods": "NPD",
   "description": "Ev benzeri alanlar ile ticari alanlarda kullanımı tasarlanan  sürme sabit bölmeli hazır pencere",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "12480"
    }
   ],
@@ -401,13 +442,14 @@
  {
   "acoustic_performance": "32(-1;-4)d B",
   "air_permeability": "Sınıf 4",
-  "custom_serial": "HS 76",
+  "custom_serial": null,
   "dangerous_goods": "NPD",
   "description": "İki kanat hareketli sürme kapı",
   "docstatus": 0,
   "doctype": "Quality Label Items",
   "frame_codes": [
    {
+    "custom_serial": null,
     "frame_code": "12420"
    }
   ],

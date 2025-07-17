@@ -86452,5 +86452,23 @@
   "modified": "2025-01-19 20:23:43.015344",
   "name": "126733096",
   "stock_code": "126733096"
+ },
+ {
+  "description": "Lotus Alm H Kanat Alın Birleştirme Pres",
+  "docstatus": 0,
+  "doctype": "Profile Type",
+  "group": "KANAT",
+  "modified": "2025-05-21 11:33:30.796664",
+  "name": "11527",
+  "stock_code": "11527"
+ },
+ {
+  "description": "CS Plus Kanat H Ficus Çift Lm.",
+  "docstatus": 0,
+  "doctype": "Profile Type",
+  "group": "SÜRME KANAT",
+  "modified": "2025-05-28 11:39:41.552522",
+  "name": "124913454",
+  "stock_code": "124913454"
  }
 ]
