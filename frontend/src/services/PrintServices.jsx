@@ -107,49 +107,64 @@ export const qualityLabelPrint = async (tesDetay,labelInfo) => {
   }
 };
 
-export const surmeLabelPrint = async (pozDetails) => {
-  const zpl = `
+export const surmeLabelPrint = async (pozDetails,surmeItems) => {
+
+const zpl = `
 ^XA
 ^CI28
 ^PW800     
 ^LL320     
 ^LS0
 
-^CF0,35
+^CF0,25
+^FO30,50
+^FD Cari Unvan : ${pozDetails?.bayi_adi}^FS
+^FO30,100
+^FD Cari Kodu  : ${pozDetails?.cari_kod}^FS
+^FO30,150
+^FD Sip / Sevk : ${pozDetails?.siparis_tarihi} / ${pozDetails?.sevkiyat_tarihi}^FS
+^FO30,200
+^FD Musterisi : ${pozDetails?.musteri || '-'} ^FS
+^FO30,250
+^FD Siparis No : ${pozDetails?.siparis_no}   Poz No : ${pozDetails?.poz_no.split('-')[1]} ^FS
 
-^FO60,30^A0N,35,35^FDCari Unvanı:^FS
-^FO300,30^A0N,35,35^FD${pozDetails.bayi_adi}^FS
 
-^FO60,80^A0N,35,35^FDCari Kodu:^FS
-^FO300,80^A0N,35,35^FD${pozDetails.cari_kod}^FS
+^FO0,290^GB900,3,3^FS
+^FO0,330^GB900,3,3^FS
+^FO30,300^FB740,,1^FDStok Kodu^FS
+^FO200,300^FB740,,1^FDUrun Adi^FS
+^FO650,300^FB740,,1^FDMiktar^FS
 
-^FO60,130^A0N,35,35^FDSip / Sevk:^FS
-^FO300,130^A0N,35,35^FD${pozDetails.siparis_tarihi} / ${pozDetails.sevkiyat_tarihi}^FS
+${(surmeItems || []).map((item, i) => {
+  const y = 350 + i * 30;
+  return `
+^FO30,${y}^FD${item.stock_code || ''} ^FS
+^FO200,${y}^FB740,,3^FD${item.stock_name || ''} ^FS
+^FO650,${y}^FD${item.qty ?? ''} ^FS
+`;
+}).join('')}
+^XZ
 
-^FO60,180^A0N,35,35^FDMüşterisi:^FS
-^FO300,180^A0N,35,35^FD${pozDetails.musteri || '-'}^FS
+`
+;
+console.log(zpl)
 
-^FO60,230^A0N,35,35^FDSipariş No:^FS
-^FO300,230^A0N,35,35^FD${pozDetails.siparis_no} Poz No: ${pozDetails.poz_no.split('-')[1]}^FS
+   try {
+     const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_surme_label`, {
+       credentials: "include",
+       method: "POST",
+       headers: { "Content-Type": "application/json" },
+       body: JSON.stringify({ zpl }),
+     });
 
-^XZ`;
-
-  try {
-    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_surme_label`, {
-      credentials: "include",
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ zpl }),
-    });
-
-    if (response.ok) {
-      const message = await response.json();
-      console.log("message", message);
-      return message;
-    } else {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-  } catch (error) {
-    console.error("Hata:", error);
-  }
+     if (response.ok) {
+       const message = await response.json();
+       console.log("message", message);
+       return message;
+     } else {
+       throw new Error(`HTTP error! Status: ${response.status}`);
+     }
+   } catch (error) {
+     console.error("Hata:", error);
+   }
 };

@@ -2,6 +2,91 @@ import axios from 'axios';
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 // Sipariş numarasına göre detayları getir
+export const getsurmeOrders = async (operation) => {
+  console.log("Operation surme Orders services",operation)
+  try {
+    const response = await fetch(
+      `${baseUrl}/method/ozerpan_ercom_sync.custom_api.api.get_surme_orders`,
+      {
+        method: "POST",
+        credentials: "include",
+        body: JSON.stringify({
+          operation_type: operation.operations,
+         
+        }),
+      }
+      
+    );
+
+    if (!response.ok) {
+      throw new Error("Sipariş detayları alınamadı");
+    }
+
+    const data = await response.json();
+    return data.message;
+  } catch (error) {
+    console.error("Sipariş detayları getirme hatası:", error);
+    throw error;
+  }
+};
+
+// Poz numarasına göre jobcard detayları getir
+export const getSurmeOrderJobcard = async (operation,pozItem) => {
+  console.log("Operation surme Orders services",operation)
+  try {
+    const response = await fetch(
+      "/api/method/ozerpanjobcard.api.get_jobcard_by_item_and_operation",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          poz_item_code: pozItem,
+          operation: operation
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Sipariş detayları alınamadı");
+    }
+
+    const data = await response.json();
+    console.log(data.message.jobcard)
+    // return data.message;
+  } catch (error) {
+    console.error("Sipariş detayları getirme hatası:", error);
+    throw error;
+  }
+};
+
+// sipariş numarasına göre Fiyat2 listesini detayları getir
+export const getFiyat2List = async (orderNo) => {
+  try {
+    const response = await fetch(
+      "/api/method/ozerpanjobcard.api.get_fiyat2_list",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          order_no: orderNo
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Fiyat2 List detayları alınamadı");
+    }
+
+    const data = await response.json();
+    console.log(data.message)
+    return data.message;
+  } catch (error) {
+    console.error("Fiyat2 List getirme hatası:", error);
+    throw error;
+  }
+};
+
+// Sipariş numarasına göre detayları getir
 export const getOrderDetails = async (orderNo) => {
   try {
     const response = await fetch(

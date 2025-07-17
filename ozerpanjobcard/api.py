@@ -329,3 +329,230 @@ def guest_create_issue(subject, description, custom_name_surname, custom_phone, 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), _("Error in guest_create_issue"))
         return None
+
+import frappe
+from frappe import _
+
+@frappe.whitelist(allow_guest=True)
+def get_sales_orders_by_opti(custom_opti_no):
+    """
+    Verilen custom_opti_no değerine sahip Production Plan'ın Sales Orders (child) kayıtlarını döndürür.
+    """
+    # Önce Production Plan'ı bul
+    production_plan = frappe.db.get_value(
+        "Production Plan",
+        {"custom_opti_no": custom_opti_no},
+        "name"
+    )
+    if not production_plan:
+        return {"error": _("Production Plan bulunamadı.")}
+
+    # Child table'dan Sales Orders'ı çek
+    sales_orders = frappe.db.sql("""
+        SELECT
+            `tabProduction Plan Sales Order`.*
+        FROM
+            `tabProduction Plan Sales Order`
+        WHERE
+            `parent` = %s
+    """, (production_plan,), as_dict=True)
+
+    return sales_orders
+
+import frappe
+from frappe import _
+
+@frappe.whitelist(allow_guest=True)
+def get_item_codes_by_sales_order(sales_order):
+    """
+    Verilen sales_order'a ait, Job Card'ı olan Production Plan Item'lardaki tüm satırları döndürür.
+    """
+    items = frappe.db.sql("""
+        SELECT
+            ppi.*,
+            i.item_name,
+            i.description,
+            i.stock_uom,
+            i.item_group
+        FROM
+            `tabProduction Plan Item` ppi
+        LEFT JOIN
+            `tabItem` i ON ppi.item_code = i.name
+        WHERE
+            ppi.sales_order = %s
+            AND EXISTS (
+                SELECT 1 FROM `tabJob Card` jc
+                WHERE jc.production_item = ppi.item_code
+            )
+    """, (sales_order,), as_dict=True)
+
+    return {"items": items}
+
+@frappe.whitelist(allow_guest=True)
+def get_bom_items_by_item_code(item_code, operation=None):
+    """
+    Verilen item_code'a ait BOM (Bill of Materials) ürünlerini ve adetlerini döndürür.
+    Aynı zamanda bu item_code'a ait Job Card bilgilerini de döndürür.
+    Eğer operation parametresi verilirse, sadece o operasyona ait Job Card'ları döndürür.
+    """
+    # Önce item'ın aktif BOM'unu bul
+    bom = frappe.db.get_value(
+        "BOM",
+        {"item": item_code, "is_active": 1, "is_default": 1},
+        "name"
+    )
+    
+    if not bom:
+        # Eğer default BOM yoksa, herhangi bir aktif BOM'u al
+        bom = frappe.db.get_value(
+            "BOM",
+            {"item": item_code, "is_active": 1},
+            "name"
+        )
+    
+    if not bom:
+        return {"error": f"'{item_code}' için aktif BOM bulunamadı."}
+
+    # BOM Item'larını çek (child table)
+    bom_items = frappe.db.sql("""
+        SELECT
+            bi.*,
+            i.item_name,
+            i.description,
+            i.stock_uom,
+            i.item_group
+        FROM
+            `tabBOM Item` bi
+        LEFT JOIN
+            `tabItem` i ON bi.item_code = i.name
+        WHERE
+            bi.parent = %s
+        ORDER BY
+            bi.idx
+    """, (bom,), as_dict=True)
+
+    # Bu item_code'a ait Job Card'ları çek
+    # Eğer operation parametresi varsa, sadece o operasyona ait olanları getir
+    if operation:
+        job_cards = frappe.db.sql("""
+            SELECT
+                jc.*,
+                wo.name as work_order_name,
+                wo.production_item,
+                wo.qty as work_order_qty
+            FROM
+                `tabJob Card` jc
+            LEFT JOIN
+                `tabWork Order` wo ON jc.work_order = wo.name
+            WHERE
+                jc.production_item = %s AND jc.operation = %s
+            ORDER BY
+                jc.creation DESC
+        """, (item_code, operation), as_dict=True)
+    else:
+        job_cards = frappe.db.sql("""
+            SELECT
+                jc.*,
+                wo.name as work_order_name,
+                wo.production_item,
+                wo.qty as work_order_qty
+            FROM
+                `tabJob Card` jc
+            LEFT JOIN
+                `tabWork Order` wo ON jc.work_order = wo.name
+            WHERE
+                jc.production_item = %s
+            ORDER BY
+                jc.creation DESC
+        """, (item_code,), as_dict=True)
+
+    return {
+        "bom_items": bom_items,
+        "job_cards": job_cards,
+        "bom_name": bom
+    }
+
+@frappe.whitelist(allow_guest=False)
+def create_profile_exit(profile_type, length, qty, opt_no):
+    from frappe.utils import nowdate
+    try:
+        # Profile Exit ana dokümanını oluştur
+        profile_exit = frappe.get_doc({
+            "doctype": "Profile Exit",
+            "date": nowdate(),
+            "items": [
+                {
+                    "item_code": profile_type,
+                    "length": length,
+                    "output_quantity": qty,
+                    "opt_no": opt_no
+                }
+            ]
+        })
+        profile_exit.insert()
+        profile_exit.submit()
+        return {"success": True, "name": profile_exit.name}
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Profile Exit Creation Error")
+        return {"success": False, "error": str(e)}
+
+@frappe.whitelist(allow_guest=True)
+def get_fiyat2_list(order_no):
+    """
+    Verilen order_no ile Fiyat2 List dokümanını ve tüm alanlarını (items child table dahil) döndürür.
+    Sadece item_group'un parent_group'u 'Yardimci Profil' olan item'lar döner.
+    """
+    try:
+        doc = frappe.get_doc("Fiyat2 List", order_no)
+        if not doc:
+            return {"error": f"Fiyat2 List bulunamadı: {order_no}"}
+        doc_dict = doc.as_dict()
+        filtered_items = []
+        for item in doc.items:
+            item_code = item.stock_code
+            if not item_code:
+                continue
+            item_group = frappe.db.get_value("Item", item_code, "item_group")
+            if not item_group:
+                continue
+            parent_group = frappe.db.get_value("Item Group", item_group, "parent_item_group")
+            if parent_group == "Yardimci Profil":
+                filtered_items.append(item.as_dict())
+        doc_dict["items"] = filtered_items
+        return doc_dict
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "get_fiyat2_list error")
+        return {"error": str(e)}
+
+@frappe.whitelist(allow_guest=True)
+def print_surme_label_local():
+    import tempfile
+    import subprocess
+    try:
+        # Gelen ham veriyi al
+        label_data = frappe.request.get_data(as_text=True)
+
+        # Boş veri kontrolü
+        if not label_data.strip():
+            frappe.throw("Received empty label data")
+
+        # Geçici bir dosyaya yaz
+        with tempfile.NamedTemporaryFile(delete=False, mode='w', encoding='utf-8') as tmpfile:
+            tmpfile.write(label_data)
+            tmpfile_path = tmpfile.name
+
+        # lpr komutu ile yazıcıya gönder
+        printer_name = "Zebra"  # Buraya kendi yazıcınızın adını yazın
+        result = subprocess.run(['lpr', '-P', printer_name, tmpfile_path], capture_output=True, text=True)
+
+        if result.returncode == 0:
+            return {"success": True, "message": "Label sent to printer successfully"}
+        else:
+            return {"success": False, "message": f"Printer Error: {result.stderr}"}
+
+    except Exception as e:
+        frappe.log_error(
+            title="Printer Error",
+            message=f"{e.__class__.__name__}: {str(e)[:500]}"
+        )
+        return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}

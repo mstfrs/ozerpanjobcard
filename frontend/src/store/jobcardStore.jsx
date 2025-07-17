@@ -19,6 +19,9 @@ const useJobcardsStore = create((set) => ({
   filters: [],
   maxSanalAdet:0,
   qualityCheckCode:0,  
+  refetchPozDetailsFlag: 0,
+  triggerRefetchPozDetails: () =>
+    set((state) => ({ refetchPozDetailsFlag: state.refetchPozDetailsFlag + 1 })),
   setMaxSanalAdet: (maxSanalAdet) => set({ maxSanalAdet: maxSanalAdet }),
   setQualityCheckCode: (qualityCheckCode) => set({ qualityCheckCode: qualityCheckCode }),
   setCurrentUser: (user) => set({ currentUser: user }),

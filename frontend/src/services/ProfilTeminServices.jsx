@@ -1,7 +1,7 @@
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 
-export const updateProfileStockLedgerQty = async (profile_type, length, qty) => {
+export const updateProfileStockLedgerQty = async (profile_type, length, qty,opt_no) => {
   if (!profile_type || !length || qty === undefined) {
     console.error("Missing parameters:", { profile_type, length, qty });
     throw new Error("profile_type, length, and qty are required");
@@ -9,14 +9,14 @@ export const updateProfileStockLedgerQty = async (profile_type, length, qty) => 
 
   try {
     const response = await fetch(
-      `${baseUrl}/method/ozerpanjobcard.api.update_profile_stock_ledger_qty`,
+      `${baseUrl}/method/ozerpanjobcard.api.create_profile_exit`,
       {
-        method: "PUT",
+        method: "POST",
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ profile_type, length, qty }),
+        body: JSON.stringify({ profile_type, length, qty ,opt_no}),
       }
     );
 

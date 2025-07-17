@@ -13,8 +13,8 @@ const CustomerInfoSurmeCard = ({ pozNo, selectedPoz }) => {
 
   return (
     <div className="bg-gray-100 p-2 w-full h-auto text-gray-800 rounded-md shadow-md border-b-8">
-      <h2 className="font-bold text-red-600 text-lg mb-1 border-b-2 border-black">Ürün / Müşteri Bilgileri</h2>
-      <div className="text-md">
+      <h2 className="font-bold text-red-600 text-md mb-1 border-b-2 border-black">Ürün / Müşteri Bilgileri</h2>
+      <div className="text-sm">
         <p className="mb-1">
           <span className="font-semibold">Sipariş No:</span> {pozNo ? `${(pozNo).split("-")[0]} / Poz ${(pozNo).split("-")[1]}` : 'Bilgi yok'}
         </p>

@@ -45,6 +45,7 @@ const Navbar = () => {
     setErrorModalVisible,
     setCurrentJobcardStatus,
     currentJobcardStatus,
+    triggerRefetchPozDetails,
   } = useJobcardsStore();
 
   const { mutate } = useSWRConfig();
@@ -55,7 +56,7 @@ const Navbar = () => {
   const queryClient = useQueryClient();
 
   const handleOperationChange = (e) => {
-    
+
     setCurrentOperation(e.value);
     setCurrentOpt({});
     setCurrentJobcard({});
@@ -65,8 +66,8 @@ const Navbar = () => {
     setFilters([
       ["operation", "=", e.value.operations],
       ["status", "not in", ["Completed", "Cancelled"]]
-  ]);
- 
+    ]);
+
   };
 
   const {
@@ -83,7 +84,7 @@ const Navbar = () => {
         (item) => item.custom_opti_no === e.value.custom_opti_no
       )?.status
     );
-  
+
 
     // Create an array of job card names
     const jobCardNames = jobCardList
@@ -123,7 +124,7 @@ const Navbar = () => {
   };
 
   const handleClick = async (e) => {
-   
+    console.log("testttt", currentJobcard)
     const status =
       currentJobcardStatus === "Open" || currentJobcardStatus === "On Hold"
         ? "Work In Progress"
@@ -136,7 +137,7 @@ const Navbar = () => {
       reason: reason,
       status: status,
     });
-   
+
   };
 
   const handleComplete = async (e) => {
@@ -150,7 +151,7 @@ const Navbar = () => {
       });
       await setCurrentOpt(null);
       await setCurrentJobcard(null);
-     
+
     } else if (currentOperation?.operations === "Süper Kesim") {
       try {
         // Get the opt_no from the current job card
@@ -174,6 +175,22 @@ const Navbar = () => {
         toast.error("Süper Kesim kaydı güncellenirken hata oluştu");
       }
     }
+    else if (currentOperation?.operations === "Sürme Hazırlık" ||currentOperation?.operations === "Sürme Bağlama ") {
+      try {
+        await updateJobCard({
+          job_cards: currentJobcard,
+          employee: employee?.name,
+          operation: currentOperation?.operations,
+          reason: reason,          
+          status: "Completed",
+        });
+        await setCurrentJobcard(null);       
+        triggerRefetchPozDetails();
+      } catch (error) {
+        console.error("Sürme Hazırlık güncelleme hatası:", error);
+        // toast.error("Süper Kesim kaydı güncellenirken hata oluştu");
+      }
+    }
     mutate("jobcarddetails");
   };
 
@@ -190,7 +207,7 @@ const Navbar = () => {
         />
         {
           currentOperation?.operations === "Profil Temin" ||
-          currentOperation?.operations === "Sac Kesim" ? (
+            currentOperation?.operations === "Sac Kesim" ? (
             <Dropdown
               value={currentOpt}
               onChange={(e) => handleOptiChange(e)}
@@ -222,31 +239,32 @@ const Navbar = () => {
       <div className="w-full flex items-center gap-1">
         {(currentOperation?.operations === "Kalite" ||
           currentOperation?.operations === "Cam") && (
-          <div
-            aria-disabled={isAllSelected}
-            onClick={() => {
-              if (!isAllSelected) {
-                if (currentOperation?.operations === "Cam") {
-                  document
-                    .querySelector('[data-testid="error-modal-trigger"]')
-                    ?.click();
-                } else {
-                  setErrorModalVisible(true);
+            <div
+              aria-disabled={isAllSelected}
+              onClick={() => {
+                if (!isAllSelected) {
+                  if (currentOperation?.operations === "Cam") {
+                    document
+                      .querySelector('[data-testid="error-modal-trigger"]')
+                      ?.click();
+                  } else {
+                    setErrorModalVisible(true);
+                  }
                 }
-              }
-            }}
-            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer ${
-              isAllSelected
-                ? "cursor-not-allowed opacity-50"
-                : "hover:bg-red-200"
-            }`}
-          >
-            <BiSolidError size="3rem" className="text-yellow-400 " />
-            <div className="w-3/4 text-center text-xl ">Hata</div>
-          </div>
-        )}
+              }}
+              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer ${isAllSelected
+                  ? "cursor-not-allowed opacity-50"
+                  : "hover:bg-red-200"
+                }`}
+            >
+              <BiSolidError size="3rem" className="text-yellow-400 " />
+              <div className="w-3/4 text-center text-xl ">Hata</div>
+            </div>
+          )}
 
-        {currentOperation?.operations !== "Cam" &&
+
+
+        {/* {currentOperation?.operations !== "Cam" &&
           currentOperation?.operations !== "Süper Kesim" && (
             <div
               onClick={() =>
@@ -254,11 +272,10 @@ const Navbar = () => {
                   ? setVisible(true)
                   : handleClick()
               }
-              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${
-                 !currentJobcard || Object.keys(currentJobcard).length === 0
-                  ? 'opacity-50 cursor-not-allowed' 
+              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
+                  ? 'opacity-50 cursor-not-allowed'
                   : 'cursor-pointer hover:bg-red-200'
-              }`}
+                }`}
               style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
             >
               <FaPlayCircle size="2rem" className="text-red-500" />
@@ -266,62 +283,150 @@ const Navbar = () => {
                 {jobCardLoading
                   ? "Loading..."
                   : currentJobcardStatus === "On Hold"
-                  ? "Devam Et"
-                  : currentJobcardStatus === "Work In Progress"
-                  ? "Durdur"
-                  : "Başlat"}
+                    ? "Devam Et"
+                    : currentJobcardStatus === "Work In Progress"
+                      ? "Durdur"
+                      : "Başlat"}
               </div>
             </div>
+          )} */}
+
+        {(currentOperation?.operations === "Sürme Hazırlık" ||
+          currentOperation?.operations === "Sürme Bağlama") && (
+           <>
+            <div
+              onClick={() =>
+                currentJobcardStatus === "Work In Progress"
+                  ? setVisible(true)
+                  : handleClick()
+              }
+              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'cursor-pointer hover:bg-red-200'
+                }`}
+            // style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
+            >
+              <FaPlayCircle size="2rem" className="text-red-500" />
+              <div className="w-3/4 text-center text-xl">
+                {jobCardLoading
+                  ? "Loading..."
+                  : currentJobcardStatus === "On Hold"
+                    ? "Devam Et"
+                    : currentJobcardStatus === "Work In Progress"
+                      ? "Durdur"
+                      : "Başlat"}
+              </div>
+            </div>
+              <div
+              onClick={() => handleComplete()}
+              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${ !currentJobcard || Object.keys(currentJobcard).length === 0
+                  ? 'opacity-50 cursor-not-allowed'
+                  : 'cursor-pointer hover:bg-red-200'
+                }`}
+              style={{ pointerEvents: !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
+            >
+              <FaRegCircleStop size="2rem" className="text-red-500 " />
+              <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
+            </div></>
           )}
 
+
         {currentOperation?.operations === "Profil Temin" ? (
+         <>
+          <div
+          onClick={() =>
+            currentJobcardStatus === "Work In Progress"
+              ? setVisible(true)
+              : handleClick()
+          }
+          className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
+              ? 'opacity-50 cursor-not-allowed'
+              : 'cursor-pointer hover:bg-red-200'
+            }`}
+          style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
+        >
+          <FaPlayCircle size="2rem" className="text-red-500" />
+          <div className="w-3/4 text-center text-xl">
+            {jobCardLoading
+              ? "Loading..."
+              : currentJobcardStatus === "On Hold"
+                ? "Devam Et"
+                : currentJobcardStatus === "Work In Progress"
+                  ? "Durdur"
+                  : "Başlat"}
+          </div>
+        </div>
           <div
             onClick={() =>
               isAllProfileTransferred
                 ? handleComplete()
                 : toast.error("Tüm profillleri aktarmanız gerekmektedir")
             }
-            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${
-              !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
-                ? 'opacity-50 cursor-not-allowed' 
+            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
+                ? 'opacity-50 cursor-not-allowed'
                 : 'cursor-pointer hover:bg-red-200'
-            }`}
+              }`}
             style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
           >
             <FaRegCircleStop size="2rem" className="text-red-500 " />
             <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
-          </div>
+          </div></>
         ) : null}
 
         {currentOperation?.operations === "Sac Kesim" ? (
-          <div
-            onClick={() =>handleComplete()}
-            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${
-              !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
-                ? 'opacity-50 cursor-not-allowed' 
-                : 'cursor-pointer hover:bg-red-200'
+          <>
+            <div
+          onClick={() =>
+            currentJobcardStatus === "Work In Progress"
+              ? setVisible(true)
+              : handleClick()
+          }
+          className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
+              ? 'opacity-50 cursor-not-allowed'
+              : 'cursor-pointer hover:bg-red-200'
             }`}
+          style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
+        >
+          <FaPlayCircle size="2rem" className="text-red-500" />
+          <div className="w-3/4 text-center text-xl">
+            {jobCardLoading
+              ? "Loading..."
+              : currentJobcardStatus === "On Hold"
+                ? "Devam Et"
+                : currentJobcardStatus === "Work In Progress"
+                  ? "Durdur"
+                  : "Başlat"}
+          </div>
+        </div>
+        <div
+            onClick={() => handleComplete()}
+            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
+                ? 'opacity-50 cursor-not-allowed'
+                : 'cursor-pointer hover:bg-red-200'
+              }`}
             style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
           >
             <FaRegCircleStop size="2rem" className="text-red-500 " />
             <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
-          </div>
+          </div></>
+         
         ) : null}
 
         {currentOperation?.operations === "Süper Kesim" ? (
           <div
             onClick={() => handleComplete()}
-            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${
-              !currentOpt || Object.keys(currentOpt).length === 0
-                ? 'opacity-50 cursor-not-allowed' 
+            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentOpt || Object.keys(currentOpt).length === 0
+                ? 'opacity-50 cursor-not-allowed'
                 : 'cursor-pointer hover:bg-red-200'
-            }`}
+              }`}
             style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 ? 'none' : 'auto' }}
           >
             <FaRegCircleStop size="2rem" className="text-red-500 " />
             <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
           </div>
         ) : null}
+
+        
         <div
           onClick={handlelogOut}
           className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"

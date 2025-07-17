@@ -11,7 +11,7 @@ import CustomerInfoCard from "../../Cards/CustomerInfo";
 import AccessoryInfoCard from "../../Cards/AccessoryInfo";
 import KitInfoCard from "../../Cards/KitInfo";
 import RemarksInfo from "../../Cards/RemarksInfo";
-import { getOrderDetails, getPozList, getPozDetails, updatePozStatus } from "../../../services/SurmeHazirlamaServices";
+import { getOrderDetails, getPozList, getPozDetails, updatePozStatus, getSurmeOrderJobcard, getFiyat2List } from "../../../services/SurmeHazirlamaServices";
 import { surmeLabelPrint } from "../../../services/PrintServices";
 import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -20,14 +20,15 @@ import CustomerInfoSurmeCard from "../../Cards/CustomerInfoSurme";
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 
-const PozCard = ({ poz, isSelected, onClick, orderNo }) => {
 
+const PozCard = ({ poz, isSelected, onClick, orderNo }) => {
+// console.log(poz)
   
   // Status için renk belirleme
   const getStatusColor = (status) => {
     const colors = {
-      "Pending": "border-yellow-400",
-      "In Progress": "border-blue-400",
+      "Open": "border-yellow-400",
+      "Work In Progress": "border-blue-400",
       "Completed": "border-green-400"
     };
     return colors[status] || "border-gray-400";
@@ -35,24 +36,24 @@ const PozCard = ({ poz, isSelected, onClick, orderNo }) => {
 
   return (
     <div 
-      className={`flex flex-col p-2 cursor-pointer transition-all duration-200 hover:bg-slate-100 rounded-lg mb-2
-        ${isSelected ? 'bg-slate-200' : 'bg-white'} border-l-4 ${getStatusColor(poz.status)}`}
+      className={`flex flex-col p-2 cursor-pointer transition-all duration-200  rounded-lg mb-2
+        ${isSelected ? 'bg-red-300' : 'bg-white'} border-l-4 ${getStatusColor(poz?.job_card?.status)}`}
       onClick={onClick}
     >
-      <div className="relative w-full aspect-[4/3] mb-2 overflow-hidden rounded-lg">
+      <div className="relative w-full aspect-[4/3] mb-2 overflow-hidden rounded-lg bg-gray-100 flex items-center justify-center">
         <img
           src={`/files/share/${(poz.poz_no).replace("-", "")}.jpg`}
           alt={`Poz ${poz.poz_no}`}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           onError={(e) => {
             e.target.src = "/files/share/noimage.png";
           }}
         />
         <div className="absolute top-2 right-2">
-          <Tag 
-            value={poz.status === "Pending" ? "Bekliyor" : poz.status === "In Progress" ? "İşlemde" : "Tamamlandı"} 
-            severity={poz.status === "Pending" ? "warning" : poz.status === "In Progress" ? "info" : "success"}
-          />
+          {/* <Tag 
+             value={poz?.job_card?.status === "Open" ? "Yeni" : poz?.job_card?.status=== "Work In Progress" ? "İşlemde" : poz?.job_card?.status=== "On Hold" ? "Duraklatıldı":"Tamamlandı"} 
+             severity={poz?.job_card?.status === "Open" ? "warning" : poz?.job_card?.status === "Work In Progress" ? "info" : poz?.job_card?.status === "On Hold" ? "help": "success"}
+          /> */}
         </div>
       </div>
       <div className="flex flex-col">
@@ -69,18 +70,22 @@ const SurmeHazirlama = () => {
     currentOperation,
     currentJobcard,
     setCurrentJobcard,
+    setCurrentJobcardStatus,
+    currentJobcardStatus,
+    refetchPozDetailsFlag
   } = useJobcardsStore();
 
   const toast = useRef(null);
   const [loading, setLoading] = useState(false);
   const [searchInput, setSearchInput] = useState("");
   const [selectedPoz, setSelectedPoz] = useState(null);
+  const [surmeItems, setSurmeItems] = useState()
   const queryClient = useQueryClient();
   const [pdfUrl, setPdfUrl] = useState(null);
 
   // Siparişleri getiren query
-  const { data: ordersData, isLoading: isOrdersLoading } = useQuery({
-    queryKey: ['surmeOrders',currentOperation],
+  const { data: ordersData, isLoading: isOrdersLoading, refetch: refetchSurmeOrders } = useQuery({
+    queryKey: ['surmeOrders', currentOperation],
     queryFn: async () => {
       const response = await fetch('/api/method/ozerpan_ercom_sync.custom_api.api.get_surme_orders', {
         method: 'POST',
@@ -99,7 +104,7 @@ const SurmeHazirlama = () => {
   });
 
   // Poz detaylarını getiren query
-  const { data: pozDetails, isLoading: isPozDetailsLoading } = useQuery({
+  const { data: pozDetails, isLoading: isPozDetailsLoading, refetch: refetchPozDetails } = useQuery({
     queryKey: ['surmePozDetails', searchInput],
     queryFn: async () => {
       if (!searchInput) return null;
@@ -110,38 +115,37 @@ const SurmeHazirlama = () => {
         },
         body: JSON.stringify({ 
           operation_type: currentOperation.operations,
-          order_no: searchInput }),
+          order_no: searchInput
+        }),
       });
       const data = await response.json();
-      setCurrentJobcard([data?.message?.job_card?.name]);
-      console.log(data?.message);
+   
       return data.message;
     },
-
     enabled: !!searchInput,
     staleTime: 30000,
     cacheTime: 1000 * 60 * 5,
   });
 
-  // Dropdown değişikliğinde otomatik arama
-  useEffect(() => {
-    const handleJobcardOnHold = async () => {
-      if (currentJobcard?.status === "Work In Progress") {
-        await JobCardAction(currentJobcard, employee, "Başka işe geçildi");
-        toast.current.show({
-          severity: "info",
-          summary: "Duraklatıldı",
-          detail: "Önceki iş kartı duraklatıldı: Başka işe geçildi",
-          life: 3000,
-        });
-      }
-    };
+  // // Dropdown değişikliğinde otomatik arama
+  // useEffect(() => {
+  //   const handleJobcardOnHold = async () => {
+  //     if (currentJobcard?.status === "Work In Progress") {
+  //       await JobCardAction(currentJobcard, employee, "Başka işe geçildi");
+  //       toast.current.show({
+  //         severity: "info",
+  //         summary: "Duraklatıldı",
+  //         detail: "Önceki iş kartı duraklatıldı: Başka işe geçildi",
+  //         life: 3000,
+  //       });
+  //     }
+  //   };
 
-    if (searchInput) {
-      handleJobcardOnHold();
-      setSelectedPoz(null); // Yeni sipariş seçildiğinde seçili pozu sıfırla
-    }
-  }, [searchInput, currentJobcard, employee]);
+  //   if (searchInput) {
+  //     handleJobcardOnHold();
+  //     setSelectedPoz(null); // Yeni sipariş seçildiğinde seçili pozu sıfırla
+  //   }
+  // }, [searchInput, currentJobcard, employee]);
 
   // Poz seçildiğinde detayları gösterme ve PDF'i yükleme
   const handlePozSelect = useCallback((poz) => {
@@ -161,7 +165,19 @@ const SurmeHazirlama = () => {
         }
       };
     });
-  }, [searchInput, queryClient]);
+
+      
+     refetchPozDetails(); // Poz seçildiğinde detayları tekrar fetch et
+     setCurrentJobcard([poz?.job_card?.name])
+      setCurrentJobcardStatus(poz?.job_card?.status)
+  }, [searchInput, queryClient, refetchPozDetails]);
+
+  const handleOrderSelect = useCallback(async(order_no) => {
+  const data=await getFiyat2List(order_no)
+  setSurmeItems(data)
+      
+   
+  }, []);
 
   // Etiket yazdırma fonksiyonu
   const handlePrintLabel = useCallback(async () => {
@@ -182,7 +198,7 @@ const SurmeHazirlama = () => {
         poz_no: selectedPoz.poz_no
       };
       
-      await surmeLabelPrint(printData);
+      await surmeLabelPrint(printData,surmeItems?.items);
       
       toast.current.show({
         severity: 'success',
@@ -200,16 +216,25 @@ const SurmeHazirlama = () => {
     }
   }, [selectedPoz, pozDetails, searchInput]);
 
+  useEffect(() => {
+    refetchPozDetails();
+    refetchSurmeOrders();
+  }, [refetchPozDetailsFlag]);
+
   return (
     <div className="flex h-screen p-4 gap-4">
       <Toast ref={toast} />
       
       {/* Sol Panel - Arama ve Sipariş Bilgileri */}
-      <div className="w-1/6 flex flex-col gap-4">
+      <div className="w-1/6 flex flex-col gap-4 overflow-auto">
         <div className="flex flex-col gap-2">
           <Dropdown
             value={searchInput}
-            onChange={(e) => setSearchInput(e.value)}
+            onChange={(e) => {setSearchInput(e.value),
+              handleOrderSelect(e.value),
+              setPdfUrl(),
+              setSelectedPoz()
+            }}
             options={ordersData || []}
             placeholder="Sipariş No Seçiniz"
             className="w-full"
@@ -223,15 +248,21 @@ const SurmeHazirlama = () => {
               icon="pi pi-print" 
               label="Etiket Yazdır"
               onClick={handlePrintLabel}
-              className="p-button-sm"
+              className="bg-green-500 w-full text-white p-1 rounded-md"
             />
           )}
         </div>
 
-        {searchInput && (
+        {searchInput &&  (
+       <>
           <CustomerInfoSurmeCard pozNo={selectedPoz?.poz_no} selectedPoz={pozDetails?.order_poz_details && Object.keys(pozDetails?.order_poz_details).length > 0 
             ? pozDetails.order_poz_details[Object.keys(pozDetails?.order_poz_details)[0]]
             : null} />
+            <DataTable value={surmeItems?.items} className="text-xs w-full"  >
+    <Column field="stock_code" header="Stok Kodu"></Column>
+    <Column field="stock_name" header="Ürün Adı"></Column>
+    <Column field="qty" header="Miktar"></Column>
+</DataTable></>
         )}
       </div>
 
@@ -262,7 +293,7 @@ const SurmeHazirlama = () => {
       </div>
 
       {/* Sağ Panel - Poz Listesi */}
-      <div className="w-1/6 bg-slate-50 rounded-lg p-2 overflow-hidden flex flex-col">
+      <div className="w-1/6 bg-slate-50 rounded-lg p-2 pb-16 overflow-hidden flex flex-col">
         <div className="flex-1 overflow-y-auto">
           {isPozDetailsLoading ? (
             <div className="flex items-center justify-center h-full">

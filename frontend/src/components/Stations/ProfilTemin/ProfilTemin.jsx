@@ -13,6 +13,7 @@ import { InputNumber } from "primereact/inputnumber";
 import { Toast } from 'primereact/toast';
 import { Button } from "primereact/button";
 import { updateProfileStockLedgerQty } from "../../../services/ProfilTeminServices";
+import { FaVolumeHigh } from "react-icons/fa6";
 
 const ProfilTemin = () => {
   const { currentOpt, currentJobcard, setIsAllProfileTransferred,currentJobcardStatus } = useJobcardsStore();
@@ -88,6 +89,7 @@ const ProfilTemin = () => {
   const [localInputValues, setLocalInputValues] = useState([]);
   const localInputValuesRef = useRef([]);
   const [isInputDisabled, setIsInputDisabled] = useState(true);
+  const [profileQty, setProfileQty] = useState()
 
   // currentJobcardStatus değişikliğini takip et
   useEffect(() => {
@@ -109,28 +111,38 @@ const ProfilTemin = () => {
     setLocalInputValues(prev => {
       const existingIndex = prev.findIndex(item => item.itemNo === itemNo);
       let newState;
-      
+      let diff = 0;
+
       if (existingIndex !== -1) {
-        // Mevcut öğeyi güncelle
+        // Mevcut öğeyi güncelle, prevValue'yu eski value olarak ata
+        const prevValue = prev[existingIndex].value;
         newState = [...prev];
-        newState[existingIndex] = { ...newState[existingIndex], value };
+        newState[existingIndex] = { ...newState[existingIndex], value, prevValue };
+        // Farkı hesapla
+        diff = (parseInt(value) || 0) - (parseInt(prevValue) || 0);
       } else {
-        // Yeni öğe ekle
-        newState = [...prev, { itemNo, value }];
+        // Yeni öğe ekle, prevValue'yu undefined veya inputValues'dan al
+        const prevValue = inputValues[itemNo];
+        newState = [...prev, { itemNo, value, prevValue }];
+        // Farkı hesapla
+        diff = (parseInt(value) || 0) - (parseInt(prevValue) || 0);
       }
-      
-      // Ref'i güncelle
       localInputValuesRef.current = newState;
+      setProfileQty(diff);
       return newState;
     });
   };
 
   // Onaylama handler'ı
-  const handleApprove = useCallback((rowData,itemNo) => {   
-    
+  const handleApprove = useCallback((rowData, itemNo) => {   
     const currentItem = localInputValuesRef.current.find(item => String(item.itemNo) === String(itemNo));
     const currentValue = currentItem?.value;
-    
+    // prevValue'yu doğru şekilde al
+    const prevValue = currentItem?.prevValue ?? inputValues[itemNo];
+
+    // diff'i burada hesapla
+    const diff = (parseInt(currentValue) || 0) - (parseInt(inputValues[itemNo]) || 0);
+
     if (currentValue === null || currentValue === undefined) return;
     
     const profileItem = profileOptInfo?.profile_list.find(
@@ -147,8 +159,9 @@ const ProfilTemin = () => {
       custom_transfered: currentValue,
     };
     updateProfile(profilePayload);
-    updateProfileStockLedgerQty(rowData.item_code, rowData.boy, currentValue-rowData.custom_transfered);
-  }, [profileOptInfo?.profile_list, updateProfile]);
+    updateProfileStockLedgerQty(rowData?.item_code, rowData?.boy.toString().replace(".", ","), diff, currentOpt?.custom_opti_no);
+    
+  }, [profileOptInfo?.profile_list, updateProfile, inputValues]);
 
   
 

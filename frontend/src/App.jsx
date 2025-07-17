@@ -14,6 +14,7 @@ import {
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Bayipanel from './pages/Bayipanel';
+import Market from './pages/Market';
 const queryClient = new QueryClient()
 const basePath = import.meta.env.VITE_BASE_PATH || '/';
 
@@ -34,7 +35,7 @@ function App() {
 							<Route element={<ProtectedRoute />}>
 								<Route element={<Jobcards />} path="/jobcards" />
 								<Route element={<Bayipanel />} path="/bayipanel" />
-
+								<Route element={<Market/>} path='/market' />
 							</Route>
 
 						</Routes>
