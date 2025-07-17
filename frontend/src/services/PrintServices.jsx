@@ -1,7 +1,7 @@
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 export const glassLabelPrint = async (selectedProduct) => {
-    const{product,glassDetails}=selectedProduct;    
+  const { product, glassDetails } = selectedProduct;
   const zpl = `     
 ^XA
 ^CWZ,E:ARIAL.TTF
@@ -107,9 +107,9 @@ export const qualityLabelPrint = async (tesDetay,labelInfo) => {
   }
 };
 
-export const surmeLabelPrint = async (pozDetails,surmeItems) => {
+export const surmeLabelPrintYedek = async (pozDetails, surmeItems) => {
 
-const zpl = `
+  const zpl = `
 ^XA
 ^CI28
 ^PW800     
@@ -136,35 +136,61 @@ const zpl = `
 ^FO650,300^FB740,,1^FDMiktar^FS
 
 ${(surmeItems || []).map((item, i) => {
-  const y = 350 + i * 30;
-  return `
+    const y = 350 + i * 30;
+    return `
 ^FO30,${y}^FD${item.stock_code || ''} ^FS
 ^FO200,${y}^FB740,,3^FD${item.stock_name || ''} ^FS
 ^FO650,${y}^FD${item.qty ?? ''} ^FS
 `;
-}).join('')}
+  }).join('')}
 ^XZ
 
 `
-;
-console.log(zpl)
+    ;
 
-   try {
-     const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_surme_label`, {
-       credentials: "include",
-       method: "POST",
-       headers: { "Content-Type": "application/json" },
-       body: JSON.stringify({ zpl }),
-     });
+  try {
+    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_surme_label`, {
+      credentials: "include",
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ zpl }),
+    });
 
-     if (response.ok) {
-       const message = await response.json();
-       console.log("message", message);
-       return message;
-     } else {
-       throw new Error(`HTTP error! Status: ${response.status}`);
-     }
-   } catch (error) {
-     console.error("Hata:", error);
-   }
+    if (response.ok) {
+      const message = await response.json();
+      console.log("message", message);
+      return message;
+    } else {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Hata:", error);
+  }
+};
+
+export const surmeLabelPrint = async (pozDetails, surmeItems) => {
+  // Düz metin formatı
+  const text = `CLS\n\nTEXT 30,30,"3",0,1,1,"Cari Unvan : ${pozDetails?.bayi_adi}"\nTEXT 30,70,"3",0,1,1,"Cari Kodu  : ${pozDetails?.cari_kod}"\nTEXT 30,110,"3",0,1,1,"Sip / Sevk : ${pozDetails?.siparis_tarihi} / ${pozDetails?.sevkiyat_tarihi}"\nTEXT 30,150,"3",0,1,1,"Musterisi  : ${pozDetails?.musteri || '-'}"\nTEXT 30,190,"3",0,1,1,"Siparis No : ${pozDetails?.siparis_no}   Poz No : ${pozDetails?.poz_no?.split('-')[1]}"\n\nBAR 0,230,800,2\nTEXT 30,240,"3",0,1,1,"Stok Kodu"\nTEXT 200,240,"3",0,1,1,"Ürün Adı"\nTEXT 650,240,"3",0,1,1,"Miktar"\nBAR 0,270,800,2\n\n${(surmeItems || []).map((item, i) => {
+    const y = 280 + i * 30;
+    return `TEXT 30,${y},"3",0,1,1,"${item.stock_code || ''}"\nTEXT 200,${y},"3",0,1,1,"${item.stock_name || ''}"\nTEXT 650,${y},"3",0,1,1,"${item.qty ?? ''}"\n`;
+  }).join('')}\nPRINT 1\n`;
+
+  try {
+    const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_surme_label_local`, {
+      credentials: "include",
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: text,
+    });
+
+    if (response.ok) {
+      const message = await response.json();
+      console.log("message", message);
+      return message;
+    } else {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+  } catch (error) {
+    console.error("Hata:", error);
+  }
 };

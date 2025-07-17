@@ -542,7 +542,7 @@ def print_surme_label_local():
             tmpfile_path = tmpfile.name
 
         # lpr komutu ile yazıcıya gönder
-        printer_name = "Zebra"  # Buraya kendi yazıcınızın adını yazın
+        printer_name = "SurmeEtiket"  # Yazıcınızın adı
         result = subprocess.run(['lpr', '-P', printer_name, tmpfile_path], capture_output=True, text=True)
 
         if result.returncode == 0:
