@@ -556,3 +556,140 @@ def print_surme_label_local():
             message=f"{e.__class__.__name__}: {str(e)[:500]}"
         )
         return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
+
+import frappe
+from frappe import _
+from frappe.utils import cint
+from frappe.model.db_query import DatabaseQuery
+from frappe.model.document import Document
+from frappe import whitelist
+
+@frappe.whitelist(allow_guest=True)
+def get_customers_with_sales_orders_and_work_orders():
+    # 1. Teslimatı tamamlanmamış Sales Order'ları bul
+    sales_orders = frappe.db.get_all(
+        "Sales Order",
+        filters={
+            "docstatus": 1,
+            "status": ["not in", ["Closed", "On Hold"]],
+            "per_delivered": ["<", 99.99]
+        },
+        fields=["name", "customer"]
+    )
+
+    customers = {}
+    for so in sales_orders:
+        work_orders = frappe.db.get_all(
+            "Work Order",
+            filters={
+                "sales_order": so.name,
+                "status": "Completed",
+                "docstatus": 1
+            },
+            fields=["name"]
+        )
+        if work_orders:
+            if so.customer not in customers:
+                customers[so.customer] = []
+            customers[so.customer].append({
+                "label": so.name,
+                "value": so.name,
+                "work_orders": [wo["name"] for wo in work_orders]
+            })
+
+    customer_list = [
+        {
+            "label": customer,
+            "value": customer,
+            "sales_orders": sales_orders
+        }
+        for customer, sales_orders in customers.items()
+    ]
+    return customer_list
+
+@frappe.whitelist(allow_guest=True)
+def get_work_order_products(sales_orders, work_orders=None):
+    import json
+    if isinstance(sales_orders, str):
+        sales_orders = json.loads(sales_orders)
+    # work_orders filtresini kaldırıyoruz, tüm seçili Sales Order'lara ait ürünler gelsin
+    if not sales_orders:
+        return []
+    items = frappe.db.sql('''
+        SELECT wo.production_item as item_code, it.custom_serial, it.custom_color, it.custom_width, it.custom_height, it.item_group, wo.qty
+        FROM `tabWork Order` wo
+        LEFT JOIN `tabItem` it ON it.name = wo.production_item
+        WHERE wo.sales_order IN %(sales_orders)s
+    ''', {"sales_orders": tuple(sales_orders)}, as_dict=True)
+    return [
+        {
+            "item_code": i.item_code,
+            "custom_serial": i.custom_serial,
+            "custom_color": i.custom_color,
+            "custom_width": i.custom_width,
+            "custom_height": i.custom_height,
+            "item_group": i.item_group,
+            "qty": i.qty
+        }
+        for i in items
+    ]
+
+@frappe.whitelist(allow_guest=True)
+def get_fiyat2_items_for_sales_order(sales_orders):
+    import json
+    if isinstance(sales_orders, str):
+        sales_orders = json.loads(sales_orders)
+    if not sales_orders:
+        return []
+    allowed_groups = [
+        "Pvc Kolları",
+        "Pvc Hat1 Yardımcı Profiller",
+        "Pvc Hat2 Yardımcı Profiller"
+    ]
+    items = frappe.db.sql('''
+        SELECT fi.stock_code, fi.stock_name, fi.qty, fi.unit_price, fi.price
+        FROM `tabFiyat2 Item` fi
+        LEFT JOIN `tabItem` it ON it.name = fi.stock_code
+        WHERE fi.parent IN %(parents)s AND it.item_group IN %(groups)s
+    ''', {"parents": tuple(sales_orders), "groups": tuple(allowed_groups)}, as_dict=True)
+    return items
+
+@frappe.whitelist(allow_guest=True)
+def get_sales_order_items_with_work_order_status(sales_orders):
+    import json
+    if isinstance(sales_orders, str):
+        sales_orders = json.loads(sales_orders)
+    if not sales_orders:
+        return []
+    so_items = frappe.get_all(
+        "Sales Order Item",
+        filters={"parent": ["in", sales_orders]},
+        fields=["item_code", "item_name", "qty", "parent"]
+    )
+    # Her ürün için iş emri tamamlanmış mı kontrol et
+    for item in so_items:
+        wo = frappe.db.exists(
+            "Work Order",
+            {
+                "sales_order": item["parent"],
+                "production_item": item["item_code"],
+                "status": "Completed",
+                "docstatus": 1
+            }
+        )
+        item["is_ready"] = "Hazır" if wo else ""
+    return so_items
+
+@frappe.whitelist(allow_guest=True)
+def get_total_cutting_for_sales_orders(sales_orders):
+    import json
+    if isinstance(sales_orders, str):
+        sales_orders = json.loads(sales_orders)
+    if not sales_orders:
+        return 0
+    total = frappe.db.sql('''
+        SELECT SUM(total_cutting) as total
+        FROM `tabFiyat2 List`
+        WHERE name IN %s
+    ''', (tuple(sales_orders),), as_dict=True)[0]["total"] or 0
+    return total
