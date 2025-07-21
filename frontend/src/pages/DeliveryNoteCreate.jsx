@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
 import { DataTable } from 'primereact/datatable';
@@ -6,10 +6,14 @@ import { Column } from 'primereact/column';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
-import { getCustomersWithSalesOrdersAndWorkOrders, getWorkOrderProducts, getFiyat2ItemsForSalesOrder, getSalesOrderItemsWithWorkOrderStatus, getTotalCuttingForSalesOrders } from '../services/deliveryNoteService';
+import { getCustomersWithSalesOrdersAndWorkOrders, getWorkOrderProducts, getFiyat2ItemsForSalesOrder, getSalesOrderItemsWithWorkOrderStatus, getTotalCuttingForSalesOrders, createDeliveryNote } from '../services/deliveryNoteService';
 import { FaCheckCircle } from 'react-icons/fa';
+import { Button } from 'primereact/button';
+
+import { Toast } from 'primereact/toast';
 
 export default function DeliveryNoteCreate() {
+  const toast = useRef(null);
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [salesOrders, setSalesOrders] = useState([]);
@@ -19,6 +23,7 @@ export default function DeliveryNoteCreate() {
   const [fiyat2Items, setFiyat2Items] = useState([]);
   const [pozlar, setPozlar] = useState([]);
   const [totalCutting, setTotalCutting] = useState(0);
+  const [isCreating, setIsCreating] = useState(false);
 
   // Sayfa ilk açıldığında müşteri ve sales orderları çek
   useEffect(() => {
@@ -132,8 +137,63 @@ export default function DeliveryNoteCreate() {
     return Object.values(grouped);
   }
 
+  // Pozlar tablosundaki ürün kodlarını al
+  const pozItemCodes = pozlar.map(p => p.item_code);
+
+  // Pozları gruplara ayır
+  const pvcPozlar = pozlar.filter(p => p.item_group === 'PVC');
+  const camPozlar = pozlar.filter(p => p.item_group === 'Camlar');
+  const allPvcReady = pvcPozlar.length > 0 && pvcPozlar.every(p => p.is_ready === 'Hazır');
+  const allCamReady = camPozlar.length > 0 && camPozlar.every(p => p.is_ready === 'Hazır');
+
+  // Sadece ilgili gruptaki siparişleri backend'e gönder
+  const getGroupSalesOrders = (groupPozlar) => {
+    // Her pozun parent'ı Sales Order kodu
+    return Array.from(new Set(groupPozlar.map(p => p.parent)));
+  };
+
+  // PVC için Delivery Note
+  const handleCreateDeliveryNotePVC = async () => {
+    if (!selectedCustomer || !allPvcReady) return;
+    setIsCreating(true);
+    try {
+      const pvcSalesOrders = getGroupSalesOrders(pvcPozlar);
+      const pvcItemCodes = pvcPozlar.map(p => p.item_code);
+      const dnName = await createDeliveryNote(pvcSalesOrders, selectedCustomer, "PVC", pvcItemCodes);
+      toast.current.show({ severity: 'success', summary: 'Başarılı', detail: `${dnName} numaralı teslimat fişi oluşturuldu.`, life: 4000 });
+      setSelectedCustomer(null);
+      setSelectedSalesOrders([]);
+    } catch (error) {
+      toast.current.show({ severity: 'error', summary: 'Hata', detail: error.message || error.toString(), life: 4000 });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Camlar için Delivery Note
+  const handleCreateDeliveryNoteCamlar = async () => {
+    if (!selectedCustomer) return;
+    setIsCreating(true);
+    try {
+      const camSalesOrders = getGroupSalesOrders(camPozlar);
+      const camItemCodes = camPozlar.map(p => p.item_code);
+      const dnName = await createDeliveryNote(camSalesOrders, selectedCustomer, "Camlar", camItemCodes);
+      toast.current.show({ severity: 'success', summary: 'Başarılı', detail: `${dnName} numaralı teslimat fişi oluşturuldu.`, life: 4000 });
+      setSelectedCustomer(null);
+      setSelectedSalesOrders([]);
+    } catch (error) {
+      toast.current.show({ severity: 'error', summary: 'Hata', detail: error.message || error.toString(), life: 4000 });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Pozlar tablosu için sadece sıralı veri (grup başlığı yok)
+  const groupedPozlar = [...pvcPozlar, ...camPozlar];
+
   return (
-    <div style={{ display: 'flex', height: '100vh' }}>
+    <div className='w-screen h-screen flex relative'>
+      <Toast ref={toast} />
       {/* Sidebar */}
       <div style={{ width: 600, background: '#f4f4f4', padding: 10, display: 'flex', flexDirection: 'column' }}>
         {/* Dropdownlar */}
@@ -172,25 +232,12 @@ export default function DeliveryNoteCreate() {
             <div className='h-full' style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                 <h3 className='text-center text-red-500 font-bold'>POZLAR</h3>
-                <div className='w-full overflow-x-hidden text-xs' style={{  flex: 1, minHeight: 0 }}>
-                  <DataTable 
-                    value={pozlar} 
-                    emptyMessage="Ürün yok" 
-                    loading={loading}
-                    rowClassName={rowData => rowData.is_ready === 'Hazır' ? 'bg-green-50' : ''}
-                    className='text-xs overflow-y-auto'
-                    scrollable
-                  >
+                <div style={{ fontSize: 13, flex: 1, minHeight: 0, overflow: 'auto' }}>
+                  <DataTable value={groupedPozlar} emptyMessage="Ürün yok" loading={loading} className="text-xs" style={{ fontSize: 12 }}>
                     <Column field="item_code" header="Ürün Kodu" />
                     <Column field="item_name" header="Ürün Adı" />
-                    <Column field="qty" header="Miktar" />
-                    <Column 
-                      header="Durum" 
-                      body={rowData => rowData.is_ready === 'Hazır' ? (
-                        <FaCheckCircle color="#22c55e" size={18} title="Hazır" />
-                      ) : null}
-                      style={{ textAlign: 'center' }}
-                    />
+                    <Column field="qty" header="Miktar" body={rowData => rowData.item_group === 'Camlar' ? '' : rowData.qty} />
+                    <Column header="Durum" body={rowData => rowData.is_ready === 'Hazır' ? (<FaCheckCircle color="#22c55e" size={18} title="Hazır" />) : null} style={{ textAlign: 'center' }} />
                   </DataTable>
                 </div>
               </div>
@@ -223,7 +270,7 @@ export default function DeliveryNoteCreate() {
             className='grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-6 bg-white p-4 rounded-lg shadow-sm overflow-y-auto max-h-svh pb-24'
           >
             {products
-              .filter(prod => prod.item_group === 'PVC')
+              .filter(prod => prod.item_group === 'PVC' && pozItemCodes.includes(prod.item_code))
               .map((prod, idx) => {
                 const imgName = prod.item_code ? prod.item_code.replace(/-/g, '') + '.jpg' : '';
                 const imgSrc = imgName ? `/files/share/${imgName}` : '';
@@ -244,10 +291,34 @@ export default function DeliveryNoteCreate() {
               })}
           </div>
         </div>
-        {/* Sticky toplam doğrama alanı */}
-        <div className='w-full sticky bottom-0 left-0 z-10 mt-8 p-4 bg-red-50 rounded-lg text-center font-bold text-sm text-red-700 shadow-md'>
-          Toplam Doğrama : {totalCutting}
-        </div>
+        {/* Sticky toplam doğrama alanı ve butonlar */}
+        {selectedSalesOrders.length > 0 && (
+          <div className='w-full sticky bottom-0 left-0 z-20 mt-8 p-0 flex flex-row items-end justify-between rounded-lg gap-4 bg-slate-300'>
+            {/* Sol: Toplam Doğrama (sadece PVC varsa) */}
+            {pvcPozlar.length > 0 && (
+              <div className='flex-1 p-4 rounded-lg text font-bold text-sm text-red-700 '>
+                Toplam Doğrama : {totalCutting}
+              </div>
+            )}
+            {/* Sağ: Butonlar */}
+            <div className='flex-1 flex-col gap-2 justify-between w-full p-2 '>
+              <Button
+                label="PVC Sevkiyat"
+                className="p-button-success  p-1"
+                onClick={handleCreateDeliveryNotePVC}
+                loading={isCreating}
+                disabled={!allPvcReady || pvcPozlar.length === 0}
+              />
+              <Button
+                label="Camlar Sevkiyat"
+                className="p-button-info p-1"
+                onClick={handleCreateDeliveryNoteCamlar}
+                loading={isCreating}
+                disabled={!allCamReady || camPozlar.length === 0}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

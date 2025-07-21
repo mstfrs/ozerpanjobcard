@@ -52,4 +52,19 @@ export async function getTotalCuttingForSalesOrders(salesOrders) {
   });
   const data = await res.json();
   return data.message;
+}
+
+export async function createDeliveryNote(salesOrders, customer, itemGroup, itemCodes) {
+  const res = await fetch('/api/method/ozerpanjobcard.api.create_delivery_note_from_sales_orders', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ sales_orders: salesOrders, customer: customer, item_group: itemGroup, item_codes: itemCodes }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Teslim edilecek hazır ürün bulunamadı.');
+  }
+  return data.message;
 } 

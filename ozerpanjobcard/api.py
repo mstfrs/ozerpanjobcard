@@ -661,11 +661,14 @@ def get_sales_order_items_with_work_order_status(sales_orders):
         sales_orders = json.loads(sales_orders)
     if not sales_orders:
         return []
-    so_items = frappe.get_all(
-        "Sales Order Item",
-        filters={"parent": ["in", sales_orders]},
-        fields=["item_code", "item_name", "qty", "parent"]
-    )
+    so_items = frappe.db.sql('''
+        SELECT soi.item_code, soi.item_name, soi.qty, soi.delivered_qty, soi.parent, it.item_group
+        FROM `tabSales Order Item` soi
+        LEFT JOIN `tabItem` it ON it.name = soi.item_code
+        WHERE soi.parent IN %(parents)s
+    ''', {"parents": tuple(sales_orders)}, as_dict=True)
+    # Teslimatı tamamlanmış ürünleri çıkar
+    so_items = [item for item in so_items if float(item["delivered_qty"] or 0) < float(item["qty"] or 0)]
     # Her ürün için iş emri tamamlanmış mı kontrol et
     for item in so_items:
         wo = frappe.db.exists(
@@ -693,3 +696,54 @@ def get_total_cutting_for_sales_orders(sales_orders):
         WHERE name IN %s
     ''', (tuple(sales_orders),), as_dict=True)[0]["total"] or 0
     return total
+
+from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
+
+@frappe.whitelist()
+def create_delivery_note_from_sales_orders(sales_orders, customer, item_group=None, item_codes=None):
+    try:
+        import json
+        if isinstance(sales_orders, str):
+            sales_orders = json.loads(sales_orders)
+        if item_group and isinstance(item_group, str):
+            item_group = item_group.strip()
+        if item_codes and isinstance(item_codes, str):
+            item_codes = json.loads(item_codes)
+        if not sales_orders:
+            frappe.throw("En az bir sipariş seçin.")
+
+        dn_names = []
+        for so_name in sales_orders:
+            dn_doc = make_delivery_note(so_name)
+            dn_doc.customer = customer
+            ready_items = []
+            for item in dn_doc.items:
+                # Sadece istenen item_group ve item_code'lardaki ürünleri ekle
+                item_group_val = frappe.db.get_value("Item", item.item_code, "item_group")
+                if item_group and item_group_val != item_group:
+                    continue
+                if item_codes and item.item_code not in item_codes:
+                    continue
+                wo = frappe.db.exists(
+                    "Work Order",
+                    {
+                        "sales_order": item.against_sales_order,
+                        "production_item": item.item_code,
+                        "status": "Completed",
+                    },
+                )
+                if wo:
+                    ready_items.append(item)
+            if not ready_items:
+                continue
+            dn_doc.items = ready_items
+            dn_doc.set_missing_values()
+            dn_doc.save()
+            dn_doc.submit()
+            dn_names.append(dn_doc.name)
+        if not dn_names:
+            frappe.throw("Teslim edilecek hazır ürün bulunamadı.")
+        return dn_names
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Delivery Note Creation Error")
+        frappe.throw(str(e))
