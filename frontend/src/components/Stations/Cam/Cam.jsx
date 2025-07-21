@@ -151,7 +151,7 @@ const Cam = () => {
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleInputKeyDown}
-          className="w-full h-12 pl-2 text-base"
+          className="w-full h-10 pl-2 text-base"
           // disabled={currentJobcard?.status === "Work In Progress"}
         />
       </span>
@@ -276,7 +276,7 @@ const Cam = () => {
         {glassTypes && (
           <>
             <Card
-          className="mb-4"
+          className="mb-1"
           title={
             <span className="text-sm font-semibold">
               Fabrika Sipariş No:
@@ -291,13 +291,13 @@ const Cam = () => {
             </span>
           }
         />
-             <Card className="mb-1 items-center">
-            <h3 className="text-base font-semibold mb-2">Cam Çeşitleri ve Adetleri</h3>
-            <ul className="text-base">
+             <div className="mb-1 items-center bg-white rounded-md">
+            <h3 className="text-base font-semibold mb-1 bg-red-300 rounded-t-md text-center">Cam Çeşitleri ve Adetleri</h3>
+            <ul className="text-base px-1">
               {Object.entries(glassTypes).map(([type, count]) => (
                 <li
                   key={type}
-                  className={`flex justify-between cursor-pointer border-1 border px-1 py-3 text-base mb-2 rounded-lg ${
+                  className={`flex justify-between cursor-pointer border-1 border px-1 py-3 text-base mb-1 rounded-lg ${
                     selectedGlassType === type ? "font-bold bg-green-500 text-white" : ""
                   }`}
                   onClick={() => setSelectedGlassType(selectedGlassType === type ? null : type)}
@@ -307,14 +307,14 @@ const Cam = () => {
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
           </>
        
         )}
         {statusCounts && (
-          <Card className="mb-1 items-center">
-            <h3 className="text-base font-semibold mb-2">Durumlar</h3>
-            <ul className="text-base">
+          <div className=" bg-white rounded-md items-center">
+            <h3 className="text-base font-semibold mb-1 bg-red-300 rounded-t-md text-center">Durumlar</h3>
+            <ul className="text-base px-1">
               {Object.entries(statusCounts).map(([status, count]) => (
                 <li
                   key={status}
@@ -334,7 +334,7 @@ const Cam = () => {
                 </li>
               ))}
             </ul>
-          </Card>
+          </div>
         )}
       </div>
 
