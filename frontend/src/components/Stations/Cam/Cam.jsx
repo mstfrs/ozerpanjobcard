@@ -24,6 +24,7 @@ const Cam = () => {
   const [lastSearchedValue, setLastSearchedValue] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("Pending");
   const [selectedGlassType, setSelectedGlassType] = useState(null);
+  const [currentOrder, setCurrentOrder] = useState()
 
   const {
     employee,
@@ -34,6 +35,7 @@ const Cam = () => {
 
   const handleInputChange = (e) => {
     setInputValue(e.target.value.slice(0, 7));
+    setCurrentOrder(e.target.value.slice(0, 7));
   };
 
   const handleInputKeyDown = async (e) => {
@@ -279,7 +281,7 @@ const Cam = () => {
           className="mb-1"
           title={
             <span className="text-sm font-semibold">
-              Fabrika Sipariş No:
+              Fabrika Sipariş No:{currentOrder}
             </span>
           }
           subTitle={
