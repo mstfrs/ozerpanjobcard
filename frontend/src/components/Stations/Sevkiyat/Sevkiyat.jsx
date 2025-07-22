@@ -198,7 +198,7 @@ export default function Sevkiyat() {
       {/* Sidebar */}
       <div style={{ width: 600, background: '#f4f4f4', padding: 10, display: 'flex', flexDirection: 'column' }}>
         {/* Dropdownlar */}
-        <div className='text-sm' style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 8 }}>
+        <div className='text-sm' style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 4 }}>
           <div style={{ minWidth: 240 }}>
             <label className='text-red-500 font-bold text-sm'>Müşteri</label>
             <Dropdown
@@ -242,7 +242,7 @@ export default function Sevkiyat() {
                   </DataTable>
                 </div>
               </div>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+              <div className='min-h-80' style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                 <h3 className='text-center text-red-500 font-bold'>YARDIMCI ÜRÜNLER</h3>
                 <div style={{  flex: 1, minHeight: 0, overflow: 'auto' }}>
                   <DataTable 
@@ -264,11 +264,11 @@ export default function Sevkiyat() {
         )}
       </div>
       {/* Main Content */}
-      <div className='w-full flex-1 p-2 flex flex-col justify-between relative'>
-        <div>
+      <div className='w-full h-full flex-1 p-2 flex flex-col justify-between relative'>
+        <div className=''>
           <h3>Ürün Görselleri</h3>
           <div
-            className='grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-6 bg-white p-4 rounded-lg shadow-sm overflow-y-auto max-h-svh pb-24'
+            className='grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-6 bg-white p-4 rounded-lg shadow-sm overflow-y-auto 'style={{ maxHeight: 'calc(100svh - 120px)' }}
           >
             {products
               .filter(prod => prod.item_group === 'PVC' && pozItemCodes.includes(prod.item_code))
@@ -280,7 +280,7 @@ export default function Sevkiyat() {
                     <img
                       src={imgSrc}
                       alt={prod.item_code}
-                      className='w-[140px] h-[140px] object-contain border border-gray-200 rounded-lg bg-gray-50 mx-auto'
+                      className='w-[120px] h-[120px] object-contain border border-gray-200 rounded-lg bg-gray-50 mx-auto'
                       onError={e => { e.target.onerror = null; e.target.src = '/files/share/default.jpg'; }}
                     />
                     <div className='text-xs text-gray-500 mt-2'>{prod.item_code}</div>
@@ -294,15 +294,15 @@ export default function Sevkiyat() {
         </div>
         {/* Sticky toplam doğrama alanı ve butonlar */}
         {selectedSalesOrders.length > 0 && (
-          <div className='w-full sticky bottom-0 left-0 z-20 mt-8 p-0 flex flex-row items-end justify-between rounded-lg gap-4 bg-slate-300'>
+          <div className='w-full sticky bottom-0 left-0 z-20 p-0 flex flex-row items-end justify-between rounded-lg bg-slate-300'>
             {/* Sol: Toplam Doğrama (sadece PVC varsa) */}
             {pvcPozlar.length > 0 && (
-              <div className='flex-1 p-4 rounded-lg text font-bold text-sm text-red-700 '>
+              <div className='w-fit  p-1 rounded-lg lg:text-md text-xs font-bold text-red-700 '>
                 Toplam Doğrama : {totalCutting}
               </div>
             )}
             {/* Sağ: Butonlar */}
-            <div className='flex-1 flex-col gap-2 justify-between w-full p-2 '>
+            <div className=' flex md:justify-end gap-2 justify-between w-full p-2 md:text-md text-xs '>
               <Button
                 label="PVC Sevkiyat"
                 className="p-button-success  p-1"
