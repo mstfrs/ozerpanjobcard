@@ -18,6 +18,7 @@ import Cam from '../components/Stations/Cam/Cam';
 import SurmeHazirlama from "../components/Stations/SurmeHazirlama/SurmeHazirlama";
 import SurmeBaglama from "../components/Stations/SurmeBaglama/SurmeBaglama";
 import SuperKesim from "../components/Stations/SuperKesim/SuperKesim";
+import Sevkiyat from "../components/Stations/Sevkiyat/Sevkiyat";
 
 const Jobcards = () => {
   const {
@@ -83,6 +84,8 @@ const Jobcards = () => {
         <SurmeHazirlama />
       ) : currentOperation?.operations === "Sürme Bağlama" ? (
         <SurmeBaglama />
+      ) : currentOperation?.operations === "Sevkiyat" ? (
+        <Sevkiyat />
       ) : currentOperation?.operations === "Süper Kesim" ? (
         <SuperKesim />
       ) : (
