@@ -1,3 +1,5 @@
+// ...existing code...
+  // ...existing code...
 import React, { useState, useEffect, useRef } from 'react';
 import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
@@ -11,6 +13,8 @@ import { FaCheckCircle } from 'react-icons/fa';
 import { Button } from 'primereact/button';
 
 import { Toast } from 'primereact/toast';
+import { Sidebar } from 'primereact/sidebar';
+// import { InputMask } from 'primereact/inputmask';
 import { getCustomersWithSalesOrdersAndWorkOrders, getWorkOrderProducts, getFiyat2ItemsForSalesOrder, getSalesOrderItemsWithWorkOrderStatus, getTotalCuttingForSalesOrders, createDeliveryNote  } from '../../../services/deliveryNoteService';
 
 export default function Sevkiyat() {
@@ -25,6 +29,95 @@ export default function Sevkiyat() {
   const [pozlar, setPozlar] = useState([]);
   const [totalCutting, setTotalCutting] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(false);
+  // Teslim Alan, Araç Plakası, Fotoğraf ve Sevkiyat Tipi için state
+  const [teslimAlan, setTeslimAlan] = useState('');
+  const [aracPlaka, setAracPlaka] = useState('');
+  const [plakaError, setPlakaError] = useState('');
+  const [photo, setPhoto] = useState(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [sevkiyatTipi, setSevkiyatTipi] = useState(null); // "PVC" veya "Camlar"
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+
+  // Teslimat fişi oluşturma işlemi
+  const handleTeslimatFisOlustur = async (e) => {
+    if (e) e.preventDefault();
+    if (!selectedCustomer || !sevkiyatTipi) return;
+    if (!teslimAlan || plakaError) {
+      toast.current.show({ severity: 'error', summary: 'Hata', detail: 'Teslim alan ve plaka bilgisi geçerli olmalı.', life: 4000 });
+      return;
+    }
+    setIsCreating(true);
+    try {
+      let photoUrl = null;
+      if (photo) {
+        // Fotoğrafı önce dosya olarak upload et
+        const { uploadPhotoBase64 } = await import('../../../services/deliveryNoteService');
+        photoUrl = await uploadPhotoBase64(photo, `delivery_${Date.now()}.png`);
+      }
+      const pozlarGroup = sevkiyatTipi === "PVC" ? pvcPozlar : camPozlar;
+      const salesOrdersGroup = getGroupSalesOrders(pozlarGroup);
+      const itemCodesGroup = pozlarGroup.map(p => p.item_code);
+      // createDeliveryNote fonksiyonuna ek alanları da gönder
+      const dnName = await createDeliveryNote(
+        salesOrdersGroup,
+        selectedCustomer,
+        sevkiyatTipi,
+        itemCodesGroup,
+        { custom_recipient: teslimAlan, custom_vehicle: aracPlaka, custom_delivery_photo: photoUrl }
+      );
+      toast.current.show({ severity: 'success', summary: 'Başarılı', detail: `${dnName} numaralı teslimat fişi oluşturuldu.`, life: 4000 });
+      setSelectedCustomer(null);
+      setSelectedSalesOrders([]);
+      setSidebarVisible(false);
+      setTeslimAlan('');
+      setAracPlaka('');
+      setPhoto(null);
+      setSevkiyatTipi(null);
+    } catch (error) {
+      toast.current.show({ severity: 'error', summary: 'Hata', detail: error.message || error.toString(), life: 4000 });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // Kamera başlat
+  useEffect(() => {
+    if (cameraActive && videoRef.current) {
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          videoRef.current.srcObject = stream;
+        })
+        .catch(() => {
+          setCameraActive(false);
+        });
+    } else if (videoRef.current && videoRef.current.srcObject) {
+      // Kamera kapatılırsa stream'i durdur
+      const tracks = videoRef.current.srcObject.getTracks();
+      tracks.forEach(track => track.stop());
+      videoRef.current.srcObject = null;
+    }
+    // Kamera kapatıldığında temizlik
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const tracks = videoRef.current.srcObject.getTracks();
+        tracks.forEach(track => track.stop());
+        videoRef.current.srcObject = null;
+      }
+    };
+  }, [cameraActive]);
+
+  // Fotoğraf çek
+  const handleTakePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const context = canvasRef.current.getContext('2d');
+      context.drawImage(videoRef.current, 0, 0, 320, 240);
+      const dataUrl = canvasRef.current.toDataURL('image/png');
+      setPhoto(dataUrl);
+      setCameraActive(false);
+    }
+  };
 
   // Sayfa ilk açıldığında müşteri ve sales orderları çek
   useEffect(() => {
@@ -153,40 +246,10 @@ export default function Sevkiyat() {
     return Array.from(new Set(groupPozlar.map(p => p.parent)));
   };
 
-  // PVC için Delivery Note
-  const handleCreateDeliveryNotePVC = async () => {
-    if (!selectedCustomer || !allPvcReady) return;
-    setIsCreating(true);
-    try {
-      const pvcSalesOrders = getGroupSalesOrders(pvcPozlar);
-      const pvcItemCodes = pvcPozlar.map(p => p.item_code);
-      const dnName = await createDeliveryNote(pvcSalesOrders, selectedCustomer, "PVC", pvcItemCodes);
-      toast.current.show({ severity: 'success', summary: 'Başarılı', detail: `${dnName} numaralı teslimat fişi oluşturuldu.`, life: 4000 });
-      setSelectedCustomer(null);
-      setSelectedSalesOrders([]);
-    } catch (error) {
-      toast.current.show({ severity: 'error', summary: 'Hata', detail: error.message || error.toString(), life: 4000 });
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  // Camlar için Delivery Note
-  const handleCreateDeliveryNoteCamlar = async () => {
-    if (!selectedCustomer) return;
-    setIsCreating(true);
-    try {
-      const camSalesOrders = getGroupSalesOrders(camPozlar);
-      const camItemCodes = camPozlar.map(p => p.item_code);
-      const dnName = await createDeliveryNote(camSalesOrders, selectedCustomer, "Camlar", camItemCodes);
-      toast.current.show({ severity: 'success', summary: 'Başarılı', detail: `${dnName} numaralı teslimat fişi oluşturuldu.`, life: 4000 });
-      setSelectedCustomer(null);
-      setSelectedSalesOrders([]);
-    } catch (error) {
-      toast.current.show({ severity: 'error', summary: 'Hata', detail: error.message || error.toString(), life: 4000 });
-    } finally {
-      setIsCreating(false);
-    }
+  // Sevkiyat butonları sidebar açar
+  const handleSevkiyatClick = (tip) => {
+    setSevkiyatTipi(tip);
+    setSidebarVisible(true);
   };
 
   // Pozlar tablosu için sadece sıralı veri (grup başlığı yok)
@@ -265,6 +328,74 @@ export default function Sevkiyat() {
       </div>
       {/* Main Content */}
       <div className='w-full h-full flex-1 p-2 flex flex-col justify-between relative'>
+        {/* PrimeReact Sidebar */}
+        <Sidebar visible={sidebarVisible} position="right" style={{ width: 400 }} onHide={() => setSidebarVisible(false)}>
+          <h3 className="text-lg font-bold mb-2">Teslim Formu</h3>
+          <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); handleTeslimatFisOlustur(); }}>
+            <div>
+              <label className="block text-sm font-bold mb-1 text-red-600">Teslim Alan</label>
+              <input
+                type="text"
+                value={teslimAlan}
+                onChange={e => setTeslimAlan(e.target.value)}
+                className="border rounded px-2 py-1 w-full text-sm"
+                placeholder="Teslim alan kişi adı"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-1 text-red-600">Araç Plakası</label>
+              <input
+                type="text"
+                value={aracPlaka}
+                onChange={e => {
+                  const value = e.target.value.toUpperCase().replace(/\s+/g, '');
+                  setAracPlaka(value);
+                  // Plaka regex: 2 rakam, 1-3 harf, 3-4 rakam, boşluksuz
+                  const regex = /^\d{2}[A-ZÇĞİÖŞÜ]{1,3}\d{3,4}$/;
+                  if (value.length > 0 && !regex.test(value)) {
+                    setPlakaError('Plaka formatı geçersiz. Örnek: 38AAA123 veya 34AB1234');
+                  } else {
+                    setPlakaError('');
+                  }
+                }}
+                className={`border rounded px-2 py-1 w-full text-sm ${plakaError ? 'border-red-500' : ''}`}
+                placeholder="38AAA123 veya 34AB1234"
+                maxLength={9}
+              />
+              {plakaError && <span className="text-xs text-red-600 mt-1 block">{plakaError}</span>}
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-1 text-red-600">Teslim Fotoğrafı</label>
+              {!photo && !cameraActive && (
+                <Button label="Kamerayı Aç" className="p-button-info p-1 mb-2" onClick={() => setCameraActive(true)} />
+              )}
+              {cameraActive && (
+                <div className="flex flex-col items-center gap-2">
+                  <video ref={videoRef} width={320} height={240} autoPlay className="rounded border" />
+                  <Button label="Fotoğraf Çek" className="p-button-success p-1" onClick={handleTakePhoto} />
+                  <Button label="Kapat" className="p-button-secondary p-1" onClick={() => setCameraActive(false)} />
+                </div>
+              )}
+              {photo && (
+                <div className="flex flex-col items-center gap-2">
+                  <img src={photo} alt="Teslim Fotoğrafı" className="rounded border w-[320px] h-[240px] object-contain" />
+                  <Button label="Fotoğrafı Sil" className="p-button-danger p-1" onClick={() => setPhoto(null)} />
+                </div>
+              )}
+              {/* Canvas gizli, sadece fotoğraf almak için */}
+              <canvas ref={canvasRef} width={320} height={240} style={{ display: 'none' }} />
+            </div>
+            <div className="mt-4">
+              <Button
+                label="Teslimat Fişi Oluştur"
+                className="p-button-success w-full"
+                type="submit"
+                loading={isCreating}
+                disabled={isCreating || !teslimAlan || !!plakaError}
+              />
+            </div>
+          </form>
+        </Sidebar>
         <div className=''>
           <h3>Ürün Görselleri</h3>
           <div
@@ -306,16 +437,17 @@ export default function Sevkiyat() {
               <Button
                 label="PVC Sevkiyat"
                 className="p-button-success  p-1"
-                onClick={handleCreateDeliveryNotePVC}
-                loading={isCreating}
-                disabled={!allPvcReady || pvcPozlar.length === 0}
+                onClick={() => handleSevkiyatClick("PVC")}
               />
               <Button
                 label="Camlar Sevkiyat"
                 className="p-button-info p-1"
-                onClick={handleCreateDeliveryNoteCamlar}
-                loading={isCreating}
-                disabled={!allCamReady || camPozlar.length === 0}
+                onClick={() => handleSevkiyatClick("Camlar")}
+              />
+              <Button
+                label="Detay"
+                className="p-button-help p-1"
+                onClick={() => setSidebarVisible(true)}
               />
             </div>
           </div>

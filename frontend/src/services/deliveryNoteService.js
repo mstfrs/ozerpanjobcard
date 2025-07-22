@@ -54,17 +54,54 @@ export async function getTotalCuttingForSalesOrders(salesOrders) {
   return data.message;
 }
 
-export async function createDeliveryNote(salesOrders, customer, itemGroup, itemCodes) {
+export async function createDeliveryNote(salesOrders, customer, itemGroup, itemCodes, customFields = {}) {
   const res = await fetch('/api/method/ozerpanjobcard.api.create_delivery_note_from_sales_orders', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ sales_orders: salesOrders, customer: customer, item_group: itemGroup, item_codes: itemCodes }),
+    body: JSON.stringify({
+      sales_orders: salesOrders,
+      customer: customer,
+      item_group: itemGroup,
+      item_codes: itemCodes,
+      ...customFields // custom_recipient, custom_vehicle, custom_delivery_photo
+    }),
   });
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.message || 'Teslim edilecek hazır ürün bulunamadı.');
   }
   return data.message;
-} 
+}
+
+// Fotoğrafı base64 olarak ERPNext'e dosya olarak upload et
+export async function uploadPhotoBase64(base64Data, fileName = 'delivery_photo.png') {
+  // Convert base64 to Blob
+  const byteString = atob(base64Data.split(',')[1]);
+  const mimeString = base64Data.split(',')[0].split(':')[1].split(';')[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  const blob = new Blob([ab], { type: mimeString });
+
+  // Prepare FormData
+  const formData = new FormData();
+  formData.append('file', blob, fileName);
+  formData.append('is_private', '0');
+
+  // Send to ERPNext
+  const res = await fetch('/api/method/upload_file', {
+    method: 'POST',
+    body: formData,
+    credentials: 'include', // if you need cookies/session
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Fotoğraf yüklenemedi.');
+  }
+  return data.message.file_url || data.message.name;
+}

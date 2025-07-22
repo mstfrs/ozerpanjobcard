@@ -700,7 +700,7 @@ def get_total_cutting_for_sales_orders(sales_orders):
 from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
 
 @frappe.whitelist()
-def create_delivery_note_from_sales_orders(sales_orders, customer, item_group=None, item_codes=None):
+def create_delivery_note_from_sales_orders(sales_orders, customer, item_group=None, item_codes=None, custom_recipient=None, custom_vehicle=None, custom_delivery_photo=None):
     try:
         import json
         if isinstance(sales_orders, str):
@@ -716,6 +716,13 @@ def create_delivery_note_from_sales_orders(sales_orders, customer, item_group=No
         for so_name in sales_orders:
             dn_doc = make_delivery_note(so_name)
             dn_doc.customer = customer
+            # Custom alanları ekle
+            if custom_recipient:
+                dn_doc.custom_recipient = custom_recipient
+            if custom_vehicle:
+                dn_doc.custom_vehicle = custom_vehicle
+            if custom_delivery_photo:
+                dn_doc.custom_delivery_photo = custom_delivery_photo
             ready_items = []
             for item in dn_doc.items:
                 # Sadece istenen item_group ve item_code'lardaki ürünleri ekle
