@@ -107,7 +107,7 @@ export const qualityLabelPrint = async (tesDetay,labelInfo) => {
   }
 };
 
-export const surmeLabelPrintYedek = async (pozDetails, surmeItems) => {
+export const surmeLabelPrint = async (pozDetails, surmeItems) => {
 
   const zpl = `
 ^XA
@@ -168,7 +168,7 @@ ${(surmeItems || []).map((item, i) => {
   }
 };
 
-export const surmeLabelPrint = async (pozDetails, surmeItems) => {
+export const surmeLabelPrintYedek= async (pozDetails, surmeItems) => {
   // Düz metin formatı
   const text = `CLS\n\nTEXT 30,30,"3",0,1,1,"Cari Unvan : ${pozDetails?.bayi_adi}"\nTEXT 30,70,"3",0,1,1,"Cari Kodu  : ${pozDetails?.cari_kod}"\nTEXT 30,110,"3",0,1,1,"Sip / Sevk : ${pozDetails?.siparis_tarihi} / ${pozDetails?.sevkiyat_tarihi}"\nTEXT 30,150,"3",0,1,1,"Musterisi  : ${pozDetails?.musteri || '-'}"\nTEXT 30,190,"3",0,1,1,"Siparis No : ${pozDetails?.siparis_no}   Poz No : ${pozDetails?.poz_no?.split('-')[1]}"\n\nBAR 0,230,800,2\nTEXT 30,240,"3",0,1,1,"Stok Kodu"\nTEXT 200,240,"3",0,1,1,"Ürün Adı"\nTEXT 650,240,"3",0,1,1,"Miktar"\nBAR 0,270,800,2\n\n${(surmeItems || []).map((item, i) => {
     const y = 280 + i * 30;

@@ -66,7 +66,7 @@ def print_surme_label():
             frappe.throw("Received empty label data")
 
         # Yazıcıya istek yap
-        url = "http://192.168.0.227/pstprnt"  # Zebra yazıcısının IP'si
+        url = "http://192.168.0.246/pstprnt"  # Zebra yazıcısının IP'si
         headers = {"Content-Type": "text/plain"}  # JSON yerine düz metin
         response = requests.post(url, headers=headers, data=label_data)
 
