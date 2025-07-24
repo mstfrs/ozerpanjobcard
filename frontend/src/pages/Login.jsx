@@ -36,10 +36,10 @@ export const Login = () => {
     setEmail(e.target.value);
     
     // If input is very fast (less than 50ms between characters), treat it as barcode scanner
-    if (timeDiff < 50 && e.target.value.length > 0) {
+    if (timeDiff < 20 && e.target.value.length > 0) {
       setTimeout(() => {
         passwordInputRef.current?.focus();
-      }, 100);
+      }, 1000);
     }
   };
 
@@ -57,10 +57,10 @@ export const Login = () => {
     }
 
     // If input is very fast (less than 50ms between characters), treat it as barcode scanner
-    if (timeDiff < 50 && e.target.value.length > 0) {
+    if (timeDiff < 20 && e.target.value.length > 0) {
       loginTimeoutRef.current = setTimeout(() => {
         handleSubmit();
-      }, 500);
+      }, 1000);
     }
   };
 
