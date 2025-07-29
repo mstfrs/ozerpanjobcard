@@ -19,6 +19,8 @@ import SurmeHazirlama from "../components/Stations/SurmeHazirlama/SurmeHazirlama
 import SurmeBaglama from "../components/Stations/SurmeBaglama/SurmeBaglama";
 import SuperKesim from "../components/Stations/SuperKesim/SuperKesim";
 import Sevkiyat from "../components/Stations/Sevkiyat/Sevkiyat";
+import PVCSevkiyat from "../components/Stations/Sevkiyat/PVCSevkiyat";
+import CamSevkiyat from "../components/Stations/Sevkiyat/CamSevkiyat";
 
 const Jobcards = () => {
   const {
@@ -84,8 +86,10 @@ const Jobcards = () => {
         <SurmeHazirlama />
       ) : currentOperation?.operations === "Sürme Bağlama" ? (
         <SurmeBaglama />
-      ) : currentOperation?.operations === "Sevkiyat" ? (
-        <Sevkiyat />
+      ) : currentOperation?.operations === "Cam Sevkiyat" ? (
+        <CamSevkiyat />
+         ) : currentOperation?.operations === "PVC Sevkiyat" ? (
+        <PVCSevkiyat />
       ) : currentOperation?.operations === "Süper Kesim" ? (
         <SuperKesim />
       ) : (
