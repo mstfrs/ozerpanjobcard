@@ -54,7 +54,7 @@ export async function getTotalCuttingForSalesOrders(salesOrders) {
   return data.message;
 }
 
-export async function createDeliveryNote(salesOrders, customer, itemGroup, itemCodes, customFields = {}) {
+export async function createDeliveryNote(salesOrders, customer, itemGroup, itemCodes, grandTotal, customFields = {}, itemDetails = null) {
   const res = await fetch('/api/method/ozerpanjobcard.api.create_delivery_note_from_sales_orders', {
     method: 'POST',
     headers: {
@@ -64,7 +64,7 @@ export async function createDeliveryNote(salesOrders, customer, itemGroup, itemC
       sales_orders: salesOrders,
       customer: customer,
       item_group: itemGroup,
-      item_codes: itemCodes,
+      item_details: itemDetails || itemCodes, // itemDetails varsa onu kullan, yoksa itemCodes
       ...customFields // custom_recipient, custom_vehicle, custom_delivery_photo
     }),
   });
@@ -104,4 +104,37 @@ export async function uploadPhotoBase64(base64Data, fileName = 'delivery_photo.p
     throw new Error(data.message || 'Fotoğraf yüklenemedi.');
   }
   return data.message.file_url || data.message.name;
+}
+
+export async function getCustomersWithUndeliveredItems() {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_customers_with_undelivered_items', {
+    method: 'GET',
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Müşteri bilgileri alınamadı.');
+  }
+  return data.message;
+}
+
+export async function getCustomersWithUndeliveredPVCItems() {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_customers_with_undelivered_pvc_items', {
+    method: 'GET',
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Müşteri bilgileri alınamadı.');
+  }
+  return data.message;
+}
+
+export async function getCustomersWithUndeliveredCamItems() {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_customers_with_undelivered_cam_items', {
+    method: 'GET',
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.message || 'Müşteri bilgileri alınamadı.');
+  }
+  return data.message;
 }
