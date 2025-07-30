@@ -195,7 +195,7 @@ const Navbar = () => {
   };
 
   return (
-    <div className="flex justify-between w-full gap-4">
+    <div className="flex justify-between w-full gap-2 lg:gap-4">
       <div className="w-full flex justify-start">
         <Dropdown
           value={currentOperation}
@@ -203,7 +203,12 @@ const Navbar = () => {
           options={employee?.custom_operations}
           optionLabel="operations"
           placeholder="Operasyon Seçiniz"
-          className="w-60 md:w-14rem border rounded"
+          className="w-40 md:w-48 lg:w-60 border rounded text-xs lg:text-sm"
+          pt={{
+            input: { className: 'text-xs lg:text-sm' },
+            list: { className: 'text-xs lg:text-sm' },
+            item: { className: 'text-xs lg:text-sm' }
+          }}
         />
         {
           currentOperation?.operations === "Profil Temin" ||
@@ -224,14 +229,19 @@ const Navbar = () => {
               }))}
               optionLabel="custom_opti_no"
               placeholder="Opt No Seçiniz"
-              className="w-60 md:w-20rem border rounded "
+              className="w-40 md:w-48 lg:w-60 border rounded text-xs lg:text-sm"
+              pt={{
+                input: { className: 'text-xs lg:text-sm' },
+                list: { className: 'text-xs lg:text-sm' },
+                item: { className: 'text-xs lg:text-sm' }
+              }}
             />
           ) : null
           // <InputText value={currentBarkod} onChange={(e) => handleBarkodChange(e)} />
         }
       </div>
       <div className="w-full items-center">
-        <h2 className="w-full h-12 bg-red-400 rounded-md px-2 text-white text-center content-center ">
+        <h2 className="w-full h-8 lg:h-12 bg-red-400 rounded-md px-2 text-white text-center content-center text-xs lg:text-sm">
           {currentUser}
         </h2>
       </div>
@@ -252,44 +262,15 @@ const Navbar = () => {
                   }
                 }
               }}
-              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer ${isAllSelected
+              className={`flex justify-between border-2 items-center w-24 md:w-28 lg:w-36 h-8 lg:h-12 p-1 rounded-md cursor-pointer ${isAllSelected
                   ? "cursor-not-allowed opacity-50"
                   : "hover:bg-red-200"
                 }`}
             >
-              <BiSolidError size="3rem" className="text-yellow-400 " />
-              <div className="w-3/4 text-center text-xl ">Hata</div>
+              <BiSolidError size="1.5rem" className="text-yellow-400 lg:text-3xl" />
+              <div className="w-3/4 text-center text-xs lg:text-xl">Hata</div>
             </div>
           )}
-
-
-
-        {/* {currentOperation?.operations !== "Cam" &&
-          currentOperation?.operations !== "Süper Kesim" && (
-            <div
-              onClick={() =>
-                currentJobcardStatus === "Work In Progress"
-                  ? setVisible(true)
-                  : handleClick()
-              }
-              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
-                  ? 'opacity-50 cursor-not-allowed'
-                  : 'cursor-pointer hover:bg-red-200'
-                }`}
-              style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
-            >
-              <FaPlayCircle size="2rem" className="text-red-500" />
-              <div className="w-3/4 text-center text-xl">
-                {jobCardLoading
-                  ? "Loading..."
-                  : currentJobcardStatus === "On Hold"
-                    ? "Devam Et"
-                    : currentJobcardStatus === "Work In Progress"
-                      ? "Durdur"
-                      : "Başlat"}
-              </div>
-            </div>
-          )} */}
 
         {(currentOperation?.operations === "Sürme Hazırlık" ||
           currentOperation?.operations === "Sürme Bağlama") && (
@@ -300,14 +281,14 @@ const Navbar = () => {
                   ? setVisible(true)
                   : handleClick()
               }
-              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
+              className={`flex justify-between border-2 items-center w-24 md:w-28 lg:w-36 h-8 lg:h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
                   ? 'opacity-50 cursor-not-allowed'
                   : 'cursor-pointer hover:bg-red-200'
                 }`}
             // style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
             >
-              <FaPlayCircle size="2rem" className="text-red-500" />
-              <div className="w-3/4 text-center text-xl">
+              <FaPlayCircle size="1.5rem" className="text-red-500 lg:text-2xl" />
+              <div className="w-3/4 text-center text-xs lg:text-xl">
                 {jobCardLoading
                   ? "Loading..."
                   : currentJobcardStatus === "On Hold"
@@ -319,17 +300,16 @@ const Navbar = () => {
             </div>
               <div
               onClick={() => handleComplete()}
-              className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${ !currentJobcard || Object.keys(currentJobcard).length === 0
+              className={`flex justify-between border-2 items-center w-24 md:w-28 lg:w-36 h-8 lg:h-12 p-1 rounded-md ${ !currentJobcard || Object.keys(currentJobcard).length === 0
                   ? 'opacity-50 cursor-not-allowed'
                   : 'cursor-pointer hover:bg-red-200'
                 }`}
               style={{ pointerEvents: !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
             >
-              <FaRegCircleStop size="2rem" className="text-red-500 " />
-              <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
+              <FaRegCircleStop size="1.5rem" className="text-red-500 lg:text-2xl" />
+              <div className="w-3/4 text-center text-xs lg:text-xl"> TAMAMLA</div>
             </div></>
           )}
-
 
         {currentOperation?.operations === "Profil Temin" ? (
          <>
@@ -339,14 +319,14 @@ const Navbar = () => {
               ? setVisible(true)
               : handleClick()
           }
-          className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
+          className={`flex justify-between border-2 items-center w-24 md:w-28 lg:w-36 h-8 lg:h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
               ? 'opacity-50 cursor-not-allowed'
               : 'cursor-pointer hover:bg-red-200'
             }`}
           style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
         >
-          <FaPlayCircle size="2rem" className="text-red-500" />
-          <div className="w-3/4 text-center text-xl">
+          <FaPlayCircle size="1.5rem" className="text-red-500 lg:text-2xl" />
+          <div className="w-3/4 text-center text-xs lg:text-xl">
             {jobCardLoading
               ? "Loading..."
               : currentJobcardStatus === "On Hold"
@@ -362,14 +342,14 @@ const Navbar = () => {
                 ? handleComplete()
                 : toast.error("Tüm profillleri aktarmanız gerekmektedir")
             }
-            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
+            className={`flex justify-between border-2 items-center w-24 md:w-28 lg:w-36 h-8 lg:h-12 p-1 rounded-md ${!currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
                 ? 'opacity-50 cursor-not-allowed'
                 : 'cursor-pointer hover:bg-red-200'
               }`}
             style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
           >
-            <FaRegCircleStop size="2rem" className="text-red-500 " />
-            <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
+            <FaRegCircleStop size="1.5rem" className="text-red-500 lg:text-2xl" />
+            <div className="w-3/4 text-center text-xs lg:text-xl"> TAMAMLA</div>
           </div></>
         ) : null}
 
@@ -381,14 +361,14 @@ const Navbar = () => {
               ? setVisible(true)
               : handleClick()
           }
-          className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
+          className={`flex justify-between border-2 items-center w-24 md:w-28 lg:w-36 h-8 lg:h-12 p-1 rounded-md ${!currentJobcard || Object.keys(currentJobcard).length === 0
               ? 'opacity-50 cursor-not-allowed'
               : 'cursor-pointer hover:bg-red-200'
             }`}
           style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
         >
-          <FaPlayCircle size="2rem" className="text-red-500" />
-          <div className="w-3/4 text-center text-xl">
+          <FaPlayCircle size="1.5rem" className="text-red-500 lg:text-2xl" />
+          <div className="w-3/4 text-center text-xs lg:text-xl">
             {jobCardLoading
               ? "Loading..."
               : currentJobcardStatus === "On Hold"
@@ -400,14 +380,14 @@ const Navbar = () => {
         </div>
         <div
             onClick={() => handleComplete()}
-            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
+            className={`flex justify-between border-2 items-center w-24 md:w-28 lg:w-36 h-8 lg:h-12 p-1 rounded-md ${!currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0
                 ? 'opacity-50 cursor-not-allowed'
                 : 'cursor-pointer hover:bg-red-200'
               }`}
             style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 || !currentJobcard || Object.keys(currentJobcard).length === 0 ? 'none' : 'auto' }}
           >
-            <FaRegCircleStop size="2rem" className="text-red-500 " />
-            <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
+            <FaRegCircleStop size="1.5rem" className="text-red-500 lg:text-2xl" />
+            <div className="w-3/4 text-center text-xs lg:text-xl"> TAMAMLA</div>
           </div></>
          
         ) : null}
@@ -415,24 +395,24 @@ const Navbar = () => {
         {currentOperation?.operations === "Süper Kesim" ? (
           <div
             onClick={() => handleComplete()}
-            className={`flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md ${!currentOpt || Object.keys(currentOpt).length === 0
+            className={`flex justify-between border-2 items-center w-24 md:w-28 lg:w-36 h-8 lg:h-12 p-1 rounded-md ${!currentOpt || Object.keys(currentOpt).length === 0
                 ? 'opacity-50 cursor-not-allowed'
                 : 'cursor-pointer hover:bg-red-200'
               }`}
             style={{ pointerEvents: !currentOpt || Object.keys(currentOpt).length === 0 ? 'none' : 'auto' }}
           >
-            <FaRegCircleStop size="2rem" className="text-red-500 " />
-            <div className="w-3/4 text-center text-xl "> TAMAMLA</div>
+            <FaRegCircleStop size="1.5rem" className="text-red-500 lg:text-2xl" />
+            <div className="w-3/4 text-center text-xs lg:text-xl"> TAMAMLA</div>
           </div>
         ) : null}
 
         
         <div
           onClick={handlelogOut}
-          className="flex justify-between border-2 items-center w-36 h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
+          className="flex justify-between border-2 items-center w-24 md:w-28 lg:w-36 h-8 lg:h-12 p-1 rounded-md cursor-pointer hover:bg-red-200"
         >
-          <FaPowerOff size="2rem" className="text-red-500 " />
-          <div className="w-3/4 text-center text-xl "> ÇIKIŞ</div>
+          <FaPowerOff size="1.5rem" className="text-red-500 lg:text-2xl" />
+          <div className="w-3/4 text-center text-xs lg:text-xl"> ÇIKIŞ</div>
         </div>
         <Modal
           visible={visible}

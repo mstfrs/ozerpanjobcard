@@ -1,4 +1,3 @@
-// ...existing code...
 import React, { useState, useEffect, useRef } from 'react';
 import { Dropdown } from 'primereact/dropdown';
 import { MultiSelect } from 'primereact/multiselect';
@@ -7,14 +6,18 @@ import { Column } from 'primereact/column';
 import 'primereact/resources/themes/lara-light-indigo/theme.css';
 import 'primereact/resources/primereact.min.css';
 import 'primeicons/primeicons.css';
-// import { getCustomersWithSalesOrdersAndWorkOrders, getWorkOrderProducts, getFiyat2ItemsForSalesOrder, getSalesOrderItemsWithWorkOrderStatus, getTotalCuttingForSalesOrders, createDeliveryNote } from '../services/deliveryNoteService';
 import { FaCheckCircle } from 'react-icons/fa';
 import { Button } from 'primereact/button';
-
 import { Toast } from 'primereact/toast';
 import { Sidebar } from 'primereact/sidebar';
-// import { InputMask } from 'primereact/inputmask';
-import { getCustomersWithSalesOrdersAndWorkOrders, getWorkOrderProducts, getFiyat2ItemsForSalesOrder, getSalesOrderItemsWithWorkOrderStatus, getTotalCuttingForSalesOrders, createDeliveryNote, getCustomersWithUndeliveredPVCItems  } from '../../../services/deliveryNoteService';
+import { 
+  getWorkOrderProducts, 
+  getFiyat2ItemsForSalesOrder, 
+  getSalesOrderItemsWithWorkOrderStatus, 
+  getTotalCuttingForSalesOrders,
+  createDeliveryNote, 
+  getCustomersWithUndeliveredPVCItems 
+} from '../../../services/deliveryNoteService';
 
 export default function PVCSevkiyat() {
   const toast = useRef(null);
@@ -27,9 +30,16 @@ export default function PVCSevkiyat() {
   const [fiyat2Items, setFiyat2Items] = useState([]);
   const [pozlar, setPozlar] = useState([]);
   const [selectedPozlar, setSelectedPozlar] = useState([]);
-  const [totalCutting, setTotalCutting] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  // Miktar değişikliklerini takip etmek için state
+  const [quantityChanges, setQuantityChanges] = useState({});
+  // Toplam doğrama ve teslim edilen doğrama için state
+  const [totalCuttingFromAPI, setTotalCuttingFromAPI] = useState(0);
+  const [initialTotalCutting, setInitialTotalCutting] = useState(0);
+  const [initialRemainingCutting, setInitialRemainingCutting] = useState(0);
+  const [remainingCutting, setRemainingCutting] = useState(0);
+  const [deliveredCutting, setDeliveredCutting] = useState(0);
   // Teslim Alan, Araç Plakası, Fotoğraf ve Sevkiyat Tipi için state
   const [teslimAlan, setTeslimAlan] = useState('');
   const [aracPlaka, setAracPlaka] = useState('');
@@ -37,6 +47,7 @@ export default function PVCSevkiyat() {
   const [photo, setPhoto] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [sevkiyatTipi, setSevkiyatTipi] = useState(null); // "PVC" veya "Camlar"
+  const [isAuxiliaryMaterialsDelivered, setIsAuxiliaryMaterialsDelivered] = useState(false); // Yardımcı malzemeler teslim edildi
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -64,12 +75,17 @@ export default function PVCSevkiyat() {
         photoUrl = await uploadPhotoBase64(photo, `delivery_${Date.now()}.png`);
       }
       
-      // Seçili ürünlerin detaylarını al
-      const itemDetails = selectedPozlar.map(p => ({
-        item_code: p.item_code,
-        qty: p.qty,
-        parent: p.parent
-      }));
+      // Seçili ürünlerin detaylarını al (değiştirilen miktarları kullan)
+      const itemDetails = selectedPozlar.map(p => {
+        const changedQty = quantityChanges[p.item_code];
+        const finalQty = changedQty !== undefined ? changedQty : parseInt(p.qty) || 0;
+        
+        return {
+          item_code: p.item_code,
+          qty: finalQty,
+          parent: p.parent
+        };
+      });
       
       // Seçili ürünlerin Sales Order'larını al
       const salesOrdersGroup = Array.from(new Set(selectedPozlar.map(p => p.parent)));
@@ -82,7 +98,12 @@ export default function PVCSevkiyat() {
         sevkiyatTipi,
         itemCodesGroup,
         null, // PVC için grand total hesaplanmıyor
-        { custom_recipient: teslimAlan, custom_vehicle: aracPlaka, custom_delivery_photo: photoUrl },
+        { 
+          custom_recipient: teslimAlan, 
+          custom_vehicle: aracPlaka, 
+          custom_delivery_photo: photoUrl,
+          custom_is_auxiliary_materials_delivered: isAuxiliaryMaterialsDelivered
+        },
         itemDetails
       );
       toast.current.show({ severity: 'success', summary: 'Başarılı', detail: `Teslimat fişi oluşturuldu.`, life: 4000 });
@@ -103,6 +124,12 @@ export default function PVCSevkiyat() {
       setPhoto(null);
       setSevkiyatTipi(null);
       setSelectedPozlar([]);
+      setIsAuxiliaryMaterialsDelivered(false);
+      setQuantityChanges({});
+      setInitialTotalCutting(0);
+      setInitialRemainingCutting(0);
+      setRemainingCutting(0);
+      setDeliveredCutting(0);
     } catch (error) {
       toast.current.show({ severity: 'error', summary: 'Hata', detail: error.message || error.toString(), life: 4000 });
     } finally {
@@ -233,18 +260,48 @@ export default function PVCSevkiyat() {
     fetchPozlar();
   }, [selectedSalesOrders]);
 
-  // Sales order seçilince toplam doğrama alanını getir
+  // Sales order seçilince API'den toplam doğrama alanını getir
   useEffect(() => {
-    async function fetchTotalCutting() {
+    async function fetchTotalCuttingFromAPI() {
       if (!selectedSalesOrders.length) {
-        setTotalCutting(0);
+        setTotalCuttingFromAPI(0);
+        setInitialTotalCutting(0);
         return;
       }
-      const data = await getTotalCuttingForSalesOrders(selectedSalesOrders);
-      setTotalCutting(data);
+      try {
+        const data = await getTotalCuttingForSalesOrders(selectedSalesOrders);
+        setTotalCuttingFromAPI(data);
+        setInitialTotalCutting(data);
+      } catch (e) {
+        setTotalCuttingFromAPI(0);
+        setInitialTotalCutting(0);
+      }
     }
-    fetchTotalCutting();
+    fetchTotalCuttingFromAPI();
   }, [selectedSalesOrders]);
+
+  // PVC pozları değişince kalan doğrama hesapla (sadece ilk geldiğinde)
+  useEffect(() => {
+    const pvcPozlar = pozlar.filter(p => p.item_group === 'PVC');
+    const initialRemaining = pvcPozlar.reduce((total, poz) => {
+      const finalQty = parseInt(poz.qty) || 0;
+      return total + finalQty;
+    }, 0);
+    setInitialRemainingCutting(initialRemaining);
+    setRemainingCutting(initialRemaining);
+  }, [pozlar]); // quantityChanges dependency'sini kaldırdık
+
+  // Kalan doğrama değişince teslim edilen doğrama hesapla
+  useEffect(() => {
+    const delivered = initialTotalCutting - initialRemainingCutting;
+    setDeliveredCutting(delivered > 0 ? delivered : 0);
+  }, [initialTotalCutting, initialRemainingCutting]);
+
+  // Sadece ilgili gruptaki siparişleri backend'e gönder
+  const getGroupSalesOrders = (groupPozlar) => {
+    // Her pozun parent'ı Sales Order kodu
+    return Array.from(new Set(groupPozlar.map(p => p.parent)));
+  };
 
   // Yardımcı ürünleri aynı stock_code'a göre grupla ve miktarları topla
   function groupFiyat2Items(items) {
@@ -268,16 +325,51 @@ export default function PVCSevkiyat() {
   const allPvcReady = pvcPozlar.length > 0 && pvcPozlar.every(p => p.is_ready === 'Hazır');
   const allCamReady = camPozlar.length > 0 && camPozlar.every(p => p.is_ready === 'Hazır');
 
-  // Sadece ilgili gruptaki siparişleri backend'e gönder
-  const getGroupSalesOrders = (groupPozlar) => {
-    // Her pozun parent'ı Sales Order kodu
-    return Array.from(new Set(groupPozlar.map(p => p.parent)));
-  };
-
   // Sevkiyat butonları sidebar açar
   const handleSevkiyatClick = (tip) => {
     setSevkiyatTipi(tip);
     setSidebarVisible(true);
+  };
+
+  // Miktar değişikliklerini handle et
+  const handleQuantityChange = (itemCode, newQuantity, maxQuantity) => {
+    console.log('handleQuantityChange called:', { itemCode, newQuantity, maxQuantity });
+    
+    const numQuantity = parseInt(newQuantity) || 0;
+    const numMaxQuantity = parseInt(maxQuantity) || 0;
+    
+    console.log('Parsed values:', { numQuantity, numMaxQuantity });
+    
+    // Minimum değer kontrolü
+    if (numQuantity < 1) {
+      toast.current.show({ 
+        severity: 'warn', 
+        summary: 'Uyarı', 
+        detail: 'Minimum değer 1 olmalıdır.', 
+        life: 3000 
+      });
+      return;
+    }
+    
+    // State'i güncelle
+    setQuantityChanges(prev => {
+      const newState = {
+        ...prev,
+        [itemCode]: numQuantity
+      };
+      console.log('New quantityChanges state:', newState);
+      return newState;
+    });
+    
+    // Maksimum değeri aştıysa uyarı ver (ama değeri kaydet)
+    if (numQuantity > numMaxQuantity) {
+      toast.current.show({ 
+        severity: 'warn', 
+        summary: 'Uyarı', 
+        detail: `Önerilen maksimum değer: ${maxQuantity}`, 
+        life: 3000 
+      });
+    }
   };
 
   // Pozlar tablosu için sadece sıralı veri (grup başlığı yok)
@@ -287,11 +379,11 @@ export default function PVCSevkiyat() {
     <div className='w-screen h-screen flex relative'>
       <Toast ref={toast} />
       {/* Sidebar */}
-      <div style={{ width: 600, background: '#f4f4f4', padding: 10, display: 'flex', flexDirection: 'column' }}>
+      <div style={{  background: '#f4f4f4', padding: 10, display: 'flex', flexDirection: 'column' }}>
         {/* Dropdownlar */}
-        <div className='text-sm' style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 4 }}>
-          <div style={{ minWidth: 240 }}>
-            <label className='text-red-500 font-bold text-sm'>Müşteri</label>
+        <div className='text-xs lg:text-sm' style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 4 }}>
+          <div className='min-w-[200px] lg:min-w-[240px]'>
+            <label className='text-red-500 font-bold text-xs lg:text-sm'>Müşteri</label>
             <Dropdown
               value={selectedCustomer}
               options={customers}
@@ -301,11 +393,16 @@ export default function PVCSevkiyat() {
               placeholder="Müşteri seçin"
               style={{ width: '100%' }}
               loading={loading}
-              className='text-xs'
+              className='text-xs lg:text-sm'
+              pt={{
+                input: { className: 'text-xs lg:text-sm' },
+                list: { className: 'text-xs lg:text-sm' },
+                item: { className: 'text-xs lg:text-sm' }
+              }}
             />
           </div>
-          <div style={{ minWidth: 320 }}>
-            <label className=' text-red-500 font-bold text-sm'>Sales Order</label>
+          <div className='min-w-[280px] lg:min-w-[320px]'>
+            <label className=' text-red-500 font-bold text-xs lg:text-sm'>Sales Order</label>
             <MultiSelect
               value={selectedSalesOrders}
               options={salesOrders}
@@ -314,6 +411,13 @@ export default function PVCSevkiyat() {
               style={{ width: '100%' }}
               disabled={!selectedCustomer}
               loading={loading}
+              className='text-xs lg:text-sm'
+              pt={{
+                input: { className: 'text-xs lg:text-sm' },
+                list: { className: 'text-xs lg:text-sm' },
+                item: { className: 'text-xs lg:text-sm' },
+                token: { className: 'text-xs lg:text-sm' }
+              }}
             />
           </div>
         </div>
@@ -323,7 +427,7 @@ export default function PVCSevkiyat() {
             {/* Tablolar alt alta ve scroll'lu */}
             <div className='h-full' style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <h3 className='text-center text-red-500 font-bold'>POZLAR</h3>
+                <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>POZLAR</h3>
                 <div style={{ fontSize: 13, flex: 1, minHeight: 0, overflow: 'auto' }}>
                   <DataTable 
                     value={pvcPozlar} 
@@ -335,23 +439,60 @@ export default function PVCSevkiyat() {
                     onSelectionChange={(e) => setSelectedPozlar(e.value)}
                     selectionMode="multiple"
                     rowSelectable={(data) => data.is_ready === 'Hazır'}
+                    scrollable
+                    scrollHeight="200px"
                   >
                     <Column selectionMode="multiple" headerStyle={{ width: '3em' }} />
                     <Column field="item_code" header="Ürün Kodu" />
                     <Column field="item_name" header="Ürün Adı" />
-                    <Column field="qty" header="Miktar" body={rowData => rowData.item_group === 'Camlar' ? '' : rowData.qty} />
+                    <Column 
+                      header="Miktar" 
+                      body={rowData => {
+                        if (rowData.item_group === 'Camlar') return '';
+                        
+                        return (
+                          <input
+                            key={`qty-${rowData.item_code}`}
+                            type="number"
+                            defaultValue={parseInt(rowData.qty) || 0}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 0;
+                              if (value < 1) {
+                                toast.current.show({ 
+                                  severity: 'warn', 
+                                  summary: 'Uyarı', 
+                                  detail: 'Minimum değer 1 olmalıdır.', 
+                                  life: 3000 
+                                });
+                                return;
+                              }
+                              setQuantityChanges(prev => ({
+                                ...prev,
+                                [rowData.item_code]: value
+                              }));
+                            }}
+                            min="1"
+                            max={parseInt(rowData.qty) || 1}
+                            step="1"
+                            className="w-16 text-xs border rounded px-1 py-0.5 text-center"
+                            style={{ fontSize: '11px' }}
+                          />
+                        );
+                      }}
+                    />
                     <Column header="Durum" body={rowData => rowData.is_ready === 'Hazır' ? (<FaCheckCircle color="#22c55e" size={18} title="Hazır" />) : null} style={{ textAlign: 'center' }} />
                   </DataTable>
                 </div>
               </div>
-              <div className='min-h-80' style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 className='text-center text-red-500 font-bold'>YARDIMCI ÜRÜNLER</h3>
+              <div className='min-h-60' style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>YARDIMCI ÜRÜNLER</h3>
                 <div style={{  flex: 1, minHeight: 0, overflow: 'auto' }}>
                   <DataTable 
                     value={groupFiyat2Items(fiyat2Items)} 
                     emptyMessage="Yardımcı Malzeme bulunamadı "
                     loading={loading}
                     scrollable
+                    scrollHeight="200px"
                     className='text-xs'
                   >
                     <Column field="stock_code" header="Stok Kodu" />
@@ -371,9 +512,16 @@ export default function PVCSevkiyat() {
         <Sidebar visible={sidebarVisible} position="right" style={{ width: 400 }} onHide={() => {
           setSidebarVisible(false);
           setSelectedPozlar([]);
+          // Kamera kapatma işlemi
+          setCameraActive(false);
+          if (videoRef.current && videoRef.current.srcObject) {
+            const tracks = videoRef.current.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+          }
         }}>
-          <h3 className="text-lg font-bold mb-2">Teslim Formu</h3>
-          <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); handleTeslimatFisOlustur(); }}>
+        
+            <form className="flex flex-col gap-2" onSubmit={e => { e.preventDefault(); handleTeslimatFisOlustur(); }}>
             <div>
               <label className="block text-sm font-bold mb-1 text-red-600">Teslim Alan</label>
               <input
@@ -427,6 +575,17 @@ export default function PVCSevkiyat() {
               {/* Canvas gizli, sadece fotoğraf almak için */}
               <canvas ref={canvasRef} width={320} height={240} style={{ display: 'none' }} />
             </div>
+            <div>
+              <label className="flex items-center gap-2 text-sm font-bold text-red-600">
+                <input
+                  type="checkbox"
+                  checked={isAuxiliaryMaterialsDelivered}
+                  onChange={e => setIsAuxiliaryMaterialsDelivered(e.target.checked)}
+                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                />
+                Yardımcı Malzemeler Teslim Edildi
+              </label>
+            </div>
             <div className="mt-4">
               <Button
                 label="Teslimat Fişi Oluştur"
@@ -439,7 +598,28 @@ export default function PVCSevkiyat() {
           </form>
         </Sidebar>
         <div className=''>
-          <h3>Ürün Görselleri</h3>
+         <div className='flex flex-row justify-between items-center'>
+         <h3 className='text-red-500 text-sm lg:text-lg font-bold'>Ürün Görselleri</h3>
+             {/* Sağ: Butonlar */}
+             <div className=' flex-1 w-full p-2 md:text-md text-xs text-right items-center '>
+              <Button
+                label={`PVC Sevkiyat${selectedPozlar.length > 0 ? ` (${selectedPozlar.length} ürün)` : ''}`}
+                className="p-button-success  p-1"
+                onClick={() => handleSevkiyatClick("PVC")}
+                disabled={selectedPozlar.length === 0}
+              />
+              {/* <Button
+                label="Camlar Sevkiyat"
+                className="p-button-info p-1"
+                onClick={() => handleSevkiyatClick("Camlar")}
+              />
+              <Button
+                label="Detay"
+                className="p-button-help p-1"
+                onClick={() => setSidebarVisible(true)}
+              /> */}
+            </div>
+         </div>
           <div
             className='grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-6 bg-white p-4 rounded-lg shadow-sm overflow-y-auto 'style={{ maxHeight: 'calc(100svh - 120px)' }}
           >
@@ -468,31 +648,15 @@ export default function PVCSevkiyat() {
         {/* Sticky toplam doğrama alanı ve butonlar */}
         {selectedSalesOrders.length > 0 && (
           <div className='w-full sticky bottom-0 left-0 z-20 p-0 flex flex-row justify-between items-center rounded-lg bg-slate-300'>
-            {/* Sol: Toplam Doğrama (sadece PVC varsa) */}
+            {/* Sol: Doğrama Bilgileri */}
             {pvcPozlar.length > 0 && (
-              <div className='flex-1 p-1 rounded-lg lg:text-md text-xs font-bold text-red-700 '>
-                Toplam Doğrama : {totalCutting}
+              <div className='flex-1 p-1 rounded-lg lg:text-md text-xs font-bold text-red-700 flex flex-row justify-between gap-1'>
+                <div>Toplam Doğrama: {initialTotalCutting}</div>
+                <div>Kalan Doğrama: {initialRemainingCutting}</div>
+                <div>Teslim Edilen Doğrama: {deliveredCutting}</div>
               </div>
             )}
-            {/* Sağ: Butonlar */}
-            <div className=' flex-1 w-full p-2 md:text-md text-xs text-right items-center '>
-              <Button
-                label={`PVC Sevkiyat${selectedPozlar.length > 0 ? ` (${selectedPozlar.length} ürün)` : ''}`}
-                className="p-button-success  p-1"
-                onClick={() => handleSevkiyatClick("PVC")}
-                disabled={selectedPozlar.length === 0}
-              />
-              {/* <Button
-                label="Camlar Sevkiyat"
-                className="p-button-info p-1"
-                onClick={() => handleSevkiyatClick("Camlar")}
-              />
-              <Button
-                label="Detay"
-                className="p-button-help p-1"
-                onClick={() => setSidebarVisible(true)}
-              /> */}
-            </div>
+         
           </div>
         )}
       </div>

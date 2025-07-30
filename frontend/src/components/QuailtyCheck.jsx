@@ -7,7 +7,8 @@ const QualityCheck = ({ onCriteriaChange, setCriteria, tesDetay }) => {
         { name: 'Seri ve Renk', key: 'A' },
         { name: 'İç ve Dış Yüzey', key: 'B' },
         { name: 'Aksesuar Seçimi', key: 'C' },
-        { name: 'Kanat Baskısı', key: 'D' }
+        { name: 'Kanat Baskısı', key: 'D' },
+        { name: 'Çıta', key: 'E' }
     ];
     const [selectedCategories, setSelectedCategories] = useState([]);
     const {
