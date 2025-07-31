@@ -129,12 +129,31 @@ export async function getCustomersWithUndeliveredPVCItems() {
 }
 
 export async function getCustomersWithUndeliveredCamItems() {
-  const res = await fetch('/api/method/ozerpanjobcard.api.get_customers_with_undelivered_cam_items', {
-    method: 'GET',
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_customers_with_undelivered_cam_items');
+  const data = await res.json();
+  return data.message;
+}
+
+export async function getGlassTypesBySalesOrders(salesOrders) {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_glass_types_by_sales_orders', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ sales_orders: salesOrders }),
   });
   const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data.message || 'Müşteri bilgileri alınamadı.');
-  }
+  return data.message;
+}
+
+export async function getCamListeItemsBySalesOrders(salesOrders) {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_cam_liste_items_by_sales_orders', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ sales_orders: salesOrders }),
+  });
+  const data = await res.json();
   return data.message;
 }

@@ -235,7 +235,7 @@ const ProfilTemin = () => {
         {/* Sol Panel - Profil Listesi */}
         <div className="flex-1 bg-slate-100 rounded-lg overflow-hidden">
           <div className="bg-slate-200 p-3 flex justify-between items-center">
-            <h3 className="text-lg font-medium">
+            <h3 className="lg:text-lg text-sm font-medium">
               İstasyon: {profileOptInfo?.machine_no}
             </h3>
             {/* {currentJobcard && (
@@ -254,6 +254,7 @@ const ProfilTemin = () => {
             responsiveLayout="scroll"
             emptyMessage="Profil bulunamadı"
             key={`table-${currentJobcardStatus}-${isInputDisabled}`}
+            className="text-xs"
           >
             <Column
               field="item_code"
