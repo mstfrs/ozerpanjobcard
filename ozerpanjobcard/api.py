@@ -534,14 +534,15 @@ def print_surme_label_local():
 
 @frappe.whitelist(allow_guest=True)
 def get_customers_with_undelivered_pvc_items():
-    """PVC ürünleri teslim edilmemiş müşterileri getir - Optimize edilmiş versiyon"""
+    """PVC ürünleri teslim edilmemiş müşterileri getir - Sadece Work Order'ı tamamlanmış olanlar"""
     try:
-        # Tek bir SQL sorgusu ile Work Order'ı tamamlanan ve teslim edilmemiş PVC ürünleri olan Sales Order'ları getir
+        # 1. Work Order'ı tamamlanmış ve teslim edilmemiş PVC ürünleri olan Sales Order'ları bul
         undelivered_pvc_orders = frappe.db.sql('''
             SELECT DISTINCT
                 so.name as sales_order_name,
                 so.customer,
                 so.customer_name,
+                so.custom_end_customer,
                 soi.item_code,
                 soi.item_name,
                 soi.qty,
@@ -559,7 +560,7 @@ def get_customers_with_undelivered_pvc_items():
             ORDER BY so.customer, so.name
         ''', as_dict=True)
         
-        # Müşteri bazında grupla
+        # 2. Müşteri bazında grupla
         customers = {}
         for order in undelivered_pvc_orders:
             customer_key = order['customer']
@@ -573,8 +574,13 @@ def get_customers_with_undelivered_pvc_items():
             # Sales Order'ı ekle (eğer daha önce eklenmemişse)
             so_name = order['sales_order_name']
             if not any(so['value'] == so_name for so in customers[customer_key]["sales_orders"]):
+                # Sales Order label'ını custom_end_customer ile birleştir
+                so_label = so_name
+                if order.get("custom_end_customer"):
+                    so_label = f"{so_name}-{order['custom_end_customer']}"
+                
                 customers[customer_key]["sales_orders"].append({
-                    "label": so_name,
+                    "label": so_label,
                     "value": so_name
                 })
         
@@ -586,14 +592,15 @@ def get_customers_with_undelivered_pvc_items():
 
 @frappe.whitelist(allow_guest=True)
 def get_customers_with_undelivered_cam_items():
-    """Cam ürünleri teslim edilmemiş müşterileri getir - Optimize edilmiş versiyon"""
+    """Cam ürünleri teslim edilmemiş müşterileri getir - Sadece Work Order'ı tamamlanmış olanlar"""
     try:
-        # Tek bir SQL sorgusu ile Work Order'ı tamamlanan ve teslim edilmemiş Cam ürünleri olan Sales Order'ları getir
+        # 1. Work Order'ı tamamlanmış ve teslim edilmemiş Cam ürünleri olan Sales Order'ları bul
         undelivered_cam_orders = frappe.db.sql('''
             SELECT DISTINCT
                 so.name as sales_order_name,
                 so.customer,
                 so.customer_name,
+                so.custom_end_customer,
                 soi.item_code,
                 soi.item_name,
                 soi.qty,
@@ -611,7 +618,7 @@ def get_customers_with_undelivered_cam_items():
             ORDER BY so.customer, so.name
         ''', as_dict=True)
         
-        # Müşteri bazında grupla
+        # 2. Müşteri bazında grupla
         customers = {}
         for order in undelivered_cam_orders:
             customer_key = order['customer']
@@ -625,8 +632,13 @@ def get_customers_with_undelivered_cam_items():
             # Sales Order'ı ekle (eğer daha önce eklenmemişse)
             so_name = order['sales_order_name']
             if not any(so['value'] == so_name for so in customers[customer_key]["sales_orders"]):
+                # Sales Order label'ını custom_end_customer ile birleştir
+                so_label = so_name
+                if order.get("custom_end_customer"):
+                    so_label = f"{so_name}-{order['custom_end_customer']}"
+                
                 customers[customer_key]["sales_orders"].append({
-                    "label": so_name,
+                    "label": so_label,
                     "value": so_name
                 })
         
@@ -911,3 +923,138 @@ def create_delivery_note_from_sales_orders(
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Delivery Note Creation Error")
         frappe.throw(str(e))
+
+@frappe.whitelist(allow_guest=True)
+def get_glass_types_by_sales_orders(sales_orders):
+    """Cam çeşitlerini ve adetlerini CamListe doctype'ından gruplandır"""
+    try:
+        if isinstance(sales_orders, str):
+            import json
+            sales_orders = json.loads(sales_orders)
+        
+        # CamListe'den seçilen siparişlere ait verileri al
+        cam_liste_items = frappe.get_all(
+            "CamListe",
+            filters={"order_no": ["in", sales_orders]},
+            fields=["*"]
+        )
+        
+        # Cam çeşitlerini gruplandır (Aciklama alanına göre)
+        glass_types = {}
+        for item in cam_liste_items:
+            # Cam çeşidini belirle (Aciklama alanından)
+            glass_type = item.get("aciklama") or item.get("description") or "Bilinmeyen Cam"
+            
+            if glass_type not in glass_types:
+                glass_types[glass_type] = {
+                    "type": glass_type,
+                    "total_qty": 0,
+                    "remaining_qty": 0,
+                    "items": []
+                }
+            
+            # Sanal Adet'i parse et (örn: "9/9" -> total: 9, remaining: 9)
+            sanal_adet = item.get("sanal_adet") or "0/0"
+            try:
+                if "/" in sanal_adet:
+                    delivered, total = sanal_adet.split("/")
+                    delivered_qty = int(delivered) if delivered.isdigit() else 0
+                    total_qty = int(total) if total.isdigit() else 0
+                    remaining_qty = total_qty - delivered_qty
+                else:
+                    total_qty = int(sanal_adet) if sanal_adet.isdigit() else 0
+                    delivered_qty = 0
+                    remaining_qty = total_qty
+            except:
+                total_qty = 0
+                delivered_qty = 0
+                remaining_qty = 0
+            
+            glass_types[glass_type]["total_qty"] += total_qty
+            glass_types[glass_type]["remaining_qty"] += remaining_qty
+            glass_types[glass_type]["items"].append({
+                "name": item.name,
+                "order_no": item.get("order_no"),
+                "stok_kodu": item.get("stok_kodu"),
+                "genislik": item.get("genislik"),
+                "yukseklik": item.get("yukseklik"),
+                "poz_no": item.get("poz_no"),
+                "sanal_adet": sanal_adet,
+                "musteri": item.get("musteri"),
+                "cari_kod": item.get("cari_kod"),
+                "cari_unvan": item.get("cari_unvan"),
+                "aciklama": item.get("aciklama"),
+                "total_qty": total_qty,
+                "delivered_qty": delivered_qty,
+                "remaining_qty": remaining_qty
+            })
+        
+        return list(glass_types.values())
+        
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Get Glass Types Error")
+        return []
+
+@frappe.whitelist(allow_guest=True)
+def get_cam_liste_items_by_sales_orders(sales_orders):
+    """CamListe'den detaylı verileri getir (sağ tarafta göstermek için)"""
+    try:
+        if isinstance(sales_orders, str):
+            import json
+            sales_orders = json.loads(sales_orders)
+        
+        # CamListe'den seçilen siparişlere ait verileri al
+        cam_liste_items = frappe.get_all(
+            "CamListe",
+            filters={"order_no": ["in", sales_orders]},
+            fields=["*"],
+            order_by="poz_no, name"
+        )
+        
+        # Her item için detaylı bilgileri hazırla
+        detailed_items = []
+        for item in cam_liste_items:
+            # Sanal Adet'i parse et
+            sanal_adet = item.get("sanal_adet") or "0/0"
+            try:
+                if "/" in sanal_adet:
+                    delivered, total = sanal_adet.split("/")
+                    delivered_qty = int(delivered) if delivered.isdigit() else 0
+                    total_qty = int(total) if total.isdigit() else 0
+                    remaining_qty = total_qty - delivered_qty
+                else:
+                    total_qty = int(sanal_adet) if sanal_adet.isdigit() else 0
+                    delivered_qty = 0
+                    remaining_qty = total_qty
+            except:
+                total_qty = 0
+                delivered_qty = 0
+                remaining_qty = 0
+            
+            detailed_items.append({
+                "name": item.name,
+                "order_no": item.get("order_no"),
+                "stok_kodu": item.get("stok_kodu"),
+                "genislik": item.get("genislik"),
+                "yukseklik": item.get("yukseklik"),
+                "poz_no": item.get("poz_no"),
+                "sanal_adet": sanal_adet,
+                "musteri": item.get("musteri"),
+                "cari_kod": item.get("cari_kod"),
+                "cari_unvan": item.get("cari_unvan"),
+                "aciklama": item.get("aciklama"),
+                "total_qty": total_qty,
+                "delivered_qty": delivered_qty,
+                "remaining_qty": remaining_qty,
+                "bm2": item.get("bm2"),
+                "tm2": item.get("tm2"),
+                "menfez": item.get("menfez"),
+                "karolaj": item.get("karolaj"),
+                "kucuk_cam": item.get("kucuk_cam")
+            })
+        
+        return detailed_items
+        
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Get CamListe Items Error")
+        return []

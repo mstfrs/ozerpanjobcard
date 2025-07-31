@@ -13,7 +13,16 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { Sidebar } from 'primereact/sidebar';
 // import { InputMask } from 'primereact/inputmask';
-import { getCustomersWithSalesOrdersAndWorkOrders, getWorkOrderProducts, getFiyat2ItemsForSalesOrder, getSalesOrderItemsWithWorkOrderStatus, getTotalCuttingForSalesOrders, createDeliveryNote, getCustomersWithUndeliveredCamItems  } from '../../../services/deliveryNoteService';
+import { 
+  getWorkOrderProducts, 
+  getFiyat2ItemsForSalesOrder, 
+  getSalesOrderItemsWithWorkOrderStatus, 
+  getTotalCuttingForSalesOrders,
+  createDeliveryNote, 
+  getCustomersWithUndeliveredCamItems,
+  getGlassTypesBySalesOrders,
+  getCamListeItemsBySalesOrders
+} from '../../../services/deliveryNoteService';
 
 export default function CamSevkiyat() {
   const toast = useRef(null);
@@ -26,6 +35,8 @@ export default function CamSevkiyat() {
   const [fiyat2Items, setFiyat2Items] = useState([]);
   const [pozlar, setPozlar] = useState([]);
   const [totalCutting, setTotalCutting] = useState(0);
+  const [glassTypes, setGlassTypes] = useState([]); // Cam çeşitleri için state
+  const [camListeItems, setCamListeItems] = useState([]); // CamListe detaylı verileri için state
   const [isCreating, setIsCreating] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(false);
   // Teslim Alan, Araç Plakası, Fotoğraf ve Sevkiyat Tipi için state
@@ -38,6 +49,7 @@ export default function CamSevkiyat() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const [selectedPozlar, setSelectedPozlar] = useState([]); // <-- yeni eklendi
+  const [isAuxiliaryMaterialsDelivered, setIsAuxiliaryMaterialsDelivered] = useState(false); // Yardımcı malzemeler teslim edildi
 
   // Grand total hesapla (seçili cam pozlar için)
   const calculateGrandTotal = () => {
@@ -113,6 +125,7 @@ export default function CamSevkiyat() {
       setPhoto(null);
       setSevkiyatTipi(null);
       setSelectedPozlar([]);
+      setIsAuxiliaryMaterialsDelivered(false);
     } catch (error) {
       console.error("Teslimat oluşturma hatası:", error);
       toast.current.show({ severity: 'error', summary: 'Hata', detail: error.message || error.toString(), life: 4000 });
@@ -257,6 +270,44 @@ export default function CamSevkiyat() {
     fetchTotalCutting();
   }, [selectedSalesOrders]);
 
+  // Sales order seçilince cam çeşitlerini getir
+  useEffect(() => {
+    async function fetchGlassTypes() {
+      if (!selectedSalesOrders.length) {
+        setGlassTypes([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await getGlassTypesBySalesOrders(selectedSalesOrders);
+        setGlassTypes(data);
+      } catch (e) {
+        setGlassTypes([]);
+      }
+      setLoading(false);
+    }
+    fetchGlassTypes();
+  }, [selectedSalesOrders]);
+
+  // Sales order seçilince CamListe detaylı verilerini getir
+  useEffect(() => {
+    async function fetchCamListeItems() {
+      if (!selectedSalesOrders.length) {
+        setCamListeItems([]);
+        return;
+      }
+      setLoading(true);
+      try {
+        const data = await getCamListeItemsBySalesOrders(selectedSalesOrders);
+        setCamListeItems(data);
+      } catch (e) {
+        setCamListeItems([]);
+      }
+      setLoading(false);
+    }
+    fetchCamListeItems();
+  }, [selectedSalesOrders]);
+
   // Yardımcı ürünleri aynı stock_code'a göre grupla ve miktarları topla
   function groupFiyat2Items(items) {
     const grouped = {};
@@ -295,14 +346,14 @@ export default function CamSevkiyat() {
   const groupedPozlar = [...pvcPozlar, ...camPozlar];
 
   return (
-    <div className='w-screen h-screen flex relative'>
+    <div className='w-screen h-screen flex relative overflow-hidden'>
       <Toast ref={toast} />
       {/* Sidebar */}
-      <div style={{ width: 600, background: '#f4f4f4', padding: 10, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ background: '#f4f4f4', padding: 10, display: 'flex', flexDirection: 'column' }}>
         {/* Dropdownlar */}
-        <div className='text-sm' style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 4 }}>
-          <div style={{ minWidth: 240 }}>
-            <label className='text-red-500 font-bold text-sm'>Müşteri</label>
+        <div className='text-xs lg:text-sm' style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 4 }}>
+          <div className='min-w-[200px] lg:min-w-[240px]'>
+            <label className='text-red-500 font-bold text-xs lg:text-sm'>Müşteri</label>
             <Dropdown
               value={selectedCustomer}
               options={customers}
@@ -312,11 +363,16 @@ export default function CamSevkiyat() {
               placeholder="Müşteri seçin"
               style={{ width: '100%' }}
               loading={loading}
-              className='text-xs'
+              className='text-xs lg:text-sm'
+              pt={{
+                input: { className: 'text-xs lg:text-sm' },
+                list: { className: 'text-xs lg:text-sm' },
+                item: { className: 'text-xs lg:text-sm' }
+              }}
             />
           </div>
-          <div style={{ minWidth: 320 }}>
-            <label className=' text-red-500 font-bold text-sm'>Sales Order</label>
+          <div className='min-w-[280px] lg:min-w-[320px]'>
+            <label className=' text-red-500 font-bold text-xs lg:text-sm'>Sales Order</label>
             <MultiSelect
               value={selectedSalesOrders}
               options={salesOrders}
@@ -325,16 +381,41 @@ export default function CamSevkiyat() {
               style={{ width: '100%' }}
               disabled={!selectedCustomer}
               loading={loading}
+              className='text-xs lg:text-sm'
+              pt={{
+                input: { className: 'text-xs lg:text-sm' },
+                list: { className: 'text-xs lg:text-sm' },
+                item: { className: 'text-xs lg:text-sm' },
+                token: { className: 'text-xs lg:text-sm' }
+              }}
             />
           </div>
         </div>
         {/* Tablolar ve toplam doğrama alanı sadece sipariş seçiliyse görünsün */}
         {selectedSalesOrders.length > 0 && (
           <>
+            {/* Cam Çeşitleri ve Adetleri */}
+            <div className='min-h-40' style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+              <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>CAM ÇEŞİTLERİ VE ADETLERİ</h3>
+              <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+                <DataTable 
+                  value={glassTypes} 
+                  emptyMessage="Cam çeşidi bulunamadı" 
+                  loading={loading} 
+                  className="text-xs" 
+                  style={{ fontSize: 12 }}
+                  scrollable
+                  scrollHeight="150px"
+                >
+                  <Column field="type" header="Cam Çeşidi" />
+                  <Column field="remaining_qty" header="Adet" body={rowData => `${rowData.total_qty}`} />
+                </DataTable>
+              </div>
+            </div>
             {/* Tablolar alt alta ve scroll'lu */}
             <div className='h-full' style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <h3 className='text-center text-red-500 font-bold'>POZLAR</h3>
+                <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>POZLAR</h3>
                 <div style={{ fontSize: 13, flex: 1, minHeight: 0, overflow: 'auto' }}>
                   <DataTable
                     value={camPozlar}
@@ -346,10 +427,12 @@ export default function CamSevkiyat() {
                     onSelectionChange={e => setSelectedPozlar(e.value)}
                     selectionMode="multiple"
                     rowSelectable={rowData => rowData.is_ready === 'Hazır'} // <-- sadece Hazır olanlar seçilebilir
+                    scrollable
+                    scrollHeight="200px"
                   >
                     <Column selectionMode="multiple" headerStyle={{ width: '3em' }} />
                     <Column field="item_code" header="Ürün Kodu" />
-                    <Column field="item_name" header="Ürün Adı" />
+                    {/* <Column field="item_name" header="Ürün Adı" /> */}
                     <Column field="qty" header="Miktar" body={rowData =>  rowData.qty} />                    
                     <Column header="Durum" body={rowData => rowData.is_ready === 'Hazır' ? (<FaCheckCircle color="#22c55e" size={18} title="Hazır" />) : null} style={{ textAlign: 'center' }} />
                   </DataTable>
@@ -377,11 +460,20 @@ export default function CamSevkiyat() {
         )}
       </div>
       {/* Main Content */}
-      <div className='w-full h-full flex-1 p-2 flex flex-col justify-between relative'>
+      <div className='flex-1 p-2 flex flex-col justify-between relative overflow-hidden'>
         {/* PrimeReact Sidebar */}
-        <Sidebar visible={sidebarVisible} position="right" style={{ width: 400 }} onHide={() => setSidebarVisible(false)}>
-          <h3 className="text-lg font-bold mb-2">Teslim Formu</h3>
-          <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); handleTeslimatFisOlustur(); }}>
+        <Sidebar visible={sidebarVisible} position="right" style={{ width: 400 }} onHide={() => {
+          setSidebarVisible(false);
+          setSelectedPozlar([]);
+          // Kamera kapatma işlemi
+          setCameraActive(false);
+          if (videoRef.current && videoRef.current.srcObject) {
+            const tracks = videoRef.current.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+          }
+        }}>
+          <form className="flex flex-col gap-2" onSubmit={e => { e.preventDefault(); handleTeslimatFisOlustur(); }}>
             <div>
               <label className="block text-sm font-bold mb-1 text-red-600">Teslim Alan</label>
               <input
@@ -435,6 +527,17 @@ export default function CamSevkiyat() {
               {/* Canvas gizli, sadece fotoğraf almak için */}
               <canvas ref={canvasRef} width={320} height={240} style={{ display: 'none' }} />
             </div>
+            <div>
+              <label className="flex items-center gap-2 text-sm font-bold text-red-600">
+                <input
+                  type="checkbox"
+                  checked={isAuxiliaryMaterialsDelivered}
+                  onChange={e => setIsAuxiliaryMaterialsDelivered(e.target.checked)}
+                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                />
+                Yardımcı Malzemeler Teslim Edildi
+              </label>
+            </div>
             <div className="mt-4">
               <Button
                 label="Teslimat Fişi Oluştur"
@@ -446,42 +549,22 @@ export default function CamSevkiyat() {
             </div>
           </form>
         </Sidebar>
-        <div className=''>
-          <h3>Ürün Görselleri</h3>
-          <div
-            className='grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-6 bg-white p-4 rounded-lg shadow-sm overflow-y-auto 'style={{ maxHeight: 'calc(100svh - 120px)' }}
-          >
-            {products
-              .filter(prod => prod.item_group === 'Cam' && pozItemCodes.includes(prod.item_code))
-              .map((prod, idx) => {
-                const imgName = prod.item_code ? prod.item_code.replace(/-/g, '') + '.jpg' : '';
-                const imgSrc = imgName ? `/files/share/${imgName}` : '';
-                return (
-                  <div key={prod.item_code + idx} className='text-center overflow-auto'>
-                    <img
-                      src={imgSrc}
-                      alt={prod.item_code}
-                      className='w-[120px] h-[120px] object-contain border border-gray-200 rounded-lg bg-gray-50 mx-auto'
-                      onError={e => { e.target.onerror = null; e.target.src = '/files/share/default.jpg'; }}
-                    />
-                    <div className='text-xs text-gray-500 mt-2'>{prod.item_code}</div>
-                    {prod.custom_width && prod.custom_height && (
-                      <div className='text-xs text-gray-500'>{prod.custom_width} x {prod.custom_height}</div>
-                    )}
-                  </div>
-                );
-              })}
-          </div>
-        </div>
-        {/* Sticky toplam doğrama alanı ve butonlar */}
-        {selectedSalesOrders.length > 0 && (
-          <div className='w-full sticky bottom-0 left-0 z-20 p-0 flex flex-row justify-between items-center rounded-lg bg-slate-300'>
-            {/* Sol: Toplam Doğrama (sadece PVC varsa) */}
-            {pvcPozlar.length > 0 && (
-              <div className='flex-1 p-1 rounded-lg lg:text-md text-xs font-bold text-red-700 '>
-                Toplam Cam : --
-              </div>
-            )}
+        <div className='flex flex-col gap-4 h-full overflow-hidden'>
+          <div className='flex flex-row justify-between items-center'>
+            <div className='flex flex-col'>
+              <h3 className='text-red-500 text-sm lg:text-lg font-bold'>Cam Listesi</h3>
+              {/* Cam Çeşitleri Bilgisi */}
+              {/* {glassTypes.length > 0 && (
+                <div className='text-xs text-gray-600 mt-1'>
+                  <span className='font-semibold'>Cam Çeşitleri:</span>
+                  {glassTypes.map((type, idx) => (
+                    <span key={idx} className='ml-2'>
+                      {type.type} ({type.remaining_qty}/{type.total_qty})
+                    </span>
+                  ))}
+                </div>
+              )} */}
+            </div>
             {/* Sağ: Butonlar */}
             <div className=' flex-1 w-full p-2 md:text-md text-xs text-right items-center '>
               <Button
@@ -501,7 +584,36 @@ export default function CamSevkiyat() {
               /> */}
             </div>
           </div>
-        )}
+          <div className='flex flex-col gap-4 flex-1 overflow-hidden'>
+            {/* CamListe Detaylı Verileri */}
+            {camListeItems.length > 0 && (
+              <div className='bg-white p-4 rounded-lg shadow-sm flex-1 overflow-hidden'>
+                {/* <h3 className='text-red-500 text-sm lg:text-lg font-bold mb-3'>CamListe Detayları</h3> */}
+                <div className='overflow-x-auto h-full'>
+                  <DataTable 
+                    value={camListeItems} 
+                    emptyMessage="Cam verisi bulunamadı" 
+                    loading={loading} 
+                    className="text-xs" 
+                    style={{ fontSize: 12 }}
+                    scrollable
+                    scrollHeight="400px"
+                 
+                  >
+                    <Column field="poz_no" header="Poz No"  />
+                    <Column field="stok_kodu" header="Stok Kodu"  />
+                    <Column field="genislik" header="Genişlik"  body={rowData => rowData.genislik ? `${rowData.genislik} mm` : '-'} />
+                    <Column field="yukseklik" header="Yükseklik"  body={rowData => rowData.yukseklik ? `${rowData.yukseklik} mm` : '-'} />
+                    <Column field="aciklama" header="Cam Çeşidi" sortable />
+              
+                  </DataTable>
+                </div>
+              </div>
+            )}
+            
+         
+          </div>
+        </div>
       </div>
     </div>
   );
