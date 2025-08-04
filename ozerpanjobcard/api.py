@@ -926,11 +926,14 @@ def create_delivery_note_from_sales_orders(
 
 @frappe.whitelist(allow_guest=True)
 def get_glass_types_by_sales_orders(sales_orders):
-    """Cam çeşitlerini ve adetlerini CamListe doctype'ından gruplandır"""
+    """Cam çeşitlerini ve adetlerini CamListe doctype'ından gruplandır - stok_kodu'na göre"""
     try:
         if isinstance(sales_orders, str):
             import json
             sales_orders = json.loads(sales_orders)
+        
+        # Debug: Sales orders'ları logla
+        frappe.logger().debug(f"Sales orders for glass types: {sales_orders}")
         
         # CamListe'den seçilen siparişlere ait verileri al
         cam_liste_items = frappe.get_all(
@@ -939,40 +942,69 @@ def get_glass_types_by_sales_orders(sales_orders):
             fields=["*"]
         )
         
-        # Cam çeşitlerini gruplandır (Aciklama alanına göre)
+        # Debug: Bulunan kayıt sayısını logla
+        frappe.logger().debug(f"Found {len(cam_liste_items)} CamListe items")
+        
+        # Cam çeşitlerini gruplandır (stok_kodu'na göre)
         glass_types = {}
         for item in cam_liste_items:
-            # Cam çeşidini belirle (Aciklama alanından)
-            glass_type = item.get("aciklama") or item.get("description") or "Bilinmeyen Cam"
+            # Cam çeşidini belirle (stok_kodu'ndan)
+            stok_kodu = item.get("stok_kodu") or "Bilinmeyen Cam"
             
-            if glass_type not in glass_types:
-                glass_types[glass_type] = {
-                    "type": glass_type,
+            if stok_kodu not in glass_types:
+                glass_types[stok_kodu] = {
+                    "type": item.get("aciklama") or item.get("description") or "Bilinmeyen Cam",  # aciklama alanını kullan
                     "total_qty": 0,
                     "remaining_qty": 0,
+                    "record_count": 0,  # Kayıt sayısı
                     "items": []
                 }
             
             # Sanal Adet'i parse et (örn: "9/9" -> total: 9, remaining: 9)
             sanal_adet = item.get("sanal_adet") or "0/0"
+            
+            # Debug: Her item'ın sanal_adet değerini logla
+            frappe.logger().debug(f"Item {item.name}: sanal_adet={sanal_adet}, stok_kodu={stok_kodu}")
+            
             try:
                 if "/" in sanal_adet:
                     delivered, total = sanal_adet.split("/")
                     delivered_qty = int(delivered) if delivered.isdigit() else 0
                     total_qty = int(total) if total.isdigit() else 0
                     remaining_qty = total_qty - delivered_qty
+                    
+                    # Validasyon: Makul değerler kontrol et
+                    if total_qty > 1000:
+                        frappe.logger().warning(f"Item {item.name}: Çok yüksek total_qty: {total_qty}")
+                        total_qty = min(total_qty, 1000)  # Maksimum 1000 ile sınırla
+                        remaining_qty = total_qty - delivered_qty
+                    
+                    if remaining_qty < 0:
+                        frappe.logger().warning(f"Item {item.name}: Negatif remaining_qty: {remaining_qty}")
+                        remaining_qty = 0
+                        
                 else:
                     total_qty = int(sanal_adet) if sanal_adet.isdigit() else 0
                     delivered_qty = 0
                     remaining_qty = total_qty
+                    
+                    # Validasyon: Makul değerler kontrol et
+                    if total_qty > 1000:
+                        frappe.logger().warning(f"Item {item.name}: Çok yüksek total_qty: {total_qty}")
+                        total_qty = min(total_qty, 1000)
+                        remaining_qty = total_qty
             except:
                 total_qty = 0
                 delivered_qty = 0
                 remaining_qty = 0
             
-            glass_types[glass_type]["total_qty"] += total_qty
-            glass_types[glass_type]["remaining_qty"] += remaining_qty
-            glass_types[glass_type]["items"].append({
+            # Debug: Hesaplanan değerleri logla
+            frappe.logger().debug(f"Item {item.name}: total_qty={total_qty}, delivered_qty={delivered_qty}, remaining_qty={remaining_qty}")
+            
+            glass_types[stok_kodu]["total_qty"] += total_qty
+            glass_types[stok_kodu]["remaining_qty"] += remaining_qty
+            glass_types[stok_kodu]["record_count"] += 1  # Kayıt sayısını artır
+            glass_types[stok_kodu]["items"].append({
                 "name": item.name,
                 "order_no": item.get("order_no"),
                 "stok_kodu": item.get("stok_kodu"),
@@ -988,6 +1020,10 @@ def get_glass_types_by_sales_orders(sales_orders):
                 "delivered_qty": delivered_qty,
                 "remaining_qty": remaining_qty
             })
+        
+        # Debug: Final glass types'ı logla
+        for stok_kodu, data in glass_types.items():
+            frappe.logger().debug(f"Glass type '{stok_kodu}': total_qty={data['total_qty']}, remaining_qty={data['remaining_qty']}, record_count={data['record_count']}")
         
         return list(glass_types.values())
         
