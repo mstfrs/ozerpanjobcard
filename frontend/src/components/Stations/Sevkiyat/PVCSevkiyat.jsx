@@ -10,13 +10,15 @@ import { FaCheckCircle } from 'react-icons/fa';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { Sidebar } from 'primereact/sidebar';
+import { Dialog } from 'primereact/dialog';
 import { 
   getWorkOrderProducts, 
   getFiyat2ItemsForSalesOrder, 
   getSalesOrderItemsWithWorkOrderStatus, 
   getTotalCuttingForSalesOrders,
   createDeliveryNote, 
-  getCustomersWithUndeliveredPVCItems 
+  getCustomersWithUndeliveredPVCItems,
+  getDeliveredItemsByCustomerAndSalesOrders
 } from '../../../services/deliveryNoteService';
 
 export default function PVCSevkiyat() {
@@ -50,6 +52,10 @@ export default function PVCSevkiyat() {
   const [isAuxiliaryMaterialsDelivered, setIsAuxiliaryMaterialsDelivered] = useState(false); // Yardımcı malzemeler teslim edildi
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  // Teslim edilen ürünler için state'ler
+  const [deliveredItems, setDeliveredItems] = useState([]);
+  const [showDeliveredItemsDialog, setShowDeliveredItemsDialog] = useState(false);
+  const [isLoadingDeliveredItems, setIsLoadingDeliveredItems] = useState(false);
 
   // Teslimat fişi oluşturma işlemi
   const handleTeslimatFisOlustur = async (e) => {
@@ -329,6 +335,36 @@ export default function PVCSevkiyat() {
   const handleSevkiyatClick = (tip) => {
     setSevkiyatTipi(tip);
     setSidebarVisible(true);
+  };
+
+  // Teslim edilen ürünleri getir
+  const handleShowDeliveredItems = async () => {
+    if (!selectedCustomer || !selectedSalesOrders.length) {
+      toast.current.show({ 
+        severity: 'error', 
+        summary: 'Hata', 
+        detail: 'Müşteri ve sipariş seçiniz.', 
+        life: 4000 
+      });
+      return;
+    }
+
+    setIsLoadingDeliveredItems(true);
+    try {
+      const data = await getDeliveredItemsByCustomerAndSalesOrders(selectedCustomer, selectedSalesOrders);
+      setDeliveredItems(data);
+      setShowDeliveredItemsDialog(true);
+    } catch (error) {
+      console.error("Teslim edilen ürünler getirilirken hata:", error);
+      toast.current.show({ 
+        severity: 'error', 
+        summary: 'Hata', 
+        detail: 'Teslim edilen ürünler getirilemedi.', 
+        life: 4000 
+      });
+    } finally {
+      setIsLoadingDeliveredItems(false);
+    }
   };
 
   // Miktar değişikliklerini handle et
@@ -653,13 +689,89 @@ export default function PVCSevkiyat() {
               <div className='flex-1 p-1 rounded-lg lg:text-md text-xs font-bold text-red-700 flex flex-row justify-between gap-1'>
                 <div>Toplam Doğrama: {initialTotalCutting}</div>
                 <div>Kalan Doğrama: {initialRemainingCutting}</div>
-                <div>Teslim Edilen Doğrama: {deliveredCutting}</div>
+                <div 
+                  className="cursor-pointer hover:underline hover:text-blue-700"
+                  onClick={handleShowDeliveredItems}
+                  title="Teslim edilen ürünleri görüntüle"
+                >
+                  Teslim Edilen Doğrama: {deliveredCutting}
+                </div>
               </div>
             )}
-         
           </div>
         )}
       </div>
+      {/* Teslim Edilen Ürünler Dialog */}
+      <Dialog 
+        header="Teslim Edilen Ürünler" 
+        visible={showDeliveredItemsDialog} 
+        onHide={() => setShowDeliveredItemsDialog(false)}
+        style={{ width: '80vw', maxWidth: '1000px' }}
+        modal
+        closable={true}
+        onMaskClick={() => setShowDeliveredItemsDialog(false)}
+      >
+        {deliveredItems.length > 0 ? (
+          <div className="space-y-1">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-gray-200 border-b">
+                    <th className="p-1 text-left">Tarih</th>
+                    <th className="p-1 text-left">Teslim Alan</th>
+                    <th className="p-1 text-left">Araç Plakası</th>
+                    <th className="p-1 text-center">Yardımcı Malzemeler</th>
+                    <th className="p-1 text-left">Ürün Adı</th>
+                    <th className="p-1 text-left">Seri No</th>
+                    <th className="p-1 text-left">Renk</th>
+                    <th className="p-1 text-left">Son Müşteri</th>
+                    <th className="p-1 text-center">Ürün Sayısı</th>
+                    <th className="p-1 text-right">Toplam Miktar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deliveredItems.map((dn, index) => {
+                    const totalQty = dn.items.reduce((sum, item) => sum + (item.delivered_qty || 0), 0);
+                    const postingDate = dn.posting_date ? new Date(dn.posting_date).toLocaleDateString('tr-TR') : '-';
+                    
+                    return (
+                      <tr key={index} className="border-b hover:bg-gray-50">
+                        <td className="p-1">{postingDate}</td>
+                        <td className="p-1">{dn.custom_recipient || '-'}</td>
+                        <td className="p-1">{dn.custom_vehicle || '-'}</td>
+                        <td className="p-1 text-center">
+                          <span className={`px-1 py-0.5 rounded text-xs ${
+                            dn.custom_is_auxiliary_materials_delivered 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {dn.custom_is_auxiliary_materials_delivered ? 'Teslim Edildi' : 'Teslim Edilmedi'}
+                          </span>
+                        </td>
+                        <td className="p-1">
+                          {dn.items.length > 1 
+                            ? `${dn.items[0]?.item_name || '-'} (+${dn.items.length - 1} ürün)` 
+                            : dn.items[0]?.item_name || '-'
+                          }
+                        </td>
+                        <td className="p-1">{dn.items[0]?.custom_serial || '-'}</td>
+                        <td className="p-1">{dn.items[0]?.custom_color || '-'}</td>
+                        <td className="p-1">{dn.items[0]?.custom_end_customer || '-'}</td>
+                        <td className="p-1 text-center">{dn.items.length}</td>
+                        <td className="p-1 text-right font-medium">{totalQty}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-6 text-gray-500">
+            Teslim edilen ürün bulunamadı.
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }

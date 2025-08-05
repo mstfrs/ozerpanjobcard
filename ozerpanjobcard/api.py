@@ -1094,3 +1094,84 @@ def get_cam_liste_items_by_sales_orders(sales_orders):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get CamListe Items Error")
         return []
+
+@frappe.whitelist(allow_guest=True)
+def get_delivered_items_by_customer_and_sales_orders(customer, sales_orders):
+    """Belirli müşteri ve sales order'lara ait teslim edilen ürünlerin Delivery Note bilgilerini getir"""
+    try:
+        if isinstance(sales_orders, str):
+            import json
+            sales_orders = json.loads(sales_orders)
+        
+        # Tek elemanlı liste için özel kontrol
+        if len(sales_orders) == 1:
+            sales_orders_condition = "= %(sales_order)s"
+            params = {"customer": customer, "sales_order": sales_orders[0]}
+        else:
+            sales_orders_condition = "IN %(sales_orders)s"
+            params = {"customer": customer, "sales_orders": tuple(sales_orders)}
+        
+        # Delivery Note'lardan teslim edilen ürünleri al
+        delivered_items = frappe.db.sql(f"""
+            SELECT 
+                dn.name as delivery_note,
+                dn.posting_date,
+                dn.posting_time,
+                dni.item_code,
+                dni.item_name,
+                dni.qty as delivered_qty,
+                dni.rate,
+                dni.amount,
+                dni.against_sales_order,
+                dn.custom_recipient,
+                dn.custom_vehicle,
+                dn.custom_delivery_photo,
+                dn.custom_is_auxiliary_materials_delivered,
+                i.item_group,
+                i.custom_serial,
+                i.custom_color,
+                so.custom_end_customer
+            FROM `tabDelivery Note Item` dni
+            INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
+            INNER JOIN `tabItem` i ON i.name = dni.item_code
+            INNER JOIN `tabSales Order` so ON so.name = dni.against_sales_order
+            WHERE dn.docstatus = 1 
+                AND dn.customer = %(customer)s
+                AND dni.against_sales_order {sales_orders_condition}
+                AND i.item_group = 'PVC'
+            ORDER BY dn.posting_date DESC, dn.posting_time DESC
+        """, params, as_dict=True)
+        
+        # Delivery Note'ları grupla
+        delivery_notes = {}
+        for item in delivered_items:
+            dn_name = item.delivery_note
+            if dn_name not in delivery_notes:
+                delivery_notes[dn_name] = {
+                    "delivery_note": dn_name,
+                    "posting_date": item.posting_date,
+                    "posting_time": item.posting_time,
+                    "custom_recipient": item.custom_recipient,
+                    "custom_vehicle": item.custom_vehicle,
+                    "custom_delivery_photo": item.custom_delivery_photo,
+                    "custom_is_auxiliary_materials_delivered": item.custom_is_auxiliary_materials_delivered,
+                    "items": []
+                }
+            
+            delivery_notes[dn_name]["items"].append({
+                "item_code": item.item_code,
+                "item_name": item.item_name,
+                "delivered_qty": item.delivered_qty,
+                "rate": item.rate,
+                "amount": item.amount,
+                "against_sales_order": item.against_sales_order,
+                "custom_serial": item.custom_serial,
+                "custom_color": item.custom_color,
+                "custom_end_customer": item.custom_end_customer
+            })
+        
+        return list(delivery_notes.values())
+        
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Get Delivered Items Error")
+        return []

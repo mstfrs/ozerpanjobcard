@@ -157,3 +157,18 @@ export async function getCamListeItemsBySalesOrders(salesOrders) {
   const data = await res.json();
   return data.message;
 }
+
+export async function getDeliveredItemsByCustomerAndSalesOrders(customer, salesOrders) {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_delivered_items_by_customer_and_sales_orders', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      customer: customer, 
+      sales_orders: salesOrders 
+    }),
+  });
+  const data = await res.json();
+  return data.message;
+}
