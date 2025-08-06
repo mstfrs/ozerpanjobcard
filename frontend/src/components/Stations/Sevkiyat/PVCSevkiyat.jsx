@@ -18,7 +18,8 @@ import {
   getTotalCuttingForSalesOrders,
   createDeliveryNote, 
   getCustomersWithUndeliveredPVCItems,
-  getDeliveredItemsByCustomerAndSalesOrders
+  getDeliveredItemsByCustomerAndSalesOrders,
+  getDeliveredItemCountsByCustomerAndSalesOrders
 } from '../../../services/deliveryNoteService';
 
 export default function PVCSevkiyat() {
@@ -297,11 +298,26 @@ export default function PVCSevkiyat() {
     setRemainingCutting(initialRemaining);
   }, [pozlar]); // quantityChanges dependency'sini kaldırdık
 
-  // Kalan doğrama değişince teslim edilen doğrama hesapla
+  // Teslim edilen PVC sayılarını API'den al
   useEffect(() => {
-    const delivered = initialTotalCutting - initialRemainingCutting;
-    setDeliveredCutting(delivered > 0 ? delivered : 0);
-  }, [initialTotalCutting, initialRemainingCutting]);
+    async function fetchDeliveredCounts() {
+      if (!selectedCustomer || !selectedSalesOrders.length) {
+        setDeliveredCutting(0);
+        return;
+      }
+      
+      try {
+        const deliveredCounts = await getDeliveredItemCountsByCustomerAndSalesOrders(selectedCustomer, selectedSalesOrders);
+        const pvcDelivered = deliveredCounts['PVC'] || 0;
+        setDeliveredCutting(pvcDelivered);
+      } catch (error) {
+        console.error("Teslim edilen sayılar getirilirken hata:", error);
+        setDeliveredCutting(0);
+      }
+    }
+    
+    fetchDeliveredCounts();
+  }, [selectedCustomer, selectedSalesOrders]);
 
   // Sadece ilgili gruptaki siparişleri backend'e gönder
   const getGroupSalesOrders = (groupPozlar) => {

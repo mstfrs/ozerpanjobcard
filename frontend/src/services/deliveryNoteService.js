@@ -172,3 +172,65 @@ export async function getDeliveredItemsByCustomerAndSalesOrders(customer, salesO
   const data = await res.json();
   return data.message;
 }
+
+export async function getDeliveredCamItemsByCustomerAndSalesOrders(customer, salesOrders) {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_delivered_cam_items_by_customer_and_sales_orders', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      customer: customer, 
+      sales_orders: salesOrders 
+    }),
+  });
+  const data = await res.json();
+  return data.message;
+}
+
+export async function getDeliveredItemCountsByCustomerAndSalesOrders(customer, salesOrders) {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_delivered_item_counts_by_customer_and_sales_orders', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      customer: customer, 
+      sales_orders: salesOrders 
+    }),
+  });
+  const data = await res.json();
+  return data.message;
+}
+
+export async function getSerialNumbersForItem(itemCode, warehouse = null, qty = 1) {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_serial_numbers_for_item', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      item_code: itemCode, 
+      warehouse: warehouse,
+      qty: qty
+    }),
+  });
+  const data = await res.json();
+  return data.message;
+}
+
+export async function getDeliveredQtyByItemCodes(customer, salesOrders, itemCodes) {
+  const res = await fetch('/api/method/ozerpanjobcard.api.get_delivered_qty_by_item_codes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      customer: customer, 
+      sales_orders: salesOrders,
+      item_codes: itemCodes
+    }),
+  });
+  const data = await res.json();
+  return data.message;
+}

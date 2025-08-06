@@ -12,6 +12,7 @@ import { Button } from 'primereact/button';
 
 import { Toast } from 'primereact/toast';
 import { Sidebar } from 'primereact/sidebar';
+import { Dialog } from 'primereact/dialog';
 // import { InputMask } from 'primereact/inputmask';
 import { 
   getWorkOrderProducts, 
@@ -21,7 +22,10 @@ import {
   createDeliveryNote, 
   getCustomersWithUndeliveredCamItems,
   getGlassTypesBySalesOrders,
-  getCamListeItemsBySalesOrders
+  getCamListeItemsBySalesOrders,
+  getDeliveredCamItemsByCustomerAndSalesOrders,
+  getDeliveredItemCountsByCustomerAndSalesOrders,
+  getDeliveredQtyByItemCodes
 } from '../../../services/deliveryNoteService';
 
 export default function CamSevkiyat() {
@@ -58,6 +62,11 @@ export default function CamSevkiyat() {
   const [initialRemainingCamQty, setInitialRemainingCamQty] = useState(0);
   const [remainingCamQty, setRemainingCamQty] = useState(0);
   const [deliveredCamQty, setDeliveredCamQty] = useState(0);
+  // Teslim edilen ürünler için state'ler
+  const [deliveredItems, setDeliveredItems] = useState([]);
+  const [showDeliveredItemsDialog, setShowDeliveredItemsDialog] = useState(false);
+  const [isLoadingDeliveredItems, setIsLoadingDeliveredItems] = useState(false);
+  const [deliveredQtyByItem, setDeliveredQtyByItem] = useState({});
 
   // Grand total hesapla (seçili cam pozlar için)
   const calculateGrandTotal = () => {
@@ -279,36 +288,47 @@ export default function CamSevkiyat() {
     fetchPozlar();
   }, [selectedSalesOrders]);
 
-  // Cam pozları değişince kalan cam hesapla (sadece ilk geldiğinde)
+  // Teslim edilen cam sayılarını API'den al
   useEffect(() => {
-    const camPozlar = pozlar.filter(p => p.item_group === 'Camlar');
-    const initialRemaining = camPozlar.reduce((total, poz) => {
-      const finalQty = parseInt(poz.qty) || 0;
-      return total + finalQty;
-    }, 0);
-    setInitialRemainingCamQty(initialRemaining);
-    setRemainingCamQty(initialRemaining);
-  }, [pozlar]);
-
-  // Kalan cam değişince teslim edilen cam hesapla
-  useEffect(() => {
-    const delivered = initialTotalCamQty - initialRemainingCamQty;
-    setDeliveredCamQty(delivered > 0 ? delivered : 0);
-  }, [initialTotalCamQty, initialRemainingCamQty]);
-
-  // Cam çeşitlerinden toplam cam miktarını hesapla
-  useEffect(() => {
-    if (glassTypes.length > 0) {
-      const total = glassTypes.reduce((sum, item) => {
-        return sum + (item.record_count || 0);
-      }, 0);
-      setInitialTotalCamQty(total);
-      setTotalCamQty(total);
-    } else {
-      setInitialTotalCamQty(0);
-      setTotalCamQty(0);
+    async function fetchDeliveredCounts() {
+      if (!selectedCustomer || !selectedSalesOrders.length) {
+        setDeliveredCamQty(0);
+        return;
+      }
+      
+      try {
+        const deliveredCounts = await getDeliveredItemCountsByCustomerAndSalesOrders(selectedCustomer, selectedSalesOrders);
+        const camDelivered = deliveredCounts['Camlar'] || 0;
+        setDeliveredCamQty(camDelivered);
+      } catch (error) {
+        console.error("Teslim edilen cam sayıları getirilirken hata:", error);
+        setDeliveredCamQty(0);
+      }
     }
-  }, [glassTypes]);
+    
+    fetchDeliveredCounts();
+  }, [selectedCustomer, selectedSalesOrders]);
+
+  // Teslim edilen miktarları al
+  useEffect(() => {
+    async function fetchDeliveredQty() {
+      if (!selectedCustomer || !selectedSalesOrders.length || !pozlar.length) {
+        setDeliveredQtyByItem({});
+        return;
+      }
+      
+      try {
+        const itemCodes = pozlar.map(item => item.item_code);
+        const deliveredQty = await getDeliveredQtyByItemCodes(selectedCustomer, selectedSalesOrders, itemCodes);
+        setDeliveredQtyByItem(deliveredQty);
+      } catch (error) {
+        console.error("Teslim edilen miktarlar getirilirken hata:", error);
+        setDeliveredQtyByItem({});
+      }
+    }
+    
+    fetchDeliveredQty();
+  }, [selectedCustomer, selectedSalesOrders, pozlar]);
 
   // Sales order seçilince toplam doğrama alanını getir
   useEffect(() => {
@@ -361,23 +381,6 @@ export default function CamSevkiyat() {
     fetchCamListeItems();
   }, [selectedSalesOrders]);
 
-  // Cam pozları değişince kalan cam hesapla (sadece ilk geldiğinde)
-  useEffect(() => {
-    const camPozlar = pozlar.filter(p => p.item_group === 'Camlar');
-    const initialRemaining = camPozlar.reduce((total, poz) => {
-      const finalQty = parseInt(poz.qty) || 0;
-      return total + finalQty;
-    }, 0);
-    setInitialRemainingCamQty(initialRemaining);
-    setRemainingCamQty(initialRemaining);
-  }, [pozlar]);
-
-  // Kalan cam değişince teslim edilen cam hesapla
-  useEffect(() => {
-    const delivered = initialTotalCamQty - initialRemainingCamQty;
-    setDeliveredCamQty(delivered > 0 ? delivered : 0);
-  }, [initialTotalCamQty, initialRemainingCamQty]);
-
   // Cam çeşitlerinden toplam cam miktarını hesapla
   useEffect(() => {
     if (glassTypes.length > 0) {
@@ -409,10 +412,8 @@ export default function CamSevkiyat() {
   const pozItemCodes = pozlar.map(p => p.item_code);
 
   // Pozları gruplara ayır
-  const pvcPozlar = pozlar.filter(p => p.item_group === 'PVC');
-  const camPozlar = pozlar.filter(p => p.item_group === 'Camlar');
-  const allPvcReady = pvcPozlar.length > 0 && pvcPozlar.every(p => p.is_ready === 'Hazır');
-  const allCamReady = camPozlar.length > 0 && camPozlar.every(p => p.is_ready === 'Hazır');
+  const allPvcReady = pozlar.filter(p => p.item_group === 'PVC').length > 0 && pozlar.filter(p => p.item_group === 'PVC').every(p => p.is_ready === 'Hazır');
+  const allCamReady = pozlar.filter(p => p.item_group === 'Camlar').length > 0 && pozlar.filter(p => p.item_group === 'Camlar').every(p => p.is_ready === 'Hazır');
 
   // Sadece ilgili gruptaki siparişleri backend'e gönder
   const getGroupSalesOrders = (groupPozlar) => {
@@ -426,8 +427,76 @@ export default function CamSevkiyat() {
     setSidebarVisible(true);
   };
 
+  // Teslim edilen ürünleri getir
+  const handleShowDeliveredItems = async () => {
+    if (!selectedCustomer || !selectedSalesOrders.length) {
+      toast.current.show({ 
+        severity: 'error', 
+        summary: 'Hata', 
+        detail: 'Müşteri ve sipariş seçiniz.', 
+        life: 4000 
+      });
+      return;
+    }
+
+    setIsLoadingDeliveredItems(true);
+    try {
+      const data = await getDeliveredCamItemsByCustomerAndSalesOrders(selectedCustomer, selectedSalesOrders);
+      setDeliveredItems(data);
+      setShowDeliveredItemsDialog(true);
+    } catch (error) {
+      console.error("Teslim edilen ürünler getirilirken hata:", error);
+      toast.current.show({ 
+        severity: 'error', 
+        summary: 'Hata', 
+        detail: 'Teslim edilen ürünler getirilemedi.', 
+        life: 4000 
+      });
+    } finally {
+      setIsLoadingDeliveredItems(false);
+    }
+  };
+
+  // Pozlar verisini teslim edilen miktarları düşürerek güncelle
+  const updatedPozlar = pozlar.map(poz => {
+    const deliveredQty = (deliveredQtyByItem && deliveredQtyByItem[poz.item_code]) || 0;
+    const originalQty = parseInt(poz.qty) || 0;
+    const remainingQty = Math.max(0, originalQty - deliveredQty);
+  
+    
+    return {
+      ...poz,
+      qty: remainingQty.toString() // String olarak döndür çünkü orijinal veri de string
+    };
+  });
+
+  // Güncellenmiş pozlar verisinden cam pozlarını al
+  const camPozlar = updatedPozlar.filter(p => p.item_group === 'Camlar');
+  const pvcPozlar = updatedPozlar.filter(p => p.item_group === 'PVC');
+
+  // Kalan cam miktarını hesapla
+  const totalRemainingCam = camPozlar.reduce((total, poz) => {
+    return total + (parseInt(poz?.qty) || 0);
+  }, 0);
+
+ 
+
   // Pozlar tablosı için sadece sıralı veri (grup başlığı yok)
   const groupedPozlar = [...pvcPozlar, ...camPozlar];
+
+  // Kalan cam miktarını state'e set et
+  React.useEffect(() => {
+    console.log('Setting remainingCamQty to:', totalRemainingCam);
+    setRemainingCamQty(totalRemainingCam);
+  }, [totalRemainingCam]);
+
+  // Kalan miktarı hesapla (teslim edilen miktarı çıkar)
+  const calculateRemainingQty = (itemCode, originalQty) => {
+    // Bu ürün kodunun teslim edilen miktarını bul
+    const deliveredForThisItem = (deliveredQtyByItem && deliveredQtyByItem[itemCode]) || 0;
+    const remaining = Math.max(0, originalQty - deliveredForThisItem);
+    return remaining;
+  };
 
   return (
     <div className='w-screen h-screen flex relative overflow-hidden'>
@@ -545,7 +614,7 @@ export default function CamSevkiyat() {
                               }));
                             }}
                             min="1"
-                            max={parseInt(rowData.qty) || 1}
+                            max={parseInt(rowData.qty) || 0}
                             step="1"
                             className="w-16 text-xs border rounded px-1 py-0.5 text-center"
                             style={{ fontSize: '11px' }}
@@ -741,13 +810,89 @@ export default function CamSevkiyat() {
             {camPozlar.length > 0 && (
               <div className='flex-1 p-1 rounded-lg lg:text-md text-xs font-bold text-red-700 flex flex-row justify-between gap-1'>
                 <div>Toplam Cam: {initialTotalCamQty}</div>
-                <div>Kalan Cam: {initialRemainingCamQty}</div>
-                <div>Teslim Edilen Cam: {deliveredCamQty}</div>
+                <div>Kalan Cam: {totalRemainingCam}</div>
+                <div 
+                  className="cursor-pointer hover:underline hover:text-blue-700"
+                  onClick={handleShowDeliveredItems}
+                  title="Teslim edilen cam ürünlerini görüntüle"
+                >
+                  Teslim Edilen Cam: {deliveredCamQty}
+                </div>
               </div>
             )}
           </div>
         )}
       </div>
+      {/* Teslim Edilen Ürünler Dialog */}
+      <Dialog 
+        header="Teslim Edilen Cam Ürünler" 
+        visible={showDeliveredItemsDialog} 
+        onHide={() => setShowDeliveredItemsDialog(false)}
+        style={{ width: '80vw', maxWidth: '1000px' }}
+        modal
+        closable={true}
+        onMaskClick={() => setShowDeliveredItemsDialog(false)}
+      >
+        {deliveredItems.length > 0 ? (
+          <div className="space-y-1">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-gray-200 border-b">
+                    <th className="p-1 text-left">Tarih</th>
+                    <th className="p-1 text-left">Teslim Alan</th>
+                    <th className="p-1 text-left">Araç Plakası</th>
+                    <th className="p-1 text-center">Yardımcı Malzemeler</th>
+                    <th className="p-1 text-left">Ürün Adı</th>
+                    <th className="p-1 text-left">Seri No</th>
+                    <th className="p-1 text-left">Renk</th>
+                    <th className="p-1 text-left">Müşteri</th>
+              
+                    <th className="p-1 text-right">Toplam Miktar</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deliveredItems.map((dn, index) => {
+                    const totalQty = dn.items.reduce((sum, item) => sum + (item.delivered_qty || 0), 0);
+                    const postingDate = dn.posting_date ? new Date(dn.posting_date).toLocaleDateString('tr-TR') : '-';
+                    
+                    return (
+                      <tr key={index} className="border-b hover:bg-gray-50">
+                        <td className="p-1">{postingDate}</td>
+                        <td className="p-1">{dn.custom_recipient || '-'}</td>
+                        <td className="p-1">{dn.custom_vehicle || '-'}</td>
+                        <td className="p-1 text-center">
+                          <span className={`px-1 py-0.5 rounded text-xs ${
+                            dn.custom_is_auxiliary_materials_delivered 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {dn.custom_is_auxiliary_materials_delivered ? 'Teslim Edildi' : 'Teslim Edilmedi'}
+                          </span>
+                        </td>
+                        <td className="p-1">
+                          {dn.items.length > 1 
+                            ? `${dn.items[0]?.item_name || '-'} (+${dn.items.length - 1} ürün)` 
+                            : dn.items[0]?.item_name || '-'
+                          }
+                        </td>
+                        <td className="p-1">{dn.items[0]?.custom_serial || '-'}</td>
+                        <td className="p-1">{dn.items[0]?.custom_color || '-'}</td>
+                        <td className="p-1">{dn.items[0]?.custom_end_customer || '-'}</td>
+                        <td className="p-1 text-right font-medium">{totalQty}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-6 text-gray-500">
+            Teslim edilen cam ürün bulunamadı.
+          </div>
+        )}
+      </Dialog>
     </div>
   );
 }
