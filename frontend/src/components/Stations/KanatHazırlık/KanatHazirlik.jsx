@@ -52,7 +52,15 @@ const KanatHazirlik = () => {
       if (barcodeDetails?.status === "error") {
         toast.error(barcodeDetails?.message);
         setIsBgActive(false);
-      } else {
+      } 
+      if(barcodeDetails?.status === "information_only") {
+        toast.info("Barkod zaten tamamlanmış");
+        setCurrentJobcard(barcodeDetails?.job_card);
+        setTesDetay(barcodeDetails);
+        setIsBgActive(true);
+        setLastScannedBarkod(barcodeValue); // Son okunan barkodu kaydet
+      }
+      else {
         setCurrentJobcard(barcodeDetails?.job_card);
         setTesDetay(barcodeDetails);
         setIsBgActive(true);

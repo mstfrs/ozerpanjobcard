@@ -70,7 +70,7 @@ const SacKesim = () => {
 
     // Ürün Görselleri Query
     const { data: images, isLoading: isImageLoading, error: imageError } = useQuery({
-        queryKey: ['productImages', sacKesimOptInfo?.dst_list],
+        queryKey: ['productImages', currentOpt?.custom_opti_no], // Daha stabil query key
         queryFn: async () => {
             if (!sacKesimOptInfo?.dst_list) return [];
 
@@ -93,9 +93,9 @@ const SacKesim = () => {
             return Promise.all(imageRequests);
         },
         enabled: !!sacKesimOptInfo?.dst_list && sacKesimOptInfo.dst_list.length > 0,
-        staleTime: 1000 * 60 * 5, // 5 dakika cache
-        cacheTime: 1000 * 60 * 30, // 30 dakika cache
-        retry: 2,
+        staleTime: 1000 * 60 * 30, // 30 dakika cache - daha uzun
+        cacheTime: 1000 * 60 * 60, // 1 saat cache - daha uzun
+        retry: 1, // Daha az retry
         onError: (error) => {
             console.error("Error fetching product images:", error);
         }
@@ -136,8 +136,8 @@ const SacKesim = () => {
             };
             await updateDSTListMutation(profilePayload);
             
-            // Başarılı güncelleme sonrası sayfayı yenile
-            await queryClient.invalidateQueries(['sacKesimOptInfo', currentOpt?.custom_opti_no]);
+            // Query invalidation'ı kaldır - mutation zaten cache'i güncelliyor
+            // await queryClient.invalidateQueries(['sacKesimOptInfo', currentOpt?.custom_opti_no]);
             
             toast.current.show({
                 severity: 'success',
@@ -154,7 +154,7 @@ const SacKesim = () => {
                 life: 3000
             });
         }
-    }, [updateDSTListMutation, queryClient, currentOpt?.custom_opti_no]);
+    }, [updateDSTListMutation, currentOpt?.custom_opti_no]);
 
     const handleCompleteAll = useCallback(async () => {
         if (isInputDisabled) {
@@ -188,8 +188,8 @@ const SacKesim = () => {
                 setProgress(Math.round((completedItems / totalItems) * 100));
             }
 
-            // Toplu işlem sonrası sayfayı yenile
-            await queryClient.invalidateQueries(['sacKesimOptInfo', currentOpt?.custom_opti_no]);
+            // Toplu işlem sonrası sayfayı yenile - kaldır çünkü mutation zaten cache'i güncelliyor
+            // await queryClient.invalidateQueries(['sacKesimOptInfo', currentOpt?.custom_opti_no]);
             
             toast.current.show({
                 severity: 'success',
@@ -209,7 +209,7 @@ const SacKesim = () => {
             setIsCompleting(false);
             setShowProgressDialog(false);
         }
-    }, [sacKesimOptInfo?.dst_list, currentOperation, currentJobcard, updateDSTListMutation, isInputDisabled, queryClient, currentOpt?.custom_opti_no]);
+    }, [sacKesimOptInfo?.dst_list, currentOperation, currentJobcard, updateDSTListMutation, isInputDisabled, currentOpt?.custom_opti_no]);
 
     // Template Functions
     const actionTemplate = useCallback((rowData) => {

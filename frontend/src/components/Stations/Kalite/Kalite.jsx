@@ -115,6 +115,13 @@ const Kalite = () => {
         setLoading(false);
         return;
       }
+      if(barcodeDetails?.status === "information_only") {
+        toast.info("Barkod zaten tamamlanmış");
+        setCurrentJobcard(barcodeDetails?.job_card);
+        setTesDetay(barcodeDetails);
+        setIsBgActive(true);
+        setLastScannedBarkod(barcodeValue); // Son okunan barkodu kaydet
+      }
       // Poz selection ekle
       if (barcodeDetails.status === "multiple_options") {
         setPozOptions(barcodeDetails.options);
