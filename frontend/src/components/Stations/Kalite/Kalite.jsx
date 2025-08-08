@@ -63,7 +63,7 @@ const Kalite = () => {
 
   const getQualityLabelItems = useCallback(async (qualityCheckCode, totalMtul) => {
     if (!qualityCheckCode || !totalMtul) return null;
-    
+
     try {
       const response = await fetch(
         `${baseUrl}/method/ozerpanjobcard.api.get_quality_label_items?quality_check_code=${qualityCheckCode}&total_mtul=${totalMtul}`,
@@ -91,10 +91,10 @@ const Kalite = () => {
   const handleBarkodChange = useCallback(async (e) => {
     const barcodeValue = e.target.value;
     if (!barcodeValue) return;
-    
+
     setActiveBarcode(barcodeValue);
     setLoading(true);
-    
+
     try {
       const barcodeDetails = await barcodeAction({
         barcode: barcodeValue,
@@ -102,7 +102,7 @@ const Kalite = () => {
         operation: currentOperation?.operations,
       });
       console.log("barcodeDetails", barcodeDetails);
-      
+
       if (!barcodeDetails) {
         setLoading(false);
         return;
@@ -115,7 +115,7 @@ const Kalite = () => {
         setLoading(false);
         return;
       }
-      if(barcodeDetails?.status === "information_only") {
+      if (barcodeDetails?.status === "information_only") {
         toast.info("Barkod zaten tamamlanmış");
         setCurrentJobcard(barcodeDetails?.job_card);
         setTesDetay(barcodeDetails);
@@ -132,14 +132,14 @@ const Kalite = () => {
       }
       setCurrentJobcard(barcodeDetails?.message?.job_card);
       setTesDetay(barcodeDetails);
-      
+
       const frameCode = barcodeDetails?.poz_data?.items?.ana_profil?.[0]?.item_code.slice(0, 5);
       const newQualityCheckCode = parseInt(frameCode);
       setQualityCheckCode(newQualityCheckCode);
-      
+
       const calculatedMtul = barcodeDetails?.poz_data?.items?.ana_profil?.[0]?.quantity * 1000 || 0;
       setTotalMtul(calculatedMtul);
-      
+
       // Fetch label info after states are set
       const labelItems = await getQualityLabelItems(newQualityCheckCode, calculatedMtul);
       setLabelInfo(labelItems);
@@ -154,7 +154,7 @@ const Kalite = () => {
 
   const handleOnayla = useCallback(async (errorData) => {
     if (!activeBarcode) return;
-    
+
     setLoading(true);
     try {
       const barcodeDetails = await barcodeAction({
@@ -167,7 +167,7 @@ const Kalite = () => {
           required_operations: [],
         },
       });
-      
+
       if (barcodeDetails) {
         setCurrentJobcard(barcodeDetails?.message?.job_card);
         setTesDetay(barcodeDetails);
@@ -181,7 +181,7 @@ const Kalite = () => {
 
   const handleErrorSubmit = useCallback(async (errorData) => {
     if (!activeBarcode) return;
-    
+
     setLoading(true);
     try {
       const barcodeDetails = await barcodeAction({
@@ -194,7 +194,7 @@ const Kalite = () => {
           required_operations: errorData?.required_operations || [],
         },
       });
-      
+
       if (barcodeDetails) {
         setCurrentJobcard(barcodeDetails?.message?.job_card);
         setTesDetay(barcodeDetails);
@@ -211,7 +211,7 @@ const Kalite = () => {
       console.error("Yazdırma için tesDetay veya labelInfo eksik");
       return;
     }
-    
+
     try {
       await qualityLabelPrint(tesDetay, labelInfo);
     } catch (error) {
@@ -273,7 +273,7 @@ const Kalite = () => {
           <div className="flex flex-col flex-1 bg-slate-100 w-1/4 overflow-auto">
             <div className="w-full flex justify-between items-center bg-slate-200 p-1">
               <ButtonGroup className="flex md:flex-row flex-col gap-2 w-full">
-                <Button label="PVC KİMLİK" icon="pi pi-qrcode" onClick={handlePVCKimlik} className="bg-blue-500 w-full text-white p-1 rounded-md"/>
+                <Button label="PVC KİMLİK" icon="pi pi-qrcode" onClick={handlePVCKimlik} className="bg-blue-500 w-full text-white p-1 rounded-md" />
                 <Button
                   label="KALİTE"
                   icon="pi pi-print"
@@ -315,9 +315,9 @@ const Kalite = () => {
                 onClick={() => handleOnayla(errorData)}
               />
               <div className="space-y-4">
-              <KitInfoCard tesDetay={tesDetay} />
+                <KitInfoCard tesDetay={tesDetay} />
                 <AccessoryInfoCard tesDetay={tesDetay} />
-                
+
               </div>
             </div>
           </div>
@@ -364,16 +364,36 @@ const Kalite = () => {
               order_no: selected.siparis_no,
               poz_no: selected.poz_no,
               sanal_adet: selected.sanal_adet,
+              tesdetay_name: selected.name,             
 
             });
-             // Check for unfinished operations
-      if (barcodeDetails?.status === "error" && barcodeDetails?.error_type === "unfinished operations") {
-        setUnfinishedOps(barcodeDetails.unfinished_operations);
-        setShowUnfinishedOpsModal(true);
-        setLoading(false);
-        return;
-      }
-             else {
+            // Check for unfinished operations
+            if (barcodeDetails?.status === "error" && barcodeDetails?.error_type === "unfinished operations") {
+              setUnfinishedOps(barcodeDetails.unfinished_operations);
+              setShowUnfinishedOpsModal(true);
+              setLoading(false);
+              return;
+            }
+           
+            if (barcodeDetails.status === "multiple_options") {
+              setPozOptions(barcodeDetails.options);
+              setPendingBarcode(barcodeValue); // Barkodu sakla
+              setPozModalVisible(true);
+              setLoading(false);
+              return; // Diğer işlemleri durdur
+            }
+            if (barcodeDetails?.status === "error") {
+              toast.error(barcodeDetails?.message);
+              setIsBgActive(false);
+            } 
+            if(barcodeDetails?.status === "information_only") {
+             toast.info("Barkod zaten tamamlanmış");
+             setCurrentJobcard(barcodeDetails?.job_card);
+             setTesDetay(barcodeDetails);
+             setIsBgActive(true);
+             setLastScannedBarkod(barcodeValue); // Son okunan barkodu kaydet
+           }
+            else {
               setCurrentJobcard(barcodeDetails?.message?.job_card);
               setTesDetay(barcodeDetails);
               // Kalite için ek state güncellemeleri

@@ -124,7 +124,6 @@ const Navbar = () => {
   };
 
   const handleClick = async (e) => {
-    console.log("testttt", currentJobcard)
     const status =
       currentJobcardStatus === "Open" || currentJobcardStatus === "On Hold"
         ? "Work In Progress"
@@ -135,7 +134,7 @@ const Navbar = () => {
       employee: employee?.name,
       operation: currentOperation?.operations,
       reason: reason,
-      status: status,
+      target_status: status,
     });
 
   };
@@ -147,7 +146,7 @@ const Navbar = () => {
         employee: employee?.name,
         operation: currentOperation?.operations,
         reason: reason,
-        status: "Completed",
+        target_status: "Completed",
       });
       await setCurrentOpt(null);
       await setCurrentJobcard(null);
@@ -182,7 +181,7 @@ const Navbar = () => {
           employee: employee?.name,
           operation: currentOperation?.operations,
           reason: reason,          
-          status: "Completed",
+          target_status: "Completed",
         });
         await setCurrentJobcard(null);       
         triggerRefetchPozDetails();

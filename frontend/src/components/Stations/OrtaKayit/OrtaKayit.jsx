@@ -58,7 +58,8 @@ const OrtaKayit = () => {
         setTesDetay(barcodeDetails);
         setIsBgActive(true);
         setLastScannedBarkod(barcodeValue); // Son okunan barkodu kaydet
-      } else {
+      } 
+      else {
         setCurrentJobcard(barcodeDetails?.job_card);
         setTesDetay(barcodeDetails);
         setIsBgActive(true);
@@ -198,20 +199,29 @@ const OrtaKayit = () => {
               operation: currentOperation?.operations,
               order_no: selected.siparis_no,
               poz_no: selected.poz_no,
-              sanal_adet: selected.sanal_adet
+              sanal_adet: selected.sanal_adet,
+              tesdetay_name: selected.name,
+
             });
-            console.log(barcodeDetails)
+            if (barcodeDetails.status === "multiple_options") {
+              setPozOptions(barcodeDetails.options);
+              setPendingBarcode(barcodeValue); // Barkodu sakla
+              setPozModalVisible(true);
+              setLoading(false);
+              return; // Diğer işlemleri durdur
+            }
             if (barcodeDetails?.status === "error") {
               toast.error(barcodeDetails?.message);
               setIsBgActive(false);
-            } else {
-              setCurrentJobcard(barcodeDetails?.job_card);
-              setTesDetay(barcodeDetails);
-              setIsBgActive(true);
-              setLastScannedBarkod(pendingBarcode); // Son okunan barkodu kaydet
-            }
+            } 
+            if(barcodeDetails?.status === "information_only") {
+             toast.info("Barkod zaten tamamlanmış");
+             setCurrentJobcard(barcodeDetails?.job_card);
+             setTesDetay(barcodeDetails);
+             setIsBgActive(true);
+             setLastScannedBarkod(barcodeValue); // Son okunan barkodu kaydet
+           }
           } finally {
-            console.log("barcodeDetails after modal",tesDetay)
             setLoading(false);
             setCurrentBarkod("");
             setPendingBarcode(""); // Temizle
