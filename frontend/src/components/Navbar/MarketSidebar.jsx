@@ -19,6 +19,7 @@ const MarketSidebar = ({ setPozBomData }) => {
     currentOperation,
     setCurrentOpt,
     setCurrentJobcard, setCurrentJobcardStatus,
+    setCurrentJobcardNames, setCurrentSelectedJobCard,
     currentOpt, setFilters,
     jobCardList,
     setIsLoading,
@@ -29,6 +30,8 @@ const MarketSidebar = ({ setPozBomData }) => {
     setCurrentOperation(e.value);
     setCurrentOpt({});
     setCurrentJobcard({});
+    setCurrentJobcardNames([]);
+    setCurrentSelectedJobCard(null);
     setPoz({});
     setCurrentJobcardStatus();
     // setFilters([["operation", "=", e.value.operations]]);
@@ -63,7 +66,7 @@ const MarketSidebar = ({ setPozBomData }) => {
       .map((item) => item.name);
 
 
-    await setCurrentJobcard(jobCardNames);
+    await setCurrentJobcardNames(jobCardNames);
     console.log("jobCardList", jobCardList)
     setIsLoading(false);
   };
@@ -85,8 +88,8 @@ const MarketSidebar = ({ setPozBomData }) => {
           job_cards: bomData.job_cards,
           bom_name: bomData.bom_name
         });
-        setCurrentJobcard(bomData?.job_cards[0])
-        console.log(bomData);
+        setCurrentSelectedJobCard(bomData?.job_cards[0])
+        console.log(bomData?.job_cards[0]);
       }
     };
 

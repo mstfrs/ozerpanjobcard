@@ -1,11 +1,37 @@
 import { Button } from "primereact/button";
 import useJobcardsStore from "../../store/jobcardStore"
+import { MdNotStarted,MdStop } from "react-icons/md";
+import { updateJobCard } from "../../services/JobCardServices";
 
 const MarketNavbar = () => {
-    const {
-        currentJobCard
-    }
-    =useJobcardsStore();
+  const {
+    currentSelectedJobCard,
+    currentJobcardStatus, 
+    employee,
+    setCurrentJobcardStatus,
+    currentJobcard,
+    currentOperation,currentJobcardNames
+  }
+    = useJobcardsStore();
+    
+  
+    const handleClick = async (e) => {
+      console.log("Click çalıştı")
+      const status =
+        currentJobcardStatus === "Open" || currentJobcardStatus === "On Hold"
+          ? "Work In Progress"
+          : "On Hold";
+      setCurrentJobcardStatus(status);
+      await updateJobCard({
+        job_cards: currentJobcardNames,
+        employee: employee?.name,
+        operation: currentOperation?.operations,
+        reason: "test",
+        status: status,
+      });
+  
+    };
+
   return (
     <div>
       <nav className="bg-slate-400">
@@ -38,29 +64,48 @@ const MarketNavbar = () => {
               <div className="flex shrink-0 items-center">
                 <img className="h-16 w-auto" src="/alenda.png" alt="Your Company" />
               </div>
-              <div className="hidden sm:ml-6 sm:block w-full">
-                <div className="flex  my-auto items-center justify-center w-full space-x-4 h-full">
-                    <Button label="Danger" severity="danger" rounded />
-                  
-    <Button label="Save" icon="pi pi-check" />
-    <Button label="Delete" icon="pi pi-trash" />
-    <Button label="Cancel" icon="pi pi-times" />
-                  {/* <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" --> */}
-                  {/* <a href="#" className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white" aria-current="page">Dashboard</a> */}
-                  {/* <a href="#" className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Team</a> */}
-                  {/* <a href="#" className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Projects</a> */}
-                  {/* <a href="#" className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Calendar</a> */}
+              {
+                currentSelectedJobCard &&
+                <div className="hidden sm:ml-6 sm:block w-full">
+                  <div className="flex  my-auto items-center justify-center w-full space-x-4 h-full">
+
+                    <div class="max-w-lg mx-auto flex flex-col justify-center items-center gap-4 sm:flex-row ">
+                      <a onClick={handleClick} class="group relative inline-flex border border-red-500 focus:outline-none w-full sm:w-auto" >
+                        <span class="w-full inline-flex items-center justify-center self-stretch px-3 py-1 text-sm text-white text-center font-bold uppercase bg-red-500 ring-1 ring-red-500 ring-offset-1 ring-offset-red-500 transform transition-transform group-hover:-translate-y-1 group-hover:-translate-x-1 group-focus:-translate-y-1 group-focus:-translate-x-1">
+                      <MdNotStarted className="mr-2" size={20}/>
+
+                          Başlat
+                        </span>
+                      </a>
+                      <a class="group relative inline-flex border border-red-600 focus:outline-none w-full sm:w-auto"
+                        href="" target="_blank">
+                        <span class="w-full inline-flex items-center justify-center self-stretch px-3 py-1 text-sm text-red-600 text-center font-bold uppercase bg-white ring-1 ring-red-600 ring-offset-1 transform transition-transform group-hover:-translate-y-1 group-hover:-translate-x-1 group-focus:-translate-y-1 group-focus:-translate-x-1">
+                        <MdStop className="mr-2" size={20}/>Tamamla</span>
+                      </a>
+                    </div>
+                    {/* <Button label="Başlat" icon="pi pi-play" severity="danger" rounded />
+
+                    <Button label="Tamamla" icon="pi pi-stop" /> */}
+
+                    {/* <!-- Current: "bg-gray-900 text-white", Default: "text-gray-300 hover:bg-gray-700 hover:text-white" --> */}
+                    {/* <a href="#" className="rounded-md bg-gray-900 px-3 py-2 text-sm font-medium text-white" aria-current="page">Dashboard</a> */}
+                    {/* <a href="#" className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Team</a> */}
+                    {/* <a href="#" className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Projects</a> */}
+                    {/* <a href="#" className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 hover:bg-gray-700 hover:text-white">Calendar</a> */}
+                  </div>
                 </div>
-              </div>
+
+              }
+
             </div>
             <div className="absolute inset-y-0 right-0 flex items-center pr-2 sm:static sm:inset-auto sm:ml-6 sm:pr-0">
-              <button type="button" className="relative rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-hidden">
+              {/* <button type="button" className="relative rounded-full bg-gray-800 p-1 text-gray-400 hover:text-white focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-800 focus:outline-hidden">
                 <span className="absolute -inset-1.5"></span>
                 <span className="sr-only">View notifications</span>
                 <svg className="size-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true" data-slot="icon">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
                 </svg>
-              </button>
+              </button> */}
 
               {/* <!-- Profile dropdown --> */}
               <div className="relative ml-3">
@@ -68,7 +113,7 @@ const MarketNavbar = () => {
                   <button type="button" className="relative flex rounded-full bg-gray-800 text-sm focus:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-gray-800" id="user-menu-button" aria-expanded="false" aria-haspopup="true">
                     <span className="absolute -inset-1.5"></span>
                     <span className="sr-only">Open user menu</span>
-                    <img className="size-8 rounded-full" src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&ixid=eyJhcHBfaWQiOjEyMDd9&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="" />
+                    <img className="size-8 rounded-full" src={employee?.image} alt="" />
                   </button>
                 </div>
 

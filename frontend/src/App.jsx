@@ -13,9 +13,10 @@ import {
 } from '@tanstack/react-query'
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Bayipanel from './pages/Bayipanel';
+import Bayipanel from './pages/Bayi/Bayipanel';
 import Market from './pages/Market';
 import DeliveryNoteCreate from './pages/DeliveryNoteCreate';
+import Orders from './pages/Bayi/Orders';
 const queryClient = new QueryClient()
 const basePath = import.meta.env.VITE_BASE_PATH || '/';
 
@@ -35,7 +36,8 @@ function App() {
 							<Route element={<Login />} path="/login" />
 							<Route element={<ProtectedRoute />}>
 								<Route element={<Jobcards />} path="/jobcards" />
-								<Route element={<Bayipanel />} path="/bayipanel" />
+								<Route element={<Bayipanel />} path="/delaerpanel" />
+								<Route element={<Orders />} path="/delaerpanel/orders" />
 								<Route element={<Market/>} path='/market' />
 								<Route element={<DeliveryNoteCreate/>} path='/sevkiyat'/>
 							</Route>
