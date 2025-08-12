@@ -952,6 +952,9 @@ def create_delivery_note_from_sales_orders(
             
         if not dn_names:
             frappe.throw("Teslim edilecek hazır ürün bulunamadı.")
+        # Teslim fişleri oluşturulduktan sonra ilgili Sales Order kalemlerinin delivered_qty değerlerini
+        # Delivery Note Item kayıtlarına göre yeniden hesapla. Böylece tam teslim edilen ürünler poz listesinde görünmez.
+        recalculate_sales_order_delivered_qty(sales_orders)
         return dn_names
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Delivery Note Creation Error")
@@ -1461,3 +1464,99 @@ def get_delivered_qty_by_item_codes(customer, sales_orders, item_codes):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Delivered Qty By Item Codes Error")
         return {}
+        
+@frappe.whitelist(allow_guest=False)
+def get_customer_by_logged_user():
+    """Return Customer linked to the logged-in User (via Customer.custom_user_link),
+    along with primary Address and primary Contact details.
+
+    - Customer is matched where custom_user_link == frappe.session.user
+    - Address/Contact are resolved via Dynamic Link
+    - Returns dict: { customer, primary_address, primary_contact }
+    """
+    try:
+        user = frappe.session.user
+        if not user or user == "Guest":
+            frappe.throw("Authentication required")
+
+        customers = frappe.get_all(
+            "Customer",
+            filters={"custom_user_link": user},
+            fields=["*"]
+        )
+        if not customers:
+            return {"customer": None, "primary_address": None, "primary_contact": None}
+
+        customer = customers[0]
+        customer_name = customer.get("name")
+
+        # Fetch primary Address linked to this Customer via Dynamic Link
+        primary_address = frappe.db.sql(
+            """
+            SELECT a.*
+            FROM `tabAddress` a
+            INNER JOIN `tabDynamic Link` dl ON dl.parent = a.name
+            WHERE dl.link_doctype = 'Customer' AND dl.link_name = %s
+            ORDER BY a.is_primary_address DESC, a.creation DESC
+            LIMIT 1
+            """,
+            (customer_name,),
+            as_dict=True,
+        )
+        primary_address = primary_address[0] if primary_address else None
+
+        # Fetch primary Contact linked to this Customer via Dynamic Link
+        primary_contact = frappe.db.sql(
+            """
+            SELECT c.*
+            FROM `tabContact` c
+            INNER JOIN `tabDynamic Link` dl ON dl.parent = c.name
+            WHERE dl.link_doctype = 'Customer' AND dl.link_name = %s
+            ORDER BY c.is_primary_address DESC, c.creation DESC
+            LIMIT 1
+            """,
+            (customer_name,),
+            as_dict=True,
+        )
+        primary_contact = primary_contact[0] if primary_contact else None
+
+        return {
+            "customer": customer,
+            "primary_address": primary_address,
+            "primary_contact": primary_contact,
+        }
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "get_customer_by_logged_user error")
+        frappe.throw(str(e))
+
+def recalculate_sales_order_delivered_qty(sales_orders):
+    """Recalculate delivered_qty on Sales Order Items from submitted Delivery Note Items.
+    Ensures fully delivered items no longer appear in Pozlar list which relies on Sales Order delivered_qty.
+    """
+    try:
+        # sales_orders parametresi string gelirse parse et
+        if isinstance(sales_orders, str):
+            import json
+            sales_orders = json.loads(sales_orders)
+        if not sales_orders:
+            return
+        for so_name in sales_orders:
+            so_doc = frappe.get_doc("Sales Order", so_name)
+            for so_item in so_doc.items:
+                delivered_qty = frappe.db.sql(
+                    """
+                    SELECT COALESCE(SUM(dni.qty), 0)
+                    FROM `tabDelivery Note Item` dni
+                    INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
+                    WHERE dn.docstatus = 1
+                      AND dni.so_detail = %s
+                    """,
+                    (so_item.name,),
+                )[0][0] or 0
+                so_item.delivered_qty = delivered_qty
+            # Sales Order üzerinde submit sonrası alan güncellemesine izin ver
+            so_doc.flags.ignore_permissions = True
+            so_doc.flags.ignore_validate_update_after_submit = True
+            so_doc.save()
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Recalculate SO delivered_qty Error")
