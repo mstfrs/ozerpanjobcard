@@ -204,15 +204,14 @@ export async function getDeliveredItemCountsByCustomerAndSalesOrders(customer, s
   return data.message;
 }
 
-export async function getSerialNumbersForItem(itemCode, warehouse = null, qty = 1) {
+export async function getSerialNumbersForItem(itemCode, qty = 1) {
   const res = await fetch('/api/method/ozerpanjobcard.api.get_serial_numbers_for_item', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ 
-      item_code: itemCode, 
-      warehouse: warehouse,
+      item_code: itemCode,     
       qty: qty
     }),
   });

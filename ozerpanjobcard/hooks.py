@@ -241,7 +241,7 @@ override_doctype_class = {
 #
 override_whitelisted_methods = {
 	# "frappe.desk.doctype.event.event.get_events": "ozerpanjobcard.event.get_events"
-	"erpnext.manufacturing.doctype.production_plan.production_plan.get_items_for_material_requests": "ozerpanjobcard.production_plan_hooks.get_items_for_material_requests.get_items_for_material_requests"
+	# "erpnext.manufacturing.doctype.production_plan.production_plan.get_items_for_material_requests": "ozerpanjobcard.production_plan_hooks.get_items_for_material_requests.get_items_for_material_requests"
 }
 #
 # each overriding function accepts a `data` argument;

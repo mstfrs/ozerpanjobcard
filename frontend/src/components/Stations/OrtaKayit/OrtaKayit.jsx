@@ -221,6 +221,12 @@ const OrtaKayit = () => {
              setIsBgActive(true);
              setLastScannedBarkod(barcodeValue); // Son okunan barkodu kaydet
            }
+           else {
+            setCurrentJobcard(barcodeDetails?.job_card);
+            setTesDetay(barcodeDetails);
+            setIsBgActive(true);
+            setLastScannedBarkod(pendingBarcode); // Son okunan barkodu kaydet
+          }
           } finally {
             setLoading(false);
             setCurrentBarkod("");
