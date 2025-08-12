@@ -1,18 +1,45 @@
 const baseUrl = import.meta.env.VITE_BASE_URL;
 
 // Tüm Super Kesim kayıtlarını getir
+// export const getAllSuperKesimRecords = async () => {
+//   try {
+//     const response = await fetch(
+//       `${baseUrl}/resource/Super Kesim?fields=["name","machine_no","opt_no"]&filters=[["status","!=","Tamamlandı"]]`,
+//       {
+//         method: "GET",
+//         credentials: "include",
+//       }
+//     );
+//     if (!response.ok) {
+//       throw new Error(`HTTP error! status: ${response.status}`);
+//     }
+//     const data = await response.json();
+//     return data.data;
+//   } catch (error) {
+//     console.error("Super Kesim Records Fetch Error:", error);
+//     throw error;
+//   }
+// };
+
 export const getAllSuperKesimRecords = async () => {
   try {
+    const fields = encodeURIComponent(JSON.stringify(["name", "machine_no", "opt_no"]));
+    const filters = encodeURIComponent(JSON.stringify([["status", "!=", "Tamamlandı"]]));
+
+    const limit = 100;
+
     const response = await fetch(
-      `${baseUrl}/resource/Super Kesim?fields=["name","machine_no","opt_no"]&filters=[["status","!=","Tamamlandı"]]`,
+      `${baseUrl}/resource/Super Kesim?fields=${fields}&filters=${filters}&limit=${limit}`,
       {
         method: "GET",
         credentials: "include",
       }
     );
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
+
     const data = await response.json();
     return data.data;
   } catch (error) {
@@ -20,6 +47,7 @@ export const getAllSuperKesimRecords = async () => {
     throw error;
   }
 };
+
 
 // Super Kesim kaydını tamamla
 export const completeSuperKesim = async (name) => {
@@ -86,6 +114,8 @@ export const getSuperKesimProfilDetails = async (name) => {
     throw error;
   }
 };
+
+
 
 export const updateSuperKesimProfileList = async (id, payload) => {
   if (!id || !payload) {
