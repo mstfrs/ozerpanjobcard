@@ -826,64 +826,63 @@ def create_delivery_note_from_sales_orders(
             # Clear existing items
             dn_doc.items = []
             
-            so_doc = frappe.get_doc("Sales Order", so_name)
+            # so_doc = frappe.get_doc("Sales Order", so_name)
+            so_doc = frappe.get_all("Sales Order Item", filters={"parent": so_name}, fields=["item_code", "item_name", "qty", "rate", "warehouse", "uom"])
+          
             
             for detail in item_details:
-                so_item = next((i for i in so_doc.items if i.item_code == detail["item_code"]), None)
-                
+                so_item = next((i for i in so_doc if i.item_code == detail["item_code"]), None)
                 if so_item:
                     # Directly copy price fields from Sales Order Item instead of using get_item_details
                     item_dict = {
                         "item_code": detail["item_code"],
                         "qty": float(detail.get("qty", 1)),
-                        "against_sales_order": so_name,
-                        "so_detail": so_item.name,
-                        "warehouse": so_item.warehouse if hasattr(so_item, 'warehouse') else None,
-                        "rate": so_item.rate,
-                        "amount": so_item.amount,
-                        "net_rate": so_item.net_rate,
-                        "net_amount": so_item.net_amount,
-                        "price_list_rate": so_item.price_list_rate,
-                        "base_price_list_rate": so_item.base_price_list_rate,
-                        "base_rate": so_item.base_rate,
-                        "base_amount": so_item.base_amount,
-                        "base_net_rate": so_item.base_net_rate,
-                        "base_net_amount": so_item.base_net_amount,
-                        "uom": so_item.uom,
-                        "stock_uom": so_item.stock_uom,
-                        "conversion_factor": so_item.conversion_factor,
-                        "stock_qty": so_item.stock_qty,
-                        "item_name": so_item.item_name,
-                        "description": so_item.description,
-                        "cost_center": so_item.cost_center,
-                        "item_group": so_item.item_group,
-                        "brand": so_item.brand,
-                        "image": so_item.image,
-                        "margin_type": so_item.margin_type,
-                        "margin_rate_or_amount": so_item.margin_rate_or_amount,
-                        "rate_with_margin": so_item.rate_with_margin,
-                        "discount_percentage": so_item.discount_percentage,
-                        "discount_amount": so_item.discount_amount,
-                        "distributed_discount_amount": so_item.distributed_discount_amount,
-                        "base_rate_with_margin": so_item.base_rate_with_margin,
-                        "pricing_rules": so_item.pricing_rules,
-                        "stock_uom_rate": so_item.stock_uom_rate,
-                        "is_free_item": so_item.is_free_item,
-                        "grant_commission": so_item.grant_commission,
-                        "item_tax_template": so_item.item_tax_template,
-                        "billed_amt": so_item.billed_amt,
-                        "weight_per_unit": so_item.weight_per_unit,
-                        "total_weight": so_item.total_weight,
-                        "weight_uom": so_item.weight_uom,
-                        "target_warehouse": so_item.target_warehouse,
-                        
-                        "actual_qty": 0.0,  # Set to 0.0 to avoid stock issues
-                        "returned_qty": 0.0,  # Set to 0.0 to avoid NoneType error
-                        
-                        "item_tax_rate": so_item.item_tax_rate,
+                        # "against_sales_order": so_name,
+                        # "so_detail": so_item.name,
+                        # "warehouse": so_item.warehouse if hasattr(so_item, 'warehouse') else None,
+                        # "rate": so_item.rate,
+                        # "amount": so_item.qty,
+                        # "net_rate": so_item.net_rate,
+                        # "net_amount": so_item.net_amount,
+                        # "price_list_rate": so_item.price_list_rate,
+                        # "base_price_list_rate": so_item.base_price_list_rate,
+                        # "base_rate": so_item.base_rate,
+                        # "base_amount": so_item.base_amount,
+                        # "base_net_rate": so_item.base_net_rate,
+                        # "base_net_amount": so_item.base_net_amount,
+                        # "uom": so_item.uom,
+                        # "stock_uom": so_item.stock_uom,
+                        # "conversion_factor": so_item.conversion_factor,
+                        # "stock_qty": so_item.stock_qty,
+                        # "item_name": so_item.item_name,
+                        # "description": so_item.description,
+                        # "cost_center": so_item.cost_center,
+                        # "item_group": so_item.item_group,
+                        # "brand": so_item.brand,
+                        # "image": so_item.image,
+                        # "margin_type": so_item.margin_type,
+                        # "margin_rate_or_amount": so_item.margin_rate_or_amount,
+                        # "rate_with_margin": so_item.rate_with_margin,
+                        # "discount_percentage": so_item.discount_percentage,
+                        # "discount_amount": so_item.discount_amount,
+                        # "base_rate_with_margin": so_item.base_rate_with_margin,
+                        # "pricing_rules": so_item.pricing_rules,
+                        # "stock_uom_rate": so_item.stock_uom_rate,
+                        # "is_free_item": so_item.is_free_item,
+                        # "grant_commission": so_item.grant_commission,
+                        # "item_tax_template": so_item.item_tax_template,
+                        # "billed_amt": so_item.billed_amt,
+                        # "weight_per_unit": so_item.weight_per_unit,
+                        # "total_weight": so_item.total_weight,
+                        # "weight_uom": so_item.weight_uom,
+                        # "target_warehouse": so_item.target_warehouse,                        
+                        # "actual_qty": 0.0,  # Set to 0.0 to avoid stock issues
+                        # "returned_qty": 0.0,  # Set to 0.0 to avoid NoneType error                        
+                        # "item_tax_rate": so_item.item_tax_rate,
+                        "use_serial_batch_fields": 1,
                      
                     }
-                    
+          
                     # Item'ın seri numarası zorunlu olup olmadığını kontrol et
                     item_doc = frappe.get_doc("Item", detail["item_code"])
                     has_serial_no = item_doc.has_serial_no
@@ -891,8 +890,7 @@ def create_delivery_note_from_sales_orders(
                     # Eğer seri numarası zorunluysa, seri numarası ekle
                     if has_serial_no:
                         # FIFO sırasına göre seri numaralarını al
-                        serial_numbers = get_serial_numbers_for_item(detail["item_code"], so_item.warehouse, int(detail.get("qty", 1)))
-                        
+                        serial_numbers = get_serial_numbers_for_item(detail["item_code"],  int(detail.get("qty", 1)))
                         if serial_numbers:
                             item_dict["serial_no"] = serial_numbers[0]  # İlk seri numarasını kullan
                             frappe.logger().debug(f"Item {detail['item_code']} için seri numarası: {serial_numbers[0]}")
@@ -907,7 +905,6 @@ def create_delivery_note_from_sales_orders(
             
             # Call set_missing_values() to set default values like expense_account
             dn_doc.set_missing_values()
-            
             # Allow negative stock for delivery note - stok kontrolünü bypass et
             dn_doc.allow_negative_stock = 1
             
@@ -938,7 +935,7 @@ def create_delivery_note_from_sales_orders(
             total_amount = sum(item.amount for item in dn_doc.items)
             total_base_amount = sum(item.base_amount for item in dn_doc.items)
             total_net_amount = sum(item.net_amount for item in dn_doc.items)
-            total_base_net_amount = sum(item.base_net_amount for item in dn_doc.items)
+            total_base_net_amount = sum((item.base_net_amount or 0) for item in dn_doc.items)
             
             dn_doc.total = total_amount
             dn_doc.base_total = total_base_amount
@@ -955,9 +952,6 @@ def create_delivery_note_from_sales_orders(
             
         if not dn_names:
             frappe.throw("Teslim edilecek hazır ürün bulunamadı.")
-        # Teslim fişleri oluşturulduktan sonra ilgili Sales Order kalemlerinin delivered_qty değerlerini
-        # Delivery Note Item kayıtlarına göre yeniden hesapla. Böylece tam teslim edilen ürünler poz listesinde görünmez.
-        recalculate_sales_order_delivered_qty(sales_orders)
         return dn_names
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Delivery Note Creation Error")
@@ -1353,8 +1347,40 @@ def get_delivered_item_counts_by_customer_and_sales_orders(customer, sales_order
         frappe.log_error(frappe.get_traceback(), "Get Delivered Item Counts Error")
         return {}
 
+
+# def get_serial_numbers_for_item(item_code, warehouse=None, qty=1):
+#     print("DEBUG --- 2", item_code, warehouse, qty)
+#     """Belirli ürün için FIFO sırasına göre seri numaralarını getir"""
+#     try:
+#         # Item'ın seri numarası zorunlu olup olmadığını kontrol et
+#         item_doc = frappe.get_doc("Item", item_code)
+#         has_serial_no = item_doc.has_serial_no
+        
+#         # Seri numaralarını FIFO sırasına göre getir
+#         filters = {
+#             "item_code": item_code,
+#             "status": "Active"
+#         }
+        
+#         if warehouse:
+#             filters["warehouse"] = warehouse
+        
+#         serial_nos = frappe.get_all(
+#             "Serial No",
+#             filters=filters,
+#             fields=["name", "warehouse"],
+#             order_by="creation asc",  # FIFO sırası
+#             limit=int(qty)
+#         )
+        
+#         return [sn.name for sn in serial_nos]
+        
+#     except Exception as e:
+#         frappe.log_error(frappe.get_traceback(), "Get Serial Numbers Error")
+#         return []
+
 @frappe.whitelist(allow_guest=True)
-def get_serial_numbers_for_item(item_code, warehouse=None, qty=1):
+def get_serial_numbers_for_item(item_code, qty=1):
     """Belirli ürün için FIFO sırasına göre seri numaralarını getir"""
     try:
         # Item'ın seri numarası zorunlu olup olmadığını kontrol et
@@ -1367,22 +1393,20 @@ def get_serial_numbers_for_item(item_code, warehouse=None, qty=1):
             "status": "Active"
         }
         
-        if warehouse:
-            filters["warehouse"] = warehouse
-        
         serial_nos = frappe.get_all(
             "Serial No",
             filters=filters,
-            fields=["name", "warehouse"],
+            fields=["name"],
             order_by="creation asc",  # FIFO sırası
             limit=int(qty)
         )
         
         return [sn.name for sn in serial_nos]
         
-    except Exception as e:
+    except Exception:
         frappe.log_error(frappe.get_traceback(), "Get Serial Numbers Error")
         return []
+
 
 @frappe.whitelist(allow_guest=True)
 def get_delivered_qty_by_item_codes(customer, sales_orders, item_codes):
@@ -1437,99 +1461,3 @@ def get_delivered_qty_by_item_codes(customer, sales_orders, item_codes):
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Delivered Qty By Item Codes Error")
         return {}
-
-@frappe.whitelist(allow_guest=False)
-def get_customer_by_logged_user():
-    """Return Customer linked to the logged-in User (via Customer.custom_user_link),
-    along with primary Address and primary Contact details.
-
-    - Customer is matched where custom_user_link == frappe.session.user
-    - Address/Contact are resolved via Dynamic Link
-    - Returns dict: { customer, primary_address, primary_contact }
-    """
-    try:
-        user = frappe.session.user
-        if not user or user == "Guest":
-            frappe.throw("Authentication required")
-
-        customers = frappe.get_all(
-            "Customer",
-            filters={"custom_user_link": user},
-            fields=["*"]
-        )
-        if not customers:
-            return {"customer": None, "primary_address": None, "primary_contact": None}
-
-        customer = customers[0]
-        customer_name = customer.get("name")
-
-        # Fetch primary Address linked to this Customer via Dynamic Link
-        primary_address = frappe.db.sql(
-            """
-            SELECT a.*
-            FROM `tabAddress` a
-            INNER JOIN `tabDynamic Link` dl ON dl.parent = a.name
-            WHERE dl.link_doctype = 'Customer' AND dl.link_name = %s
-            ORDER BY a.is_primary_address DESC, a.creation DESC
-            LIMIT 1
-            """,
-            (customer_name,),
-            as_dict=True,
-        )
-        primary_address = primary_address[0] if primary_address else None
-
-        # Fetch primary Contact linked to this Customer via Dynamic Link
-        primary_contact = frappe.db.sql(
-            """
-            SELECT c.*
-            FROM `tabContact` c
-            INNER JOIN `tabDynamic Link` dl ON dl.parent = c.name
-            WHERE dl.link_doctype = 'Customer' AND dl.link_name = %s
-            ORDER BY c.is_primary_contact DESC, c.creation DESC
-            LIMIT 1
-            """,
-            (customer_name,),
-            as_dict=True,
-        )
-        primary_contact = primary_contact[0] if primary_contact else None
-
-        return {
-            "customer": customer,
-            "primary_address": primary_address,
-            "primary_contact": primary_contact,
-        }
-    except Exception as e:
-        frappe.log_error(frappe.get_traceback(), "get_customer_by_logged_user error")
-        frappe.throw(str(e))
-
-def recalculate_sales_order_delivered_qty(sales_orders):
-    """Recalculate delivered_qty on Sales Order Items from submitted Delivery Note Items.
-    Ensures fully delivered items no longer appear in Pozlar list which relies on Sales Order delivered_qty.
-    """
-    try:
-        # sales_orders parametresi string gelirse parse et
-        if isinstance(sales_orders, str):
-            import json
-            sales_orders = json.loads(sales_orders)
-        if not sales_orders:
-            return
-        for so_name in sales_orders:
-            so_doc = frappe.get_doc("Sales Order", so_name)
-            for so_item in so_doc.items:
-                delivered_qty = frappe.db.sql(
-                    """
-                    SELECT COALESCE(SUM(dni.qty), 0)
-                    FROM `tabDelivery Note Item` dni
-                    INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
-                    WHERE dn.docstatus = 1
-                      AND dni.so_detail = %s
-                    """,
-                    (so_item.name,),
-                )[0][0] or 0
-                so_item.delivered_qty = delivered_qty
-            # Sales Order üzerinde submit sonrası alan güncellemesine izin ver
-            so_doc.flags.ignore_permissions = True
-            so_doc.flags.ignore_validate_update_after_submit = True
-            so_doc.save()
-    except Exception as e:
-        frappe.log_error(frappe.get_traceback(), "Recalculate SO delivered_qty Error")
