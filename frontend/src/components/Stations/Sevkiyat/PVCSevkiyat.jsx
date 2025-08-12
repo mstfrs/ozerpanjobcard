@@ -482,7 +482,7 @@ export default function PVCSevkiyat() {
                 <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>POZLAR</h3>
                 <div style={{ fontSize: 13, flex: 1, minHeight: 0, overflow: 'auto' }}>
                   <DataTable 
-                    value={pvcPozlar} 
+                    value={pvcPozlar.filter(p => (parseFloat(p.qty) || 0) > 0)} 
                     emptyMessage="Ürün yok" 
                     loading={loading} 
                     className="text-xs" 
@@ -490,7 +490,7 @@ export default function PVCSevkiyat() {
                     selection={selectedPozlar}
                     onSelectionChange={(e) => setSelectedPozlar(e.value)}
                     selectionMode="multiple"
-                    rowSelectable={(data) => data.is_ready === 'Hazır'}
+                    rowSelectable={(data) => data.is_ready === 'Hazır' && (parseFloat(data.qty) || 0) > 0}
                     scrollable
                     scrollHeight="200px"
                   >

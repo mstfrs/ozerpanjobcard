@@ -68,6 +68,7 @@ export async function createDeliveryNote(salesOrders, customer, itemGroup, itemC
       ...customFields // custom_recipient, custom_vehicle, custom_delivery_photo
     }),
   });
+  console.log("itemDetails", itemDetails)
   const data = await res.json();
   if (!res.ok) {
     throw new Error(data.message || 'Teslim edilecek hazır ürün bulunamadı.');
