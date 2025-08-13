@@ -534,9 +534,9 @@ def print_surme_label_local():
 
 @frappe.whitelist(allow_guest=True)
 def get_customers_with_undelivered_pvc_items():
-    """PVC ürünleri teslim edilmemiş müşterileri getir - Sadece Work Order'ı tamamlanmış olanlar"""
+    """PVC ürünleri teslim edilmemiş müşterileri getir - Sadece Work Order'ı tamamlanmış ve stokta mevcut olanlar"""
     try:
-        # 1. Work Order'ı tamamlanmış ve teslim edilmemiş PVC ürünleri olan Sales Order'ları bul
+        # 1. Work Order'ı tamamlanmış, stokta mevcut ve teslim edilmemiş PVC ürünleri olan Sales Order'ları bul
         undelivered_pvc_orders = frappe.db.sql('''
             SELECT DISTINCT
                 so.name as sales_order_name,
@@ -557,6 +557,11 @@ def get_customers_with_undelivered_pvc_items():
                 AND soi.delivered_qty < soi.qty
                 AND wo.status = 'Completed'
                 AND wo.docstatus = 1
+                AND EXISTS (
+                    SELECT 1 FROM `tabBin` bin 
+                    WHERE bin.item_code = soi.item_code 
+                    AND bin.actual_qty > 0
+                )
             ORDER BY so.customer, so.name
         ''', as_dict=True)
         
@@ -592,9 +597,9 @@ def get_customers_with_undelivered_pvc_items():
 
 @frappe.whitelist(allow_guest=True)
 def get_customers_with_undelivered_cam_items():
-    """Cam ürünleri teslim edilmemiş müşterileri getir - Sadece Work Order'ı tamamlanmış olanlar"""
+    """Cam ürünleri teslim edilmemiş müşterileri getir - Sadece Work Order'ı tamamlanmış ve stokta mevcut olanlar"""
     try:
-        # 1. Work Order'ı tamamlanmış ve teslim edilmemiş Cam ürünleri olan Sales Order'ları bul
+        # 1. Work Order'ı tamamlanmış, stokta mevcut ve teslim edilmemiş Cam ürünleri olan Sales Order'ları bul
         undelivered_cam_orders = frappe.db.sql('''
             SELECT DISTINCT
                 so.name as sales_order_name,
@@ -615,6 +620,11 @@ def get_customers_with_undelivered_cam_items():
                 AND soi.delivered_qty < soi.qty
                 AND wo.status = 'Completed'
                 AND wo.docstatus = 1
+                AND EXISTS (
+                    SELECT 1 FROM `tabBin` bin 
+                    WHERE bin.item_code = soi.item_code 
+                    AND bin.actual_qty > 0
+                )
             ORDER BY so.customer, so.name
         ''', as_dict=True)
         
@@ -744,37 +754,70 @@ def get_sales_order_items_with_work_order_status(sales_orders):
         sales_orders = json.loads(sales_orders)
     if not sales_orders:
         return []
+    
+    # Sadece Work Order'ı tamamlanmış ürünleri getir
     so_items = frappe.db.sql('''
-        SELECT soi.item_code, soi.item_name, soi.qty, soi.delivered_qty, soi.amount, soi.parent, it.item_group
+        SELECT 
+            soi.item_code, 
+            soi.item_name, 
+            soi.qty, 
+            soi.delivered_qty, 
+            soi.amount, 
+            soi.parent, 
+            it.item_group,
+            wo.name as work_order_name,
+            wo.status as work_order_status
         FROM `tabSales Order Item` soi
         LEFT JOIN `tabItem` it ON it.name = soi.item_code
+        INNER JOIN `tabWork Order` wo ON wo.sales_order = soi.parent AND wo.production_item = soi.item_code
         WHERE soi.parent IN %(parents)s
+            AND wo.status = 'Completed'
+            AND wo.docstatus = 1
     ''', {"parents": tuple(sales_orders)}, as_dict=True)
+    
     # Teslimatı tamamlanmış ürünleri çıkar
     so_items = [item for item in so_items if float(item["delivered_qty"] or 0) < float(item["qty"] or 0)]
     
-    # Her ürün için kalan miktarı hesapla ve qty alanını güncelle
+    # Her ürün için kalan miktarı hesapla ve stok kontrolü yap
+    filtered_items = []
     for item in so_items:
         total_qty = float(item["qty"] or 0)
         delivered_qty = float(item["delivered_qty"] or 0)
         remaining_qty = total_qty - delivered_qty
         
+        # Kalan miktar 0'dan büyükse devam et
+        if remaining_qty <= 0:
+            continue
+        
+        # Tüm depolardaki mevcut stok miktarını kontrol et
+        stock_qty = frappe.db.sql("""
+            SELECT SUM(actual_qty) as total_qty
+            FROM `tabBin` 
+            WHERE item_code = %s 
+            AND actual_qty > 0
+        """, (item["item_code"],), as_dict=True)
+        
+        available_stock = stock_qty[0]["total_qty"] if stock_qty and stock_qty[0]["total_qty"] else 0
+        
+        # Eğer stokta yeterli miktar yoksa bu ürünü atla
+        if available_stock < remaining_qty:
+            continue
+        
+        # Orijinal değerleri sakla
+        item["total_qty"] = total_qty
+        item["delivered_qty"] = delivered_qty
+        item["remaining_qty"] = remaining_qty
+        item["available_stock"] = available_stock
+        
         # qty alanını kalan miktar olarak güncelle
         item["qty"] = remaining_qty
         
-        # Work Order kontrolü
-        wo = frappe.db.exists(
-            "Work Order",
-            {
-                "sales_order": item["parent"],
-                "production_item": item["item_code"],
-                "status": "Completed",
-                "docstatus": 1
-            }
-        )
-        item["is_ready"] = "Hazır" if wo else ""
+        # Work Order zaten tamamlanmış olduğu için hazır
+        item["is_ready"] = "Hazır"
+        
+        filtered_items.append(item)
     
-    return so_items
+    return filtered_items
 
 @frappe.whitelist(allow_guest=True)
 def get_total_cutting_for_sales_orders(sales_orders):
@@ -837,9 +880,9 @@ def create_delivery_note_from_sales_orders(
                     item_dict = {
                         "item_code": detail["item_code"],
                         "qty": float(detail.get("qty", 1)),
-                        # "against_sales_order": so_name,
-                        # "so_detail": so_item.name,
-                        # "warehouse": so_item.warehouse if hasattr(so_item, 'warehouse') else None,
+                        "against_sales_order": so_name,
+                        "so_detail": so_item.name,
+                        "warehouse": so_item.warehouse if hasattr(so_item, 'warehouse') else None,
                         # "rate": so_item.rate,
                         # "amount": so_item.qty,
                         # "net_rate": so_item.net_rate,

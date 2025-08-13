@@ -344,6 +344,7 @@ export default function PVCSevkiyat() {
   // Pozları gruplara ayır
   const pvcPozlar = pozlar.filter(p => p.item_group === 'PVC');
   const camPozlar = pozlar.filter(p => p.item_group === 'Camlar');
+  
   const allPvcReady = pvcPozlar.length > 0 && pvcPozlar.every(p => p.is_ready === 'Hazır');
   const allCamReady = camPozlar.length > 0 && camPozlar.every(p => p.is_ready === 'Hazır');
 
@@ -436,41 +437,53 @@ export default function PVCSevkiyat() {
         <div className='text-xs lg:text-sm' style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 4 }}>
           <div className='min-w-[200px] lg:min-w-[240px]'>
             <label className='text-red-500 font-bold text-xs lg:text-sm'>Müşteri</label>
-            <Dropdown
-              value={selectedCustomer}
-              options={customers}
-              onChange={e => {
-                setSelectedCustomer(e.value);
-              }}
-              placeholder="Müşteri seçin"
-              style={{ width: '100%' }}
-              loading={loading}
-              className='text-xs lg:text-sm'
-              pt={{
-                input: { className: 'text-xs lg:text-sm' },
-                list: { className: 'text-xs lg:text-sm' },
-                item: { className: 'text-xs lg:text-sm' }
-              }}
-            />
+            {customers.length === 0 ? (
+              <div className="text-xs text-gray-500 p-2 border rounded bg-gray-50">
+                Teslim edilecek hazır ürün bulunan müşteri yok
+              </div>
+            ) : (
+              <Dropdown
+                value={selectedCustomer}
+                options={customers}
+                onChange={e => {
+                  setSelectedCustomer(e.value);
+                }}
+                placeholder="Müşteri seçin"
+                style={{ width: '100%' }}
+                loading={loading}
+                className='text-xs lg:text-sm'
+                pt={{
+                  input: { className: 'text-xs lg:text-sm' },
+                  list: { className: 'text-xs lg:text-sm' },
+                  item: { className: 'text-xs lg:text-sm' }
+                }}
+              />
+            )}
           </div>
           <div className='min-w-[280px] lg:min-w-[320px]'>
             <label className=' text-red-500 font-bold text-xs lg:text-sm'>Sales Order</label>
-            <MultiSelect
-              value={selectedSalesOrders}
-              options={salesOrders}
-              onChange={e => setSelectedSalesOrders(e.value)}
-              placeholder="Sales Order seçin"
-              style={{ width: '100%' }}
-              disabled={!selectedCustomer}
-              loading={loading}
-              className='text-xs lg:text-sm'
-              pt={{
-                input: { className: 'text-xs lg:text-sm' },
-                list: { className: 'text-xs lg:text-sm' },
-                item: { className: 'text-xs lg:text-sm' },
-                token: { className: 'text-xs lg:text-sm' }
-              }}
-            />
+            {!selectedCustomer ? (
+              <div className="text-xs text-gray-500 p-2 border rounded bg-gray-50">
+                Önce müşteri seçiniz
+              </div>
+            ) : (
+              <MultiSelect
+                value={selectedSalesOrders}
+                options={salesOrders}
+                onChange={e => setSelectedSalesOrders(e.value)}
+                placeholder="Sales Order seçin"
+                style={{ width: '100%' }}
+                disabled={!selectedCustomer}
+                loading={loading}
+                className='text-xs lg:text-sm'
+                pt={{
+                  input: { className: 'text-xs lg:text-sm' },
+                  list: { className: 'text-xs lg:text-sm' },
+                  item: { className: 'text-xs lg:text-sm' },
+                  token: { className: 'text-xs lg:text-sm' }
+                }}
+              />
+            )}
           </div>
         </div>
         {/* Tablolar ve toplam doğrama alanı sadece sipariş seçiliyse görünsün */}
@@ -482,15 +495,15 @@ export default function PVCSevkiyat() {
                 <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>POZLAR</h3>
                 <div style={{ fontSize: 13, flex: 1, minHeight: 0, overflow: 'auto' }}>
                   <DataTable 
-                    value={pvcPozlar.filter(p => (parseFloat(p.qty) || 0) > 0)} 
-                    emptyMessage="Ürün yok" 
+                    value={pvcPozlar.filter(p => (parseFloat(p.remaining_qty || p.qty) || 0) > 0)} 
+                    emptyMessage="Teslim edilecek ürün yok" 
                     loading={loading} 
                     className="text-xs" 
                     style={{ fontSize: 12 }}
                     selection={selectedPozlar}
                     onSelectionChange={(e) => setSelectedPozlar(e.value)}
                     selectionMode="multiple"
-                    rowSelectable={(data) => data.is_ready === 'Hazır' && (parseFloat(data.qty) || 0) > 0}
+                    rowSelectable={(data) => data.is_ready === 'Hazır' && (parseFloat(data.remaining_qty || data.qty) || 0) > 0}
                     scrollable
                     scrollHeight="200px"
                   >
@@ -498,37 +511,42 @@ export default function PVCSevkiyat() {
                     <Column field="item_code" header="Ürün Kodu" />
                     <Column field="item_name" header="Ürün Adı" />
                     <Column 
-                      header="Miktar" 
+                      header="Kalan Miktar" 
+                      body={rowData => {
+                        if (rowData.item_group === 'Camlar') return '';
+                        return rowData.remaining_qty || rowData.qty;
+                      }}
+                    />
+                    <Column 
+                      header="Mevcut Stok" 
+                      body={rowData => {
+                        if (rowData.item_group === 'Camlar') return '';
+                        return rowData.available_stock || 0;
+                      }}
+                    />
+                    <Column 
+                      header="Seçilen Miktar" 
                       body={rowData => {
                         if (rowData.item_group === 'Camlar') return '';
                         
                         return (
-                          <input
-                            key={`qty-${rowData.item_code}`}
-                            type="number"
-                            defaultValue={parseInt(rowData.qty) || 0}
-                            onChange={(e) => {
-                              const value = parseInt(e.target.value) || 0;
-                              if (value < 1) {
-                                toast.current.show({ 
-                                  severity: 'warn', 
-                                  summary: 'Uyarı', 
-                                  detail: 'Minimum değer 1 olmalıdır.', 
-                                  life: 3000 
-                                });
-                                return;
-                              }
-                              setQuantityChanges(prev => ({
-                                ...prev,
-                                [rowData.item_code]: value
-                              }));
-                            }}
-                            min="1"
-                            max={parseInt(rowData.qty) || 1}
-                            step="1"
-                            className="w-16 text-xs border rounded px-1 py-0.5 text-center"
-                            style={{ fontSize: '11px' }}
-                          />
+                          <div className="flex flex-col items-center gap-1">
+                            <input
+                              key={`qty-${rowData.item_code}`}
+                              type="number"
+                              defaultValue={parseInt(rowData.remaining_qty || rowData.qty) || 0}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value) || 0;
+                                const maxQty = parseInt(rowData.remaining_qty || rowData.qty) || 0;
+                                handleQuantityChange(rowData.item_code, value, maxQty);
+                              }}
+                              min="1"
+                              max={parseInt(rowData.remaining_qty || rowData.qty) || 1}
+                              step="1"
+                              className="w-16 text-xs border rounded px-1 py-0.5 text-center"
+                              style={{ fontSize: '11px' }}
+                            />
+                          </div>
                         );
                       }}
                     />
