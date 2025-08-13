@@ -259,3 +259,274 @@ def get_all_orders_by_customer(customer_name):
             "message": f"Hata oluştu: {str(e)}",
             "data": None
         }
+
+@frappe.whitelist(allow_guest=False)
+def get_delivered_orders_without_installation():
+    """
+    Teslim edilen ama Installation Note'u olmayan ürünlere ait siparişleri getirir.
+    
+    Returns:
+        dict: {
+            "success": bool,
+            "message": str,
+            "data": {
+                "orders": Sipariş listesi (sipariş numarası ve temel bilgiler)
+            }
+        }
+    """
+    try:
+        user = frappe.session.user
+        if not user or user == "Guest":
+            frappe.throw("Kimlik doğrulama gerekli")
+
+        # Kullanıcıya bağlı customer'ı bul
+        customers = frappe.get_all(
+            "Customer",
+            filters={"custom_user_link": user},
+            fields=["name"]
+        )
+        
+        if not customers:
+            return {
+                "success": False,
+                "message": "Bu kullanıcıya bağlı bayi bulunamadı",
+                "data": None
+            }
+
+        customer_name = customers[0].name
+
+        # Teslim edilen ama Installation Note'u olmayan ürünlere ait siparişleri bul
+        # Installation Note Item tablosunda sadece item_code ve serial_no var
+        # Bu yüzden seri numarası olan ürünleri kontrol ediyoruz
+        
+        delivered_orders = frappe.db.sql("""
+            SELECT DISTINCT 
+                so.name as sales_order,
+                so.transaction_date,
+                so.grand_total,
+                so.status,
+                COUNT(DISTINCT dn.name) as delivery_count
+            FROM `tabSales Order` so
+            INNER JOIN `tabSales Order Item` soi ON soi.parent = so.name
+            INNER JOIN `tabDelivery Note Item` dni ON dni.against_sales_order = so.name
+            INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
+            WHERE so.customer = %s 
+                AND so.docstatus = 1
+                AND dn.docstatus = 1
+                AND dn.is_return = 0
+                AND dni.serial_no IS NOT NULL
+                AND dni.serial_no != ''
+                AND NOT EXISTS (
+                    SELECT 1 FROM `tabInstallation Note Item` ini 
+                    WHERE ini.serial_no = dni.serial_no
+                )
+            GROUP BY so.name
+            ORDER BY so.transaction_date DESC
+        """, (customer_name,), as_dict=True)
+
+        return {
+            "success": True,
+            "message": f"{len(delivered_orders)} adet teslim edilen ama Installation Note'u olmayan sipariş bulundu",
+            "data": {
+                "orders": delivered_orders
+            }
+        }
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "get_delivered_orders_without_installation error")
+        return {
+            "success": False,
+            "message": f"Hata oluştu: {str(e)}",
+            "data": None
+        }
+
+@frappe.whitelist(allow_guest=False)
+def get_delivered_items_by_order(sales_order):
+    """
+    Belirli bir siparişe ait teslim edilen ürünleri getirir.
+    
+    Args:
+        sales_order (str): Sales Order dokümanının adı
+        
+    Returns:
+        dict: {
+            "success": bool,
+            "message": str,
+            "data": {
+                "sales_order": Sales Order bilgileri,
+                "delivered_items": Teslim edilen ürünler listesi
+            }
+        }
+    """
+    try:
+        if not sales_order:
+            return {
+                "success": False,
+                "message": "Sales Order adı gerekli",
+                "data": None
+            }
+
+        # Sales Order'ı kontrol et
+        sales_order_doc = frappe.get_doc("Sales Order", sales_order)
+        if not sales_order_doc:
+            return {
+                "success": False,
+                "message": f"Sales Order bulunamadı: {sales_order}",
+                "data": None
+            }
+
+        # Bu siparişe ait teslim edilen ürünleri getir
+        # Installation Note Item tablosunda sadece item_code ve serial_no var
+        delivered_items = frappe.db.sql("""
+            SELECT 
+                dni.item_code,
+                dni.item_name,
+                dni.qty as delivered_qty,
+                dni.rate,
+                dni.amount,
+                dni.description,
+                dni.against_sales_order,
+                dni.against_sales_order_item,
+                dni.serial_no,
+                dn.name as delivery_note,
+                dn.posting_date as delivery_date,
+                dn.posting_time as delivery_time,
+                soi.qty as ordered_qty,
+                soi.uom,
+                soi.stock_uom
+            FROM `tabDelivery Note Item` dni
+            INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
+            INNER JOIN `tabSales Order Item` soi ON soi.name = dni.against_sales_order_item
+            WHERE dni.against_sales_order = %s
+                AND dn.docstatus = 1
+                AND dn.is_return = 0
+                AND dni.serial_no IS NOT NULL
+                AND dni.serial_no != ''
+                AND NOT EXISTS (
+                    SELECT 1 FROM `tabInstallation Note Item` ini 
+                    WHERE ini.serial_no = dni.serial_no
+                )
+            ORDER BY dn.posting_date DESC, dni.idx
+        """, (sales_order,), as_dict=True)
+
+        # Her ürün için ek bilgileri al
+        detailed_items = []
+        for item in delivered_items:
+            try:
+                # Item dokümanından ek bilgileri al
+                item_doc = frappe.get_doc("Item", item.item_code)
+                item["item_details"] = {
+                    "item_group": item_doc.item_group,
+                    "custom_serial": item_doc.get("custom_serial"),
+                    "custom_color": item_doc.get("custom_color"),
+                    "custom_width": item_doc.get("custom_width"),
+                    "custom_height": item_doc.get("custom_height"),
+                    "description": item_doc.description
+                }
+                detailed_items.append(item)
+            except Exception as e:
+                frappe.logger().error(f"Error getting item details for {item.item_code}: {str(e)}")
+                detailed_items.append(item)
+
+        return {
+            "success": True,
+            "message": f"{sales_order} siparişi için {len(detailed_items)} adet teslim edilen ürün bulundu",
+            "data": {
+                "sales_order": sales_order_doc.as_dict(),
+                "delivered_items": detailed_items
+            }
+        }
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), f"get_delivered_items_by_order error for {sales_order}")
+        return {
+            "success": False,
+            "message": f"Hata oluştu: {str(e)}",
+            "data": None
+        }
+
+@frappe.whitelist(allow_guest=False)
+def create_installation_note(sales_order, selected_items):
+    """
+    Seçilen ürünler için Installation Note oluşturur.
+    
+    Args:
+        sales_order (str): Sales Order dokümanının adı
+        selected_items (list): Seçilen ürünlerin listesi
+        
+    Returns:
+        dict: {
+            "success": bool,
+            "message": str,
+            "data": {
+                "installation_note": Oluşturulan Installation Note bilgileri
+            }
+        }
+    """
+    try:
+        if not sales_order or not selected_items:
+            return {
+                "success": False,
+                "message": "Sales Order ve seçilen ürünler gerekli",
+                "data": None
+            }
+
+        # Sales Order'ı kontrol et
+        sales_order_doc = frappe.get_doc("Sales Order", sales_order)
+        if not sales_order_doc:
+            return {
+                "success": False,
+                "message": f"Sales Order bulunamadı: {sales_order}",
+                "data": None
+            }
+
+        # Installation Note oluştur
+        installation_note = frappe.new_doc("Installation Note")
+        installation_note.customer = sales_order_doc.customer
+        installation_note.customer_name = sales_order_doc.customer_name
+        installation_note.sales_order = sales_order
+        installation_note.company = sales_order_doc.company
+        installation_note.posting_date = frappe.utils.today()
+        installation_note.posting_time = frappe.utils.nowtime()
+
+        # Seçilen ürünleri ekle
+        for item_data in selected_items:
+            item_row = installation_note.append("items", {})
+            item_row.item_code = item_data.get("item_code")
+            item_row.item_name = item_data.get("item_name")
+            item_row.qty = item_data.get("delivered_qty", 1)
+            item_row.rate = item_data.get("rate", 0)
+            item_row.amount = item_data.get("amount", 0)
+            item_row.uom = item_data.get("uom", "Nos")
+            item_row.stock_uom = item_data.get("stock_uom", "Nos")
+            item_row.description = item_data.get("description", "")
+            item_row.sales_order = sales_order
+            item_row.delivery_note = item_data.get("delivery_note", "")
+            item_row.against_sales_order_item = item_data.get("against_sales_order_item", "")
+
+        # Installation Note'u kaydet
+        installation_note.insert()
+        installation_note.submit()
+
+        return {
+            "success": True,
+            "message": f"Installation Note başarıyla oluşturuldu: {installation_note.name}",
+            "data": {
+                "installation_note": {
+                    "name": installation_note.name,
+                    "customer": installation_note.customer,
+                    "sales_order": installation_note.sales_order,
+                    "posting_date": installation_note.posting_date,
+                    "total_qty": installation_note.total_qty,
+                    "grand_total": installation_note.grand_total
+                }
+            }
+        }
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), f"create_installation_note error for {sales_order}")
+        return {
+            "success": False,
+            "message": f"Hata oluştu: {str(e)}",
+            "data": None
+        }
