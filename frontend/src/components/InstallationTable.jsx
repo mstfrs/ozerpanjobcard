@@ -22,11 +22,26 @@ const InstallationTable = ({ items, onSelectionChange, onInstallationNoteCreated
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  console.log(items)
 
   useEffect(() => {
     // Initialize with no items selected - only on mount
     setSelectedItems([]);
   }, []); // Empty dependency array - only run once on mount
+
+  // Shared selection helpers
+  const isItemSelected = (row) => Array.isArray(selectedItems) && selectedItems.some(it => it.item_code === row.item_code);
+  const applySelection = (nextSelection) => {
+    setSelectedItems(nextSelection);
+    if (onSelectionChange) onSelectionChange(nextSelection);
+  };
+  const toggleItemSelection = (row) => {
+    if (isItemSelected(row)) {
+      applySelection(selectedItems.filter(it => it.item_code !== row.item_code));
+    } else {
+      applySelection([...(Array.isArray(selectedItems) ? selectedItems : []), row]);
+    }
+  };
 
   const handleCreateInstallationNote = async () => {
     if (!Array.isArray(selectedItems) || selectedItems.length === 0) {
@@ -163,36 +178,19 @@ const InstallationTable = ({ items, onSelectionChange, onInstallationNoteCreated
   };
 
   const checkboxTemplate = (rowData) => {
-    const isSelected = Array.isArray(selectedItems) && selectedItems.some(item => item.item_code === rowData.item_code);
-    
-    console.log('Checkbox template:', { rowData, isSelected, selectedItems });
+    const isSelected = isItemSelected(rowData);
     
     return (
       <Checkbox
         checked={isSelected}
         onChange={(e) => {
-          console.log('Checkbox onChange:', { checked: e.checked, rowData, currentSelection: selectedItems });
-          
           if (e.checked) {
-            // Seçimi ekle - mevcut selection'a ekle
-            const newSelection = [...selectedItems, rowData];
-            console.log('Adding to selection:', newSelection);
-            setSelectedItems(newSelection);
-            if (onSelectionChange) {
-              onSelectionChange(newSelection);
-            }
+            applySelection([...selectedItems, rowData]);
           } else {
-            // Seçimi kaldır - sadece bu satırı çıkar
-            const newSelection = selectedItems.filter(item => item.item_code !== rowData.item_code);
-            console.log('Removing from selection:', newSelection);
-            setSelectedItems(newSelection);
-            if (onSelectionChange) {
-              onSelectionChange(newSelection);
-            }
+            applySelection(selectedItems.filter(item => item.item_code !== rowData.item_code));
           }
         }}
         onClick={(e) => {
-          // Checkbox'a tıklandığında event'in bubble olmasını engelle
           e.stopPropagation();
         }}
       />
@@ -278,17 +276,14 @@ const InstallationTable = ({ items, onSelectionChange, onInstallationNoteCreated
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white rounded-lg shadow-md overflow-hidden relative">
       {/* Custom CSS Styles */}
       <style>{tableStyles}</style>
       
       <div className="px-4 sm:px-6 py-4 border-b border-gray-200">
-        <div className="flex justify-between items-center">
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Teslim Edilen Ürünler ({items.length})
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
+        <div className="flex flex-col sm:flex-row gap-1 justify-between items-center ">
+          <div>        
+            <p className="sm:text-sm text-xs text-gray-600 mt-1">
               Montaj Kaydı oluşturmak için ürünleri seçin
             </p>
           </div>
@@ -298,7 +293,7 @@ const InstallationTable = ({ items, onSelectionChange, onInstallationNoteCreated
               label="Montaj Kaydı Oluştur"
               icon="pi pi-plus"
               onClick={openCreateDialog}
-              className="p-button-primary"
+              className="p-button-primary bg-blue-400 w-full sm:w-auto py-1 px-2"
               size="small"
             />
           )}
@@ -314,7 +309,7 @@ const InstallationTable = ({ items, onSelectionChange, onInstallationNoteCreated
 
       <div className="p-2 sm:p-4">
         {/* Mobile View - Card Layout */}
-        {/* <div className="block sm:hidden">
+        <div className="block sm:hidden">
           {items.map((item, index) => (
             <div 
               key={`${item.item_code}-${index}`}
@@ -323,19 +318,11 @@ const InstallationTable = ({ items, onSelectionChange, onInstallationNoteCreated
                   ? 'border-blue-500 bg-blue-50' 
                   : 'border-gray-200'
               }`}
+              onClick={() => toggleItemSelection(item)}
             >
               <div className="flex items-start justify-between mb-3">
                 <div className="flex items-center space-x-3">
-                  <Checkbox
-                    checked={selectedItems.some(selected => selected.item_code === item.item_code)}
-                    onChange={(e) => {
-                      if (e.checked) {
-                        handleSelectionChange([...selectedItems, item]);
-                      } else {
-                        handleSelectionChange(selectedItems.filter(selected => selected.item_code !== item.item_code));
-                      }
-                    }}
-                  />
+             
                   <div>
                     <h4 className="font-semibold text-gray-900">{item.item_code}</h4>
                   </div>
@@ -383,19 +370,19 @@ const InstallationTable = ({ items, onSelectionChange, onInstallationNoteCreated
                   </div>
                 </div>
                 
-                <div className="col-span-2">
+                {/* <div className="col-span-2">
                   <span className="text-gray-500">Teslimat Tarihi:</span>
                   <div className="mt-1 text-gray-900">
                     {new Date(item.delivery_date).toLocaleDateString('tr-TR')}
                   </div>
-                </div>
+                </div> */}
               </div>
             </div>
           ))}
-        </div> */}
+        </div>
 
         {/* Desktop View - Table Layout */}
-        <div className="">
+        <div className="hidden sm:block ">
           <DataTable
             value={items}
             dataKey="item_code"

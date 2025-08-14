@@ -264,6 +264,7 @@ def get_all_orders_by_customer(customer_name):
 def get_delivered_orders_without_installation():
     """
     Teslim edilen ama Installation Note'u olmayan ürünlere ait siparişleri getirir.
+    Sadece Installation yapılacak ürünü olan siparişleri döndürür.
     
     Returns:
         dict: {
@@ -295,7 +296,17 @@ def get_delivered_orders_without_installation():
 
         customer_name = customers[0].name
 
-        # Teslim edilen ama Installation Note'u olmayan ürünlere ait siparişleri bul
+        # Debug: Installation Note Item tablosunu kontrol et
+        frappe.logger().debug("Checking Installation Note Item structure...")
+        
+        # Installation Note Item tablosunda hangi alanların olduğunu kontrol et
+        try:
+            installation_note_item_meta = frappe.get_meta("Installation Note Item")
+            frappe.logger().debug(f"Installation Note Item fields: {list(installation_note_item_meta.fields.keys())}")
+        except Exception as e:
+            frappe.logger().error(f"Error getting Installation Note Item meta: {str(e)}")
+
+        # Daha detaylı kontrol: Her teslim edilen ürün için Installation Note kontrolü yap
         delivered_orders = frappe.db.sql("""
             SELECT DISTINCT 
                 so.name as sales_order,
@@ -303,10 +314,6 @@ def get_delivered_orders_without_installation():
                 so.grand_total,
                 so.status,
                 so.custom_end_customer,
-                i.custom_serial,
-                i.custom_color,
-                i.custom_width,
-                i.custom_height,
                 COUNT(DISTINCT dn.name) as delivery_count,
                 COUNT(DISTINCT dni.item_code) as total_items,
                 SUM(dni.qty) as total_quantity
@@ -314,14 +321,32 @@ def get_delivered_orders_without_installation():
             INNER JOIN `tabSales Order Item` soi ON soi.parent = so.name
             INNER JOIN `tabDelivery Note Item` dni ON dni.against_sales_order = so.name
             INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
-            LEFT JOIN `tabItem` i ON i.name = dni.item_code
             WHERE so.customer = %s 
                 AND so.docstatus = 1
                 AND dn.docstatus = 1
                 AND dn.is_return = 0
+                AND NOT EXISTS (
+                    -- Bu ürün için Installation Note Item kaydı var mı kontrol et
+                    SELECT 1 FROM `tabInstallation Note Item` ini
+                    INNER JOIN `tabInstallation Note` in_main ON in_main.name = ini.parent
+                    WHERE in_main.docstatus = 1
+                        AND (
+                            -- serial_no ile eşleştir (eğer varsa)
+                            (dni.serial_no IS NOT NULL AND dni.serial_no = ini.serial_no)
+                            OR
+                            -- item_code ile eşleştir (serial_no yoksa)
+                            (dni.serial_no IS NULL AND dni.item_code = ini.item_code)
+                        )
+                        AND in_main.customer = %s
+                )
             GROUP BY so.name, so.transaction_date, so.grand_total, so.status, so.custom_end_customer
             ORDER BY so.transaction_date DESC
-        """, (customer_name,), as_dict=True)
+        """, (customer_name, customer_name), as_dict=True)
+
+        # Debug: Bulunan siparişleri logla
+        frappe.logger().debug(f"Found {len(delivered_orders)} orders without installation")
+        for order in delivered_orders[:3]:  # İlk 3'ünü logla
+            frappe.logger().debug(f"Order: {order['sales_order']} - Items: {order['total_items']}")
 
         # Her sipariş için item detaylarını parse et
         for order in delivered_orders:
@@ -702,6 +727,94 @@ def create_installation_note(sales_order, selected_items, installation_data=None
 
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), f"create_installation_note error for {sales_order}")
+        return {
+            "success": False,
+            "message": f"Hata oluştu: {str(e)}",
+            "data": None
+        }
+
+@frappe.whitelist(allow_guest=False)
+def test_installation_filtering(sales_order_name):
+    """
+    Belirli bir sipariş için Installation Note kontrolünü test eder.
+    Debug amaçlı kullanılır.
+    
+    Args:
+        sales_order_name (str): Test edilecek Sales Order adı
+        
+    Returns:
+        dict: Test sonuçları
+    """
+    try:
+        # 1. Bu siparişin teslim edilen ürünlerini bul
+        delivered_items = frappe.db.sql("""
+            SELECT 
+                dni.item_code,
+                dni.serial_no,
+                dni.qty,
+                dn.name as delivery_note,
+                dn.posting_date
+            FROM `tabDelivery Note Item` dni
+            INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
+            WHERE dni.against_sales_order = %s
+                AND dn.docstatus = 1
+                AND dn.is_return = 0
+        """, (sales_order_name,), as_dict=True)
+        
+        # 2. Bu ürünler için Installation Note var mı kontrol et
+        installation_status = []
+        for item in delivered_items:
+            # serial_no ile kontrol
+            if item.serial_no:
+                installation_check = frappe.db.sql("""
+                    SELECT 
+                        ini.parent as installation_note,
+                        ini.item_code,
+                        ini.serial_no,
+                        in_main.docstatus,
+                        in_main.customer
+                    FROM `tabInstallation Note Item` ini
+                    INNER JOIN `tabInstallation Note` in_main ON in_main.name = ini.parent
+                    WHERE ini.serial_no = %s
+                """, (item.serial_no,), as_dict=True)
+            else:
+                # item_code ile kontrol
+                installation_check = frappe.db.sql("""
+                    SELECT 
+                        ini.parent as installation_note,
+                        ini.item_code,
+                        ini.serial_no,
+                        in_main.docstatus,
+                        in_main.customer
+                    FROM `tabInstallation Note Item` ini
+                    INNER JOIN `tabInstallation Note` in_main ON in_main.name = ini.parent
+                    WHERE ini.item_code = %s
+                """, (item.item_code,), as_dict=True)
+            
+            installation_status.append({
+                "item_code": item.item_code,
+                "serial_no": item.serial_no,
+                "delivery_note": item.delivery_note,
+                "delivery_date": item.posting_date,
+                "has_installation": len(installation_check) > 0,
+                "installation_details": installation_check
+            })
+        
+        # 3. Sonuçları döndür
+        return {
+            "success": True,
+            "sales_order": sales_order_name,
+            "delivered_items": delivered_items,
+            "installation_status": installation_status,
+            "summary": {
+                "total_delivered_items": len(delivered_items),
+                "items_with_installation": len([item for item in installation_status if item["has_installation"]]),
+                "items_without_installation": len([item for item in installation_status if not item["has_installation"]])
+            }
+        }
+        
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "test_installation_filtering error")
         return {
             "success": False,
             "message": f"Hata oluştu: {str(e)}",

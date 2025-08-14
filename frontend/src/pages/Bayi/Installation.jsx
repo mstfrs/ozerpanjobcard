@@ -109,6 +109,52 @@ export const Installation = () => {
     }
   };
 
+  const handleInstallationNoteCreated = (installationNote) => {
+    // Başarı mesajı göster
+    alert(`Installation Note başarıyla oluşturuldu!\n\n` +
+      `Doküman No: ${installationNote.name}\n` +
+      `Müşteri: ${installationNote.customer}\n` +
+      `Toplam Ürün: ${installationNote.total_qty || 0}\n` +
+      `Toplam Tutar: ${(installationNote.grand_total || 0).toLocaleString('tr-TR')} TL\n` +
+      `Montaj Tarihi: ${new Date(installationNote.inst_date).toLocaleDateString('tr-TR')}`);
+    
+    // Formu temizle
+    setSelectedOrder(null);
+    setOrderItems([]);
+    setSelectedItems([]);
+    
+    // Siparişleri yeniden yükle (sayfa yenilenmeden)
+    loadOrders();
+    
+    // Hata mesajını temizle
+    setError('');
+  };
+
+  const testInstallationFiltering = async (salesOrderName) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/method/ozerpanjobcard.dealerApi.test_installation_filtering`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sales_order_name: salesOrderName }),
+      });
+
+      const result = await response.json();
+      if (result.message && result.message.success) {
+        console.log("Test result:", result.message);
+        alert(`Test sonucu:\nToplam teslim edilen ürün: ${result.message.summary.total_delivered_items}\nInstallation'ı olan: ${result.message.summary.items_with_installation}\nInstallation'ı olmayan: ${result.message.summary.items_without_installation}`);
+      } else {
+        setError('Test fonksiyonu çalıştırılamadı');
+      }
+    } catch (err) {
+      setError('Test fonksiyonu çalıştırılırken hata oluştu');
+      console.error('Error testing installation filtering:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const orderTemplate = (option) => {
     if (!option) return null;
     
@@ -139,7 +185,7 @@ export const Installation = () => {
        
 
         {/* Sipariş Seçimi */}
-    
+     
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sipariş Numarası
@@ -159,7 +205,24 @@ export const Installation = () => {
                 disabled={loading}
                 showClear
               />
-            </div>           
+              
+              {/* Test Butonu - Debug için */}
+              {/* {orders.length > 0 && (
+                <div className="mt-2">
+                  <Button
+                    label="Installation Filtreleme Test Et"
+                    icon="pi pi-search"
+                    onClick={() => testInstallationFiltering(orders[0].sales_order)}
+                    disabled={loading}
+                    className="p-button-secondary p-button-sm"
+                    size="small"
+                  />
+                  <span className="ml-2 text-xs text-gray-500">
+                    İlk sipariş için test et
+                  </span>
+                </div>
+              )} */}
+            </div>
         
         {/* Ürün Tablosu */}
         {orderItems.length > 0 && (
@@ -167,6 +230,7 @@ export const Installation = () => {
             <InstallationTable 
               items={orderItems} 
               onSelectionChange={handleItemSelection}
+              onInstallationNoteCreated={handleInstallationNoteCreated}
             />
           </div>
         )}
