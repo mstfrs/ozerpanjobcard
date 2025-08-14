@@ -296,33 +296,54 @@ def get_delivered_orders_without_installation():
         customer_name = customers[0].name
 
         # Teslim edilen ama Installation Note'u olmayan ürünlere ait siparişleri bul
-        # Installation Note Item tablosunda sadece item_code ve serial_no var
-        # Bu yüzden seri numarası olan ürünleri kontrol ediyoruz
-        
         delivered_orders = frappe.db.sql("""
             SELECT DISTINCT 
                 so.name as sales_order,
                 so.transaction_date,
                 so.grand_total,
                 so.status,
-                COUNT(DISTINCT dn.name) as delivery_count
+                so.custom_end_customer,
+                i.custom_serial,
+                i.custom_color,
+                i.custom_width,
+                i.custom_height,
+                COUNT(DISTINCT dn.name) as delivery_count,
+                COUNT(DISTINCT dni.item_code) as total_items,
+                SUM(dni.qty) as total_quantity
             FROM `tabSales Order` so
             INNER JOIN `tabSales Order Item` soi ON soi.parent = so.name
             INNER JOIN `tabDelivery Note Item` dni ON dni.against_sales_order = so.name
             INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
+            LEFT JOIN `tabItem` i ON i.name = dni.item_code
             WHERE so.customer = %s 
                 AND so.docstatus = 1
                 AND dn.docstatus = 1
                 AND dn.is_return = 0
-                AND dni.serial_no IS NOT NULL
-                AND dni.serial_no != ''
-                AND NOT EXISTS (
-                    SELECT 1 FROM `tabInstallation Note Item` ini 
-                    WHERE ini.serial_no = dni.serial_no
-                )
-            GROUP BY so.name
+            GROUP BY so.name, so.transaction_date, so.grand_total, so.status, so.custom_end_customer
             ORDER BY so.transaction_date DESC
         """, (customer_name,), as_dict=True)
+
+        # Her sipariş için item detaylarını parse et
+        for order in delivered_orders:
+            if order.get("item_details"):
+                items_info = []
+                item_details = order.item_details.split("|")
+                for item_detail in item_details:
+                    if ":" in item_detail:
+                        parts = item_detail.split(":")
+                        if len(parts) >= 3:
+                            items_info.append({
+                                "item_code": parts[0],
+                                "custom_serial": parts[1] if parts[1] != "None" else None,
+                                "custom_color": parts[2] if parts[2] != "None" else None
+                            })
+                order["items_info"] = items_info
+            else:
+                order["items_info"] = []
+            
+            # item_details string'ini kaldır (artık gerekli değil)
+            if "item_details" in order:
+                del order["item_details"]
 
         return {
             "success": True,
@@ -386,43 +407,87 @@ def get_delivered_items_by_order(sales_order):
                 dni.amount,
                 dni.description,
                 dni.against_sales_order,
-                dni.against_sales_order_item,
                 dni.serial_no,
                 dn.name as delivery_note,
                 dn.posting_date as delivery_date,
                 dn.posting_time as delivery_time,
-                soi.qty as ordered_qty,
-                soi.uom,
-                soi.stock_uom
+                dni.uom,
+                dni.stock_uom,
+                so.custom_end_customer,
+                i.custom_serial,
+                i.custom_color,
+                i.custom_width,
+                i.custom_height,
+                i.item_group
             FROM `tabDelivery Note Item` dni
             INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
-            INNER JOIN `tabSales Order Item` soi ON soi.name = dni.against_sales_order_item
+            INNER JOIN `tabSales Order` so ON so.name = dni.against_sales_order
+            LEFT JOIN `tabItem` i ON i.name = dni.item_code
             WHERE dni.against_sales_order = %s
                 AND dn.docstatus = 1
                 AND dn.is_return = 0
-                AND dni.serial_no IS NOT NULL
-                AND dni.serial_no != ''
-                AND NOT EXISTS (
-                    SELECT 1 FROM `tabInstallation Note Item` ini 
-                    WHERE ini.serial_no = dni.serial_no
+                AND (
+                    -- Seri numarası olan ürünler için: Installation Note Item'da aynı serial_no yoksa
+                    (dni.serial_no IS NOT NULL AND dni.serial_no != '' AND NOT EXISTS (
+                        SELECT 1 FROM `tabInstallation Note Item` ini 
+                        WHERE ini.serial_no = dni.serial_no
+                    ))
+                    OR
+                    -- Seri numarası olmayan ürünler için: Installation Note Item'da aynı item_code yoksa
+                    (dni.serial_no IS NULL OR dni.serial_no = '') AND NOT EXISTS (
+                        SELECT 1 FROM `tabInstallation Note Item` ini 
+                        WHERE ini.item_code = dni.item_code
+                    )
                 )
             ORDER BY dn.posting_date DESC, dni.idx
         """, (sales_order,), as_dict=True)
-
+        print(delivered_items)
         # Her ürün için ek bilgileri al
         detailed_items = []
         for item in delivered_items:
             try:
                 # Item dokümanından ek bilgileri al
                 item_doc = frappe.get_doc("Item", item.item_code)
+                
+                # Custom field'ları kontrol et ve ekle
+                custom_fields = {}
+                for field_name in ['custom_serial', 'custom_color', 'custom_width', 'custom_height']:
+                    if hasattr(item_doc, field_name):
+                        custom_fields[field_name] = item_doc.get(field_name)
+                
+                # Alternatif field isimlerini de kontrol et
+                alternative_fields = {
+                    'serial': ['serial', 'serial_no', 'custom_serial'],
+                    'color': ['color', 'custom_color', 'colour'],
+                    'width': ['width', 'custom_width', 'genislik'],
+                    'height': ['height', 'custom_height', 'yukseklik']
+                }
+                
+                for field_type, field_names in alternative_fields.items():
+                    if custom_fields.get(f'custom_{field_type}') is None:
+                        for alt_name in field_names:
+                            if hasattr(item_doc, alt_name):
+                                value = item_doc.get(alt_name)
+                                if value:
+                                    custom_fields[f'custom_{field_type}'] = value
+                                    break
+                
                 item["item_details"] = {
                     "item_group": item_doc.item_group,
-                    "custom_serial": item_doc.get("custom_serial"),
-                    "custom_color": item_doc.get("custom_color"),
-                    "custom_width": item_doc.get("custom_width"),
-                    "custom_height": item_doc.get("custom_height"),
-                    "description": item_doc.description
+                    "description": item_doc.description,
+                    **custom_fields  # Tüm custom field'ları ekle
                 }
+                
+                # SQL'den gelen değerleri de ekle (eğer varsa)
+                if item.get("custom_serial"):
+                    item["custom_serial"] = item.get("custom_serial")
+                if item.get("custom_color"):
+                    item["custom_color"] = item.get("custom_color")
+                if item.get("custom_width"):
+                    item["custom_width"] = item.get("custom_width")
+                if item.get("custom_height"):
+                    item["custom_height"] = item.get("custom_height")
+                
                 detailed_items.append(item)
             except Exception as e:
                 frappe.logger().error(f"Error getting item details for {item.item_code}: {str(e)}")
@@ -433,7 +498,14 @@ def get_delivered_items_by_order(sales_order):
             "message": f"{sales_order} siparişi için {len(detailed_items)} adet teslim edilen ürün bulundu",
             "data": {
                 "sales_order": sales_order_doc.as_dict(),
-                "delivered_items": detailed_items
+                "delivered_items": detailed_items,
+                "summary": {
+                    "total_items": len(detailed_items),
+                    "total_quantity": sum(float(item.get("delivered_qty", 0)) for item in detailed_items),
+                    "custom_end_customer": sales_order_doc.get("custom_end_customer", ""),
+                    "order_date": sales_order_doc.get("transaction_date"),
+                    "order_status": sales_order_doc.get("status")
+                }
             }
         }
 
@@ -446,13 +518,14 @@ def get_delivered_items_by_order(sales_order):
         }
 
 @frappe.whitelist(allow_guest=False)
-def create_installation_note(sales_order, selected_items):
+def create_installation_note(sales_order, selected_items, installation_data=None):
     """
     Seçilen ürünler için Installation Note oluşturur.
     
     Args:
         sales_order (str): Sales Order dokümanının adı
         selected_items (list): Seçilen ürünlerin listesi
+        installation_data (dict): Montaj bilgileri (tarih, müşteri bilgileri, notlar)
         
     Returns:
         dict: {
@@ -486,6 +559,77 @@ def create_installation_note(sales_order, selected_items):
         installation_note.customer_name = sales_order_doc.customer_name
         installation_note.sales_order = sales_order
         installation_note.company = sales_order_doc.company
+        
+        # Debug: Sales Order bilgilerini logla
+        frappe.logger().debug(f"Sales Order bilgileri: customer={sales_order_doc.customer}, company={sales_order_doc.company}")
+        
+        # Territory alanını ekle (installation_data'dan veya fallback'ten)
+        if installation_data and installation_data.get("territory"):
+            installation_note.territory = installation_data.get("territory")
+            frappe.logger().debug(f"Territory installation_data'dan alındı: {installation_data.get('territory')}")
+        elif hasattr(sales_order_doc, 'territory') and sales_order_doc.territory:
+            installation_note.territory = sales_order_doc.territory
+            frappe.logger().debug(f"Territory Sales Order'dan alındı: {sales_order_doc.territory}")
+        else:
+            # Default territory olarak company'den al
+            company_doc = frappe.get_doc("Company", sales_order_doc.company)
+            if hasattr(company_doc, 'default_territory') and company_doc.default_territory:
+                installation_note.territory = company_doc.default_territory
+                frappe.logger().debug(f"Territory Company'den alındı: {company_doc.default_territory}")
+            else:
+                # En son çare olarak Turkey
+                installation_note.territory = "Turkey"
+                frappe.logger().debug("Territory Turkey olarak set edildi (fallback)")
+        
+        frappe.logger().debug(f"Final territory değeri: {installation_note.territory}")
+        
+        # Montaj bilgilerini ekle
+        if installation_data:
+            if installation_data.get("installation_date"):
+                # ISO string formatındaki tarihi MySQL date formatına çevir
+                try:
+                    if isinstance(installation_data.get("installation_date"), str):
+                        # ISO string'i parse et ve sadece date kısmını al
+                        from datetime import datetime
+                        iso_date = installation_data.get("installation_date")
+                        frappe.logger().debug(f"Gelen tarih: {iso_date}, tip: {type(iso_date)}")
+                        
+                        if 'T' in iso_date:
+                            # ISO format: "2025-08-14T07:22:20.062Z" -> "2025-08-14"
+                            date_only = iso_date.split('T')[0]
+                            installation_note.inst_date = date_only
+                            frappe.logger().debug(f"Tarih parse edildi: {iso_date} -> {date_only}")
+                        else:
+                            # Zaten date format
+                            installation_note.inst_date = iso_date
+                            frappe.logger().debug(f"Tarih zaten doğru format: {iso_date}")
+                    else:
+                        # Date object ise string'e çevir
+                        installation_note.inst_date = str(installation_data.get("installation_date"))
+                        frappe.logger().debug(f"Date object string'e çevrildi: {installation_note.inst_date}")
+                except Exception as e:
+                    frappe.logger().warning(f"Tarih parse hatası: {e}, bugünün tarihi kullanılıyor")
+                    installation_note.inst_date = frappe.utils.today()
+            else:
+                installation_note.inst_date = frappe.utils.today()
+                frappe.logger().debug(f"Tarih yok, bugünün tarihi kullanılıyor: {installation_note.inst_date}")
+                
+            if installation_data.get("notes"):
+                installation_note.remarks = installation_data.get("notes")
+                
+            # Custom müşteri bilgileri
+            if installation_data.get("customer_name"):
+                installation_note.custom_end_customer = installation_data.get("customer_name")
+            if installation_data.get("customer_phone"):
+                installation_note.custom_end_customer_phone = installation_data.get("customer_phone")
+            if installation_data.get("customer_address"):
+                installation_note.custom_end_customer_address = installation_data.get("customer_address")
+        else:
+            installation_note.inst_date = frappe.utils.today()
+            frappe.logger().debug(f"installation_data yok, bugünün tarihi kullanılıyor: {installation_note.inst_date}")
+        
+        frappe.logger().debug(f"Final inst_date değeri: {installation_note.inst_date}")
+        
         installation_note.posting_date = frappe.utils.today()
         installation_note.posting_time = frappe.utils.nowtime()
 
@@ -503,10 +647,36 @@ def create_installation_note(sales_order, selected_items):
             item_row.sales_order = sales_order
             item_row.delivery_note = item_data.get("delivery_note", "")
             item_row.against_sales_order_item = item_data.get("against_sales_order_item", "")
+            
+            # Seri numarası varsa ekle
+            if item_data.get("serial_no"):
+                item_row.serial_no = item_data.get("serial_no")
 
+        # Validation: Zorunlu alanları kontrol et
+        if not installation_note.customer:
+            frappe.throw("Customer alanı zorunlu")
+        if not installation_note.company:
+            frappe.throw("Company alanı zorunlu")
+        if not installation_note.sales_order:
+            frappe.throw("Sales Order alanı zorunlu")
+        if not installation_note.items:
+            frappe.throw("En az bir ürün eklenmeli")
+        
+        frappe.logger().debug(f"Installation Note validation başarılı, kaydediliyor...")
+        
         # Installation Note'u kaydet
         installation_note.insert()
         installation_note.submit()
+
+        # Debug: Oluşturulan Installation Note bilgilerini logla
+        total_qty = sum(item.qty for item in installation_note.items) if installation_note.items else 0
+        grand_total = sum(item.amount for item in installation_note.items) if installation_note.items else 0
+        items_count = len(installation_note.items) if installation_note.items else 0
+        
+        frappe.logger().debug(f"Installation Note oluşturuldu: {installation_note.name}")
+        frappe.logger().debug(f"Toplam ürün sayısı: {total_qty}")
+        frappe.logger().debug(f"Toplam tutar: {grand_total}")
+        frappe.logger().debug(f"Ürün sayısı: {items_count}")
 
         return {
             "success": True,
@@ -517,8 +687,15 @@ def create_installation_note(sales_order, selected_items):
                     "customer": installation_note.customer,
                     "sales_order": installation_note.sales_order,
                     "posting_date": installation_note.posting_date,
-                    "total_qty": installation_note.total_qty,
-                    "grand_total": installation_note.grand_total
+                    "inst_date": installation_note.inst_date,
+                    "total_qty": sum(item.qty for item in installation_note.items) if installation_note.items else 0,
+                    "grand_total": sum(item.amount for item in installation_note.items) if installation_note.items else 0,
+                    "custom_end_customer": installation_note.get("custom_end_customer"),
+                    "custom_end_customer_phone": installation_note.get("custom_end_customer_phone"),
+                    "custom_end_customer_address": installation_note.get("custom_end_customer_address"),
+                    "remarks": installation_note.remarks,
+                    "territory": installation_note.territory,
+                    "items_count": len(installation_note.items) if installation_note.items else 0
                 }
             }
         }

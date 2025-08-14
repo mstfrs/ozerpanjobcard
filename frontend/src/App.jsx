@@ -37,9 +37,9 @@ function App() {
 							<Route element={<Login />} path="/login" />
 							<Route element={<ProtectedRoute />}>
 								<Route element={<Jobcards />} path="/jobcards" />
-								<Route element={<Bayipanel />} path="/delaerpanel" />
-								<Route element={<Orders />} path="/delaerpanel/orders" />
-								<Route element={<Installation />} path="/delaerpanel/installation" />
+								<Route element={<Bayipanel />} path="/dealerpanel" />
+								<Route element={<Orders />} path="/dealerpanel/orders" />
+								<Route element={<Installation />} path="/dealerpanel/installation" />
 								<Route element={<Market/>} path='/market' />
 								<Route element={<DeliveryNoteCreate/>} path='/sevkiyat'/>
 							</Route>

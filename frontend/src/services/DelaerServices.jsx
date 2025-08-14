@@ -73,12 +73,47 @@ export const getAllOrdersByCustomer = async (customerName) => {
 
 export const getDeliveredOrdersWithoutInstallation = async () => {
   try {
-    const response = await fetch(
+    const response = await
+     fetch(
       `${baseUrl}/method/ozerpanjobcard.dealerApi.get_delivered_orders_without_installation`,
       {
         method: "GET",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    console.log(result.message.data.orders)
+    // Frappe API'leri genelde { message: {...} } formatında döner
+    const apiResponse = result.message || result;
+    
+    if (apiResponse.success) {
+      return apiResponse.data;
+    } else {
+      console.error("API Error:", apiResponse.message);
+      return null;
+    }
+  }
+   catch (error) {
+    console.error("getDeliveredOrdersWithoutInstallation error:", error);
+    return null;
+  }
+};
+
+export const getDeliveredItemsByOrder = async (salesOrder) => {
+  try {
+    const response = await fetch(
+      `${baseUrl}/method/ozerpanjobcard.dealerApi.get_delivered_items_by_order`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sales_order: salesOrder }),
       }
     );
 
@@ -98,7 +133,7 @@ export const getDeliveredOrdersWithoutInstallation = async () => {
       return null;
     }
   } catch (error) {
-    console.error("getDeliveredOrdersWithoutInstallation error:", error);
+    console.error("getDeliveredItemsByOrder error:", error);
     return null;
   }
 };

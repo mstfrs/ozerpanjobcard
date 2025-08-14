@@ -8,22 +8,22 @@ const titles = [
   {
     title: "Montaj",
     icon: "pi pi-truck",
-    link: "/delaerpanel/installation"
+    link: "/dealerpanel/installation"
   },
   {
     title: "Bakım & Onarım",
     icon: "pi pi-wrench",
-    link: "/delaerpanel/maintenance"
+    link: "/dealerpanel/maintenance"
   },
   {
     title: "Servis Talepleri",
     icon: "pi pi-tags",
-    link: "/delaerpanel/service"
+    link: "/dealerpanel/service"
   },
   {
     title: "Siparişler",
     icon: "pi pi-sparkles",
-    link: "/delaerpanel/orders"
+    link: "/dealerpanel/orders"
   }
 ]
 

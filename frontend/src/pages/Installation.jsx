@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { getDeliveredOrdersWithoutInstallation, getDeliveredItemsByOrder } from '../../services/DelaerServices';
-import InstallationTable from '../../components/InstallationTable';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getDeliveredOrdersWithoutInstallation } from '../services/DelaerServices';
+import InstallationTable from '../components/InstallationTable';
 import { Dropdown } from 'primereact/dropdown';
-import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
 import { Message } from 'primereact/message';
 import { ProgressSpinner } from 'primereact/progressspinner';
+import { Toast } from 'primereact/toast';
 
-export const Installation = () => {
+const Installation = () => {
   const [orders, setOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderItems, setOrderItems] = useState([]);
   const [selectedItems, setSelectedItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     loadOrders();
@@ -58,55 +59,35 @@ export const Installation = () => {
     } catch (err) {
       setError('Ürün detayları yüklenirken hata oluştu');
       console.error('Error loading order items:', err);
-      setOrderItems([]);
+      setSelectedItems([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleItemSelection = (selectedItemCodes) => {
-    setSelectedItems(selectedItemCodes);
-  };
-
-  const handleCreateInstallationNote = async () => {
-    if (selectedItems.length === 0) {
-      setError('Lütfen en az bir ürün seçin');
-      return;
+  const handleItemSelection = useCallback((selectedItemCodes) => {
+    // Ensure selectedItemCodes is always an array
+    const safeSelection = Array.isArray(selectedItemCodes) ? selectedItemCodes : [];
+    
+    // Only update if selection actually changed
+    if (JSON.stringify(safeSelection) !== JSON.stringify(selectedItems)) {
+      setSelectedItems(safeSelection);
     }
+  }, [selectedItems]);
 
-    try {
-      setLoading(true);
-      setError('');
-      
-      // Installation Note oluştur
-      const response = await fetch(`/api/method/ozerpanjobcard.dealerApi.create_installation_note`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          sales_order: selectedOrder.sales_order,
-          selected_items: selectedItems
-        }),
+  const handleInstallationNoteCreated = (installationNote) => {
+    // Başarı mesajı göster
+    if (toast) {
+      toast.current.show({
+        severity: 'success',
+        summary: 'Başarılı',
+        detail: `Montaj Kaydı oluşturuldu: ${installationNote.name}`,
+        life: 5000
       });
-
-      const result = await response.json();
-      if (result.message && result.message.success) {
-        alert('Installation Note başarıyla oluşturuldu!');
-        // Formu temizle
-        setSelectedOrder(null);
-        setOrderItems([]);
-        setSelectedItems([]);
-        // Siparişleri yeniden yükle
-        loadOrders();
-      } else {
-        setError(result.message?.message || 'Installation Note oluşturulamadı');
-      }
-    } catch (err) {
-      setError('Installation Note oluşturulurken hata oluştu');
-      console.error('Error creating installation note:', err);
-    } finally {
-      setLoading(false);
     }
+    
+    // Siparişleri yeniden yükle
+    loadOrders();
   };
 
   const orderTemplate = (option) => {
@@ -135,11 +116,19 @@ export const Installation = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
+      <Toast ref={toast} />
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-       
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Montaj Kaydı Oluştur</h1>
+          <p className="mt-2 text-gray-600">
+            Teslim edilen ürünler için Montaj Kaydı oluşturun
+          </p>
+        </div>
 
         {/* Sipariş Seçimi */}
-    
+        <Card className="mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sipariş Numarası
@@ -159,41 +148,42 @@ export const Installation = () => {
                 disabled={loading}
                 showClear
               />
-            </div>           
-        
+            </div>
+            
+            {selectedOrder && (
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-medium text-blue-900 mb-2">Seçilen Sipariş Bilgileri</h3>
+                <div className="space-y-1 text-sm text-blue-700">
+                  <p><strong>Son Müşteri:</strong> {selectedOrder.custom_end_customer}</p>
+                  <p><strong>Toplam Ürün:</strong> {selectedOrder.total_items}</p>
+                  <p><strong>Teslimat Sayısı:</strong> {selectedOrder.delivery_count}</p>
+                  <p><strong>Sipariş Tarihi:</strong> {new Date(selectedOrder.transaction_date).toLocaleDateString('tr-TR')}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* Hata Mesajı */}
+        {error && (
+          <Message 
+            severity="error" 
+            text={error} 
+            className="mb-6"
+            onClose={() => setError('')}
+          />
+        )}
+
         {/* Ürün Tablosu */}
         {orderItems.length > 0 && (
           <div className="mb-6">
             <InstallationTable 
               items={orderItems} 
               onSelectionChange={handleItemSelection}
+              onInstallationNoteCreated={handleInstallationNoteCreated}
             />
           </div>
         )}
-
-        {/* Installation Note Oluştur Butonu */}
-        {/* {selectedItems.length > 0 && (
-          <Card>
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Installation Note Oluştur
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {selectedItems.length} ürün seçildi
-                </p>
-              </div>
-              <Button
-                label="Installation Note Oluştur"
-                icon="pi pi-plus"
-                onClick={handleCreateInstallationNote}
-                disabled={loading}
-                className="p-button-primary"
-                size="large"
-              />
-            </div>
-          </Card>
-        )} */}
 
         {/* Loading Overlay */}
         {loading && (
@@ -211,3 +201,4 @@ export const Installation = () => {
   );
 };
 
+export default Installation; 
