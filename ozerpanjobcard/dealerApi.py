@@ -141,12 +141,15 @@ def get_dealer_by_logged_user():
         }
 
 @frappe.whitelist(allow_guest=False)
-def get_all_orders_by_customer(customer_name):
+def get_all_orders_by_customer(customer_name, page=1, page_size=50):
     """
     Verilen customer ismine ait custom_mly_list_uploaded = 1 olan siparişlerin tüm alanlarını getirir.
+    PERFORMANS OPTİMİZE EDİLMİŞ VERSİYON + PAGINATION.
     
     Args:
         customer_name (str): Customer dokümanının adı
+        page (int): Sayfa numarası (1'den başlar)
+        page_size (int): Sayfa başına sipariş sayısı (max 100)
         
     Returns:
         dict: {
@@ -154,9 +157,10 @@ def get_all_orders_by_customer(customer_name):
             "message": str,
             "data": {
                 "customer": Customer bilgileri,
-                "orders": custom_mly_list_uploaded = 1 olan siparişler (tüm alanlar dahil),
+                "orders": custom_mly_list_uploaded = 1 olan siparişler (optimize edilmiş),
                 "total_orders": Toplam sipariş sayısı,
-                "total_amount": Toplam sipariş tutarı
+                "total_amount": Toplam sipariş tutarı,
+                "pagination": Sayfalama bilgileri
             }
         }
     """
@@ -168,6 +172,11 @@ def get_all_orders_by_customer(customer_name):
                 "data": None
             }
 
+        # Pagination parametrelerini kontrol et
+        page = max(1, int(page))
+        page_size = min(100, max(1, int(page_size)))  # Max 100, min 1
+        offset = (page - 1) * page_size
+
         # Customer'ı kontrol et
         customer = frappe.get_doc("Customer", customer_name)
         if not customer:
@@ -177,77 +186,185 @@ def get_all_orders_by_customer(customer_name):
                 "data": None
             }
 
-        # Sadece custom_mly_list_uploaded = 1 olan siparişleri getir
+        # PERFORMANS OPTİMİZASYONU: Önce toplam sayıyı al
+        total_count = frappe.db.count("Sales Order", {
+            "customer": customer_name,
+            "custom_mly_list_uploaded": 1
+        })
+
+        # PERFORMANS OPTİMİZASYONU: Mevcut alanları dinamik olarak kontrol et
+        sales_order_meta = frappe.get_meta("Sales Order")
+        available_fields = [
+            "name", "transaction_date", "delivery_date", "status", "docstatus",
+            "grand_total", "total", "total_taxes_and_charges", "currency",
+            "creation", "modified", "workflow_state", "owner", "modified_by"
+        ]
+        
+        # Custom alanları kontrol et ve sadece mevcut olanları ekle
+        custom_fields = ["custom_end_customer", "custom_mly_list_uploaded"]
+        for field in custom_fields:
+            if field in sales_order_meta.fields:
+                available_fields.append(field)
+            else:
+                frappe.logger().warning(f"Sales Order'da {field} alanı bulunamadı, atlanıyor")
+
+        # PERFORMANS OPTİMİZASYONU: Sadece gerekli alanları çek + LIMIT/OFFSET
         orders = frappe.get_all(
             "Sales Order",
             filters={
                 "customer": customer_name,
                 "custom_mly_list_uploaded": 1
             },
-            fields=["*"],  # Tüm alanlar
-            order_by="transaction_date DESC"
+            fields=available_fields,
+            order_by="transaction_date DESC",
+            limit=page_size,
+            limit_start=offset
         )
 
-        # Her sipariş için detaylı bilgileri al
+        # PERFORMANS OPTİMİZASYONU: Bulk query ile tüm item'ları tek seferde çek
+        order_names = [order.name for order in orders]
+        
+        if not order_names:
+            return {
+                "success": True,
+                "message": f"{customer_name} için sipariş bulunamadı",
+                "data": {
+                    "customer": customer.as_dict(),
+                    "orders": [],
+                    "total_orders": total_count,
+                    "total_amount": 0,
+                    "status_counts": {},
+                    "summary": {"draft": 0, "submitted": 0, "cancelled": 0, "completed": 0},
+                    "pagination": {
+                        "current_page": page,
+                        "page_size": page_size,
+                        "total_pages": 0,
+                        "has_next": False,
+                        "has_prev": False
+                    }
+                }
+            }
+
+        # Tüm Sales Order Item'ları tek seferde çek
+        all_items = frappe.db.sql("""
+            SELECT 
+                soi.parent as sales_order,
+                soi.name as item_name,
+                soi.item_code,
+                soi.item_name as item_display_name,
+                soi.qty,
+                soi.rate,
+                soi.amount,
+                soi.delivered_qty,
+                soi.warehouse,
+                soi.uom,
+                soi.description,
+                soi.item_group
+            FROM `tabSales Order Item` soi
+            WHERE soi.parent IN %(order_names)s
+            ORDER BY soi.parent, soi.idx
+        """, {"order_names": tuple(order_names)}, as_dict=True)
+
+        # Item'ları sales_order'a göre grupla
+        items_by_order = {}
+        for item in all_items:
+            order_name = item.sales_order
+            if order_name not in items_by_order:
+                items_by_order[order_name] = []
+            items_by_order[order_name].append(item)
+
+        # PERFORMANS OPTİMİZASYONU: Bulk query ile tüm Item detaylarını tek seferde çek
+        all_item_codes = list(set([item.item_code for item in all_items if item.item_code]))
+        
+        item_details = {}
+        if all_item_codes:
+            # Tek seferde tüm item detaylarını çek
+            item_details_bulk = frappe.db.sql("""
+                SELECT 
+                    name as item_code,
+                    item_name,
+                    item_group,
+                    description,
+                    stock_uom,
+                    custom_serial,
+                    custom_color,
+                    custom_width,
+                    custom_height
+                FROM `tabItem`
+                WHERE name IN %(item_codes)s
+            """, {"item_codes": tuple(all_item_codes)}, as_dict=True)
+            
+            # Dictionary'ye çevir
+            item_details = {item.item_code: item for item in item_details_bulk}
+
+        # PERFORMANS OPTİMİZASYONU: Her order için item'ları ekle
         detailed_orders = []
         for order in orders:
-            try:
-                # Sales Order dokümanını tam olarak al
-                order_doc = frappe.get_doc("Sales Order", order.name)
-                order_dict = order_doc.as_dict()
+            order_dict = order.copy()
+            
+            # Bu order'a ait item'ları ekle
+            order_items = items_by_order.get(order.name, [])
+            order_dict["items"] = []
+            
+            for item in order_items:
+                item_dict = item.copy()
                 
-                # Items child table'ını da ekle
-                order_dict["items"] = []
-                for item in order_doc.items:
-                    item_dict = item.as_dict()
-                    # Item'ın ek bilgilerini de al
-                    if item.item_code:
-                        item_doc = frappe.get_doc("Item", item.item_code)
-                        item_dict["item_details"] = {
-                            "item_name": item_doc.item_name,
-                            "item_group": item_doc.item_group,
-                            "description": item_doc.description,
-                            "stock_uom": item_doc.stock_uom,
-                            "custom_serial": item_doc.get("custom_serial"),
-                            "custom_color": item_doc.get("custom_color"),
-                            "custom_width": item_doc.get("custom_width"),
-                            "custom_height": item_doc.get("custom_height")
-                        }
-                    order_dict["items"].append(item_dict)
+                # Item detaylarını ekle (eğer varsa)
+                if item.item_code and item.item_code in item_details:
+                    item_dict["item_details"] = item_details[item.item_code]
+                else:
+                    item_dict["item_details"] = {
+                        "item_name": item.item_display_name,
+                        "item_group": item.item_group,
+                        "description": item.description,
+                        "stock_uom": item.uom,
+                        "custom_serial": None,
+                        "custom_color": None,
+                        "custom_width": None,
+                        "custom_height": None
+                    }
                 
-                detailed_orders.append(order_dict)
-                
-            except Exception as e:
-                frappe.logger().error(f"Error getting order details for {order.name}: {str(e)}")
-                # Hata olsa bile temel bilgileri ekle
-                detailed_orders.append(order)
+                order_dict["items"].append(item_dict)
+            
+            detailed_orders.append(order_dict)
 
-        # Toplam sipariş sayısı
-        total_orders = len(detailed_orders)
+        # Toplam sipariş tutarı (sadece bu sayfadaki)
+        page_total_amount = sum(float(order.get("grand_total") or 0) for order in detailed_orders)
 
-        # Toplam sipariş tutarı - zaten filtrelenmiş siparişlerden hesaplanıyor
-        total_amount = sum(float(order.get("grand_total") or 0) for order in detailed_orders)
-
-        # İstatistikler
+        # İstatistikler (sadece bu sayfadaki)
         status_counts = {}
         for order in detailed_orders:
             status = order.get("status", "Unknown")
             status_counts[status] = status_counts.get(status, 0) + 1
 
+        # Pagination bilgileri
+        total_pages = (total_count + page_size - 1) // page_size
+        has_next = page < total_pages
+        has_prev = page > 1
+
         return {
             "success": True,
-            "message": f"{customer_name} için {total_orders} sipariş bulundu",
+            "message": f"{customer_name} için {len(detailed_orders)} sipariş bulundu (Sayfa {page}/{total_pages}) - Performans optimize edildi",
             "data": {
                 "customer": customer.as_dict(),
                 "orders": detailed_orders,
-                "total_orders": total_orders,
-                "total_amount": total_amount,
+                "total_orders": total_count,
+                "total_amount": page_total_amount,  # Sayfa toplam tutarı
+                "page_total_amount": page_total_amount,  # Sayfa toplam tutarı (geriye uyumluluk)
                 "status_counts": status_counts,
                 "summary": {
                     "draft": status_counts.get("Draft", 0),
                     "submitted": status_counts.get("Submitted", 0),
                     "cancelled": status_counts.get("Cancelled", 0),
                     "completed": status_counts.get("Completed", 0)
+                },
+                "pagination": {
+                    "current_page": page,
+                    "page_size": page_size,
+                    "total_pages": total_pages,
+                    "has_next": has_next,
+                    "has_prev": has_prev,
+                    "showing": f"{offset + 1}-{min(offset + page_size, total_count)} / {total_count}"
                 }
             }
         }

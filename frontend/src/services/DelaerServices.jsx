@@ -34,7 +34,7 @@ export const getDealerWithDetailsByLoggedUser = async () => {
   }
 };
 
-export const getAllOrdersByCustomer = async (customerName) => {
+export const getAllOrdersByCustomer = async (customerName, page = 1, pageSize = 50) => {
   try {
     if (!customerName) {
       throw new Error("Customer ismi gerekli");
@@ -46,7 +46,11 @@ export const getAllOrdersByCustomer = async (customerName) => {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customer_name: customerName }),
+        body: JSON.stringify({ 
+          customer_name: customerName,
+          page: page,
+          page_size: pageSize
+        }),
       }
     );
 
