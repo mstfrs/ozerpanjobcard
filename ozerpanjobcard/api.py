@@ -209,7 +209,7 @@ def update_profile_stock_ledger_qty(profile_type, length, qty):
 
 @frappe.whitelist(allow_guest=True)
 def get_serial_details(serial):
-    print(serial)
+    
     try:
         frappe.logger().debug(f"Getting details for serial: {serial}")
         
@@ -224,62 +224,150 @@ def get_serial_details(serial):
             return None
             
         serial_doc = serial_doc[0]  # Get the first (and should be only) result
-        print(serial_doc)
+        
         frappe.logger().debug(f"Serial doc found: {serial_doc}")
 
         # Get the sales order details
         sales_order = None
-        if serial_doc.get("purchase_document_type") == "Sales Order":
-            frappe.logger().debug(f"Getting sales order: {serial_doc.get('purchase_document_no')}")
-            sales_order = frappe.get_doc("Sales Order", serial_doc.get("purchase_document_no"))
-            frappe.logger().debug(f"Sales order found: {sales_order}")
+        print("DEBUG - Serial doc purchase_document_type:", serial_doc.get("purchase_document_type"))
+        print("DEBUG - Serial doc purchase_document_no:", serial_doc.get("purchase_document_no"))
+        print("DEBUG - Serial doc fields:", list(serial_doc.keys()))
+        
+        # Serial numarasından Sales Order'ı bul
+        # S502623-1-1 formatından S502623 kısmını al
+        serial_parts = serial.split('-')
+        if len(serial_parts) >= 1:
+            sales_order_no = serial_parts[0]  # S502623
+            print("DEBUG - Extracted Sales Order No from serial:", sales_order_no)
+            
+            if frappe.db.exists("Sales Order", sales_order_no):
+                print("DEBUG - Sales Order found by serial number:", sales_order_no)
+                sales_order = frappe.get_doc("Sales Order", sales_order_no)
+                frappe.logger().debug(f"Sales order found: {sales_order}")
+            else:
+                print("DEBUG - Sales Order not found by serial number:", sales_order_no)
+        else:
+            print("DEBUG - Could not extract Sales Order No from serial:", serial)
 
         # Get the customer details
         customer = None
+        
         if sales_order:
             frappe.logger().debug(f"Getting customer: {sales_order.customer}")
             customer = frappe.get_doc("Customer", sales_order.customer)
             frappe.logger().debug(f"Customer found: {customer}")
+            
+            # Customer dokümanının alanlarını kontrol et
+            try:
+                customer_fields = [f.fieldname for f in customer.meta.fields]
+                
+            except Exception as e:
+                print("DEBUG - Error getting customer fields:", str(e))
 
         # Get the item details
+        item = None
+        
         frappe.logger().debug(f"Getting item: {serial_doc.get('item_code')}")
-        item = frappe.get_doc("Item", serial_doc.get("item_code"))
-        frappe.logger().debug(f"Item found: {item}")
+        try:
+            item = frappe.get_doc("Item", serial_doc.get("item_code"))
+            
+            frappe.logger().debug(f"Item found: {item}")
+        except Exception as e:
+            print("DEBUG - Item not found:", serial_doc.get("item_code"))
+            print("DEBUG - Error:", str(e))
+            frappe.logger().error(f"Item not found: {serial_doc.get('item_code')}")
+            item = None
 
         # Get any existing issues for this serial number
+        
         frappe.logger().debug(f"Getting issues for serial: {serial}")
-        issues = frappe.get_all("Issue",
-            filters={"serial_no": serial},
-            fields=["name", "description", "status", "creation"],
-            order_by="creation desc"
-        )
-        frappe.logger().debug(f"Found {len(issues)} issues")
+        
+        # Subject LIKE ile serial'ı içeren Issue'ları getir
+        issues = []
+        try:
+            issues = frappe.get_all(
+                "Issue",
+                filters=[["Issue", "subject", "like", f"%{serial}%"]],
+                fields=["name", "subject", "description", "status", "creation","customer"],
+                order_by="creation desc"
+            )
+            frappe.logger().debug(f"Found {len(issues)} issues by subject like")
+        except Exception as e:
+            frappe.logger().error(f"Error getting issues by subject like: {str(e)}")
+            issues = []
 
         # Get tasks for each issue
-        for issue in issues:
+        
+        for i, issue in enumerate(issues):
+            
             frappe.logger().debug(f"Getting tasks for issue: {issue.name}")
-            issue["tasks"] = frappe.get_all("Task",
-                filters={"issue": issue.name},
-                fields=["name", "subject", "status", "assigned_to"]
-            )
-            frappe.logger().debug(f"Found {len(issue['tasks'])} tasks")
+            try:
+                issue["tasks"] = frappe.get_all(
+                    "Task",
+                    filters={"issue": issue.name},
+                    fields=["name", "subject", "status"]
+                )
+                
+                # Fetch assignees from ToDo for each task
+                assignees = frappe.get_all(
+                    "ToDo",
+                    filters={"reference_type": "Task", "reference_name": issue["tasks"][0]["name"]} if issue["tasks"] else {"name": None},
+                    fields=["allocated_to"]
+                )
+                issue["tasks"] = [
+                    {
+                        **t,
+                        "assignees": [a["allocated_to"] for a in frappe.get_all(
+                            "ToDo",
+                            filters={"reference_type": "Task", "reference_name": t["name"]},
+                            fields=["allocated_to"]
+                        )]
+                    }
+                    for t in issue["tasks"]
+                ]
+                
+                frappe.logger().debug(f"Found {len(issue['tasks'])} tasks")
+            except Exception as e:
+                print(f"DEBUG - Error getting tasks for issue {issue.name}:", str(e))
+                issue["tasks"] = []
 
-        response = {
-            "serial": serial,
-            "serial_details": serial_doc,  # This will contain all fields from Serial No
-            "item_code": serial_doc.get("item_code"),
-            "sales_order_no": sales_order.name if sales_order else None,
-            "customer": customer.name if customer else None,
-            "address_display": customer.address_display if customer else None,
-            "contact_mobile": customer.mobile_no if customer else None,
-            "custom_serial": item.custom_serial if item else None,
-            "custom_color": item.custom_color if item else None,
-            "cam_text": item.custom_cam_text if item else None,
-            "warranty_expiry": serial_doc.get("warranty_expiry_date"),
-            "issues": issues
-        }
+        
+        
+        
+        
+        try:
+            # Customer alanlarını güvenli şekilde al
+            customer_name = customer.name if customer else None
+            address_display = getattr(customer, 'address_display', None) if customer else None
+            contact_mobile = getattr(customer, 'mobile_no', None) if customer else None
+            
+            # Item alanlarını güvenli şekilde al
+            custom_serial = getattr(item, 'custom_serial', None) if item else None
+            custom_color = getattr(item, 'custom_color', None) if item else None
+            cam_text = getattr(item, 'custom_cam_text', None) if item else None
+            
+            response = {
+                "serial": serial,
+                "serial_details": serial_doc,  # This will contain all fields from Serial No
+                "item_code": serial_doc.get("item_code"),
+                "sales_order_no": sales_order.name if sales_order else None,
+                "customer": customer_name,
+                "address_display": address_display,
+                "contact_mobile": contact_mobile,
+                "custom_serial": custom_serial,
+                "custom_color": custom_color,
+                "cam_text": cam_text,
+                "warranty_expiry": serial_doc.get("warranty_expiry_date"),
+                "issues": issues
+            }
+            
+        except Exception as e:
+            print("DEBUG - Error creating response:", str(e))
+            frappe.logger().error(f"Error creating response: {str(e)}")
+            response = {"error": "Failed to create response"}
         
         frappe.logger().debug(f"Returning response: {response}")
+        
         return response
 
     except Exception as e:
@@ -305,6 +393,25 @@ def guest_create_issue(subject, description, custom_name_surname, custom_phone, 
             "status": "Open"
         })
         issue.insert(ignore_permissions=True)
+
+        # Assign Issue to the Customer's linked user (custom_user_link)
+        try:
+            if customer:
+                cust_doc = frappe.get_doc("Customer", customer)
+                user_to_assign = getattr(cust_doc, "custom_user_link", None)
+                if user_to_assign:
+                    todo = frappe.get_doc({
+                        "doctype": "ToDo",
+                        "allocated_to": user_to_assign,
+                        "reference_type": "Issue",
+                        "reference_name": issue.name,
+                        "description": subject,
+                        "status": "Open"
+                    })
+                    todo.insert(ignore_permissions=True)
+        except Exception as assign_err:
+            frappe.log_error(frappe.get_traceback(), _("Error assigning Issue to user"))
+
         return issue.name
 
     except Exception as e:

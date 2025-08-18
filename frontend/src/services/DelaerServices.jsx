@@ -141,3 +141,34 @@ export const getDeliveredItemsByOrder = async (salesOrder) => {
     return null;
   }
 };
+
+export const getIssuesByLoggedCustomer = async ({ status = null, page = 1, pageSize = 50 } = {}) => {
+  try {
+    const response = await fetch(
+      `${baseUrl}/method/ozerpanjobcard.dealerApi.get_issues_by_logged_customer`,
+      {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, page, page_size: pageSize })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}: ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const apiResponse = result.message || result;
+
+    if (apiResponse.success) {
+      return apiResponse.data;
+    } else {
+      console.error("API Error:", apiResponse.message);
+      return null;
+    }
+  } catch (error) {
+    console.error("getIssuesByLoggedCustomer error:", error);
+    return null;
+  }
+};

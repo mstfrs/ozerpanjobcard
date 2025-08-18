@@ -61,7 +61,7 @@ const OrdersList = ({ orders, isLoading }) => {
 
 
                 {/* Özet Kartları */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <Card className="bg-blue-50 border-blue-200">
                         <div className="text-center">
                             <div className="text-2xl font-bold text-blue-600">{orders.total_orders}</div>

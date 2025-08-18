@@ -937,3 +937,382 @@ def test_installation_filtering(sales_order_name):
             "message": f"Hata oluştu: {str(e)}",
             "data": None
         }
+
+@frappe.whitelist(allow_guest=False)
+def test_installation_note_fields():
+    """
+    Installation Note doctype'ının mevcut alanlarını test eder.
+    Debug amaçlı kullanılır.
+    """
+    try:
+        installation_note_meta = frappe.get_meta("Installation Note")
+        available_fields = [field.fieldname for field in installation_note_meta.fields]
+        
+        installation_note_item_meta = frappe.get_meta("Installation Note Item")
+        available_item_fields = [field.fieldname for field in installation_note_item_meta.fields]
+        
+        # Installation Note'da Sales Order ile bağlantı kurabilecek alanları kontrol et
+        sales_order_related_fields = []
+        for field in installation_note_meta.fields:
+            if any(keyword in field.fieldname.lower() for keyword in ['sales', 'order', 'so', 'reference', 'against', 'prev', 'delivery', 'dn']):
+                sales_order_related_fields.append({
+                    'fieldname': field.fieldname,
+                    'label': field.label,
+                    'fieldtype': field.fieldtype,
+                    'options': field.options
+                })
+        
+        # Installation Note Item'da Sales Order ile bağlantı kurabilecek alanları kontrol et
+        item_sales_order_related_fields = []
+        for field in installation_note_item_meta.fields:
+            if any(keyword in field.fieldname.lower() for keyword in ['sales', 'order', 'so', 'reference', 'against', 'prev', 'delivery', 'dn']):
+                item_sales_order_related_fields.append({
+                    'fieldname': field.fieldname,
+                    'label': field.label,
+                    'fieldtype': field.fieldtype,
+                    'options': field.options
+                })
+        
+        return {
+            "success": True,
+            "message": "Installation Note alanları başarıyla getirildi",
+            "data": {
+                "installation_note_fields": available_fields,
+                "installation_note_item_fields": available_item_fields,
+                "installation_note_sales_order_fields": sales_order_related_fields,
+                "installation_note_item_sales_order_fields": item_sales_order_related_fields
+            }
+        }
+        
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "test_installation_note_fields error")
+        return {
+            "success": False,
+            "message": f"Hata oluştu: {str(e)}",
+            "data": None
+        }
+
+@frappe.whitelist(allow_guest=False)
+def get_completed_installations():
+    """
+    Giriş yapmış kullanıcıya bağlı bayinin tamamlanmış Installation Note'larını getirir.
+    
+    Returns:
+        dict: {
+            "success": bool,
+            "message": str,
+            "data": {
+                "installations": Tamamlanmış Installation Note listesi
+            }
+        }
+    """
+    try:
+        user = frappe.session.user
+        if not user or user == "Guest":
+            frappe.throw("Kimlik doğrulama gerekli")
+
+        # Kullanıcıya bağlı customer'ı bul
+        customers = frappe.get_all(
+            "Customer",
+            filters={"custom_user_link": user},
+            fields=["name"]
+        )
+        
+        if not customers:
+            return {
+                "success": False,
+                "message": "Bu kullanıcıya bağlı bayi bulunamadı",
+                "data": None
+            }
+
+        customer_name = customers[0].name
+
+        # Önce mevcut Installation Note'ları kontrol et
+        existing_installations = frappe.db.sql("""
+            SELECT name, customer, docstatus, creation
+            FROM `tabInstallation Note`
+            WHERE customer = %s
+            LIMIT 5
+        """, (customer_name,), as_dict=True)
+        
+        frappe.logger().debug(f"Found {len(existing_installations)} existing installations for {customer_name}")
+        for inst in existing_installations:
+            frappe.logger().debug(f"Installation: {inst.name}, customer: {inst.customer}, docstatus: {inst.docstatus}")
+
+        # Tamamlanmış Installation Note'ları getir - temel alanlar (Sales Order join'i geçici olarak kaldırıldı)
+        completed_installations = frappe.db.sql("""
+            SELECT 
+                in_main.name,
+                in_main.customer,
+                in_main.customer_name,
+                in_main.inst_date,
+                in_main.remarks,
+                in_main.status,
+                in_main.territory,
+                in_main.creation,
+                COUNT(ini.name) as items_count
+            FROM `tabInstallation Note` in_main
+            LEFT JOIN `tabInstallation Note Item` ini ON ini.parent = in_main.name
+            WHERE in_main.customer = %s 
+                AND in_main.docstatus = 1
+            GROUP BY in_main.name, in_main.customer, in_main.customer_name, 
+                     in_main.inst_date, in_main.remarks, in_main.status, 
+                     in_main.territory, in_main.creation
+            ORDER BY in_main.creation DESC
+        """, (customer_name,), as_dict=True)
+
+        # Her Installation Note için item detaylarını getir
+        for installation in completed_installations:
+            # Önce Installation Note Item'larda prevdoc alanlarını kontrol et (debug)
+            prevdoc_items = frappe.db.sql("""
+                SELECT 
+                    name, item_code, prevdoc_docname, prevdoc_doctype, parent
+                FROM `tabInstallation Note Item` 
+                WHERE parent = %s
+                LIMIT 5
+            """, (installation.name,), as_dict=True)
+            
+            frappe.logger().debug(f"Installation {installation.name} için prevdoc alanları:")
+            for item in prevdoc_items:
+                frappe.logger().debug(f"  Item: {item.name}, prevdoc_docname: {item.prevdoc_docname}, prevdoc_doctype: {item.prevdoc_doctype}")
+            
+            # Normal item detaylarını getir - Sales Order Item ve Items tablosu üzerinden bilgiler ile
+            items = frappe.db.sql("""
+                SELECT 
+                    ini.item_code,
+                    ini.qty,
+                    ini.serial_no,
+                    ini.description,
+                    so.name as sales_order,
+                    so.custom_end_customer,
+                    i.custom_serial,
+                    i.custom_color
+                FROM `tabInstallation Note Item` ini
+                LEFT JOIN `tabSales Order Item` soi ON ini.item_code = soi.item_code
+                LEFT JOIN `tabSales Order` so ON soi.parent = so.name
+                LEFT JOIN `tabItem` i ON ini.item_code = i.name
+                WHERE ini.parent = %s
+                ORDER BY ini.idx
+            """, (installation.name,), as_dict=True)
+            
+            installation["items"] = items
+
+        return {
+            "success": True,
+            "message": f"{len(completed_installations)} adet tamamlanmış montaj bulundu",
+            "data": {
+                "installations": completed_installations
+            }
+        }
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "get_completed_installations error")
+        return {
+            "success": False,
+            "message": f"Hata oluştu: {str(e)}",
+            "data": None
+        }
+
+@frappe.whitelist(allow_guest=False)
+def get_issues_by_logged_customer(status=None, page=1, page_size=50):
+    """
+    Giriş yapmış kullanıcının `Customer.custom_user_link` alanı ile eşleşen Customer'ını bulur,
+    Issue'ları `Issue.customer` alanına göre filtreleyerek döndürür.
+
+    Args:
+        status (str, optional): Issue status filtresi (Open, Closed, vb.)
+        page (int, optional): Sayfa numarası (>=1)
+        page_size (int, optional): Sayfa başına kayıt sayısı (1-100)
+
+    Returns:
+        dict: {
+            "success": bool,
+            "message": str,
+            "data": {
+                "customer": str,                # Customer adı
+                "issues": list[dict],           # Issue kayıtları
+                "total": int,                   # Toplam kayıt sayısı
+                "pagination": {                 # Sayfalama bilgileri
+                    "current_page": int,
+                    "page_size": int,
+                    "total_pages": int,
+                    "has_next": bool,
+                    "has_prev": bool,
+                    "showing": str
+                }
+            }
+        }
+    """
+    try:
+        user = frappe.session.user
+        if not user or user == "Guest":
+            frappe.throw("Kimlik doğrulama gerekli")
+
+        # Kullanıcıya bağlı customer'ı bul
+        customers = frappe.get_all(
+            "Customer",
+            filters={"custom_user_link": user},
+            fields=["name"]
+        )
+
+        if not customers:
+            return {
+                "success": False,
+                "message": "Bu kullanıcıya bağlı müşteri bulunamadı",
+                "data": None
+            }
+
+        customer_name = customers[0]["name"]
+
+        # Sayfalama sınırları
+        page = max(1, int(page))
+        page_size = min(100, max(1, int(page_size)))
+        offset = (page - 1) * page_size
+
+        filters = {"customer": customer_name}
+        if status:
+            filters["status"] = status
+
+        # Issue alanlarını dinamik belirle (mevcut alanları seç)
+        issue_meta = frappe.get_meta("Issue")
+        available_fieldnames = {df.fieldname for df in getattr(issue_meta, "fields", [])}
+        base_fields = [
+            "name",
+            "subject",
+            "status",
+            "customer",
+            "creation",
+            "modified",
+        ]
+        optional_fields = [
+            "priority",
+            "raised_by",
+            "opening_date",
+            "opening_time",
+            "resolution_date",
+            "serial_no",
+            "sales_order",
+            "custom_sales_order",
+            "item_code",
+            "description",
+        ]
+        fields = base_fields + [f for f in optional_fields if f in available_fieldnames]
+
+        total = frappe.db.count("Issue", filters)
+
+        issues = frappe.get_all(
+            "Issue",
+            filters=filters,
+            fields=fields,
+            order_by="creation desc",
+            limit=page_size,
+            limit_start=offset
+        )
+
+        # Sales Order eşlemesi: Öncelik serial_no/subject üzerinden (S502623-1-1 -> S502623),
+        # ardından doğrudan sales_order/custom_sales_order alanları
+        def extract_order_name(issue_row: dict):
+            direct = issue_row.get("sales_order") or issue_row.get("custom_sales_order")
+            if direct:
+                return direct
+            serial_text = (issue_row.get("serial_no") or issue_row.get("subject") or "").strip()
+            if not serial_text:
+                return None
+            return (serial_text.split('-', 1)[0] or None)
+
+        order_names = list({extract_order_name(i) for i in issues if extract_order_name(i)})
+        if order_names:
+            so_rows = frappe.get_all(
+                "Sales Order",
+                filters={"name": ["in", order_names]},
+                fields=["name", "custom_end_customer"]
+            )
+            so_map = {row["name"]: row.get("custom_end_customer") for row in so_rows}
+            for i in issues:
+                so = extract_order_name(i)
+                if so and so in so_map:
+                    i["custom_end_customer"] = so_map[so]
+
+        # Installation Date enrichment
+        # 1) Seri no (veya subject) ile Installation Note Item eşlemesi
+        serial_candidates = list({
+            (i.get("serial_no") or i.get("subject") or "").strip()
+            for i in issues
+            if (i.get("serial_no") or i.get("subject"))
+        })
+        serial_candidates = [s for s in serial_candidates if s]
+        if serial_candidates:
+            rows = frappe.db.sql(
+                """
+                SELECT ini.serial_no, in_main.inst_date
+                FROM `tabInstallation Note Item` ini
+                INNER JOIN `tabInstallation Note` in_main ON in_main.name = ini.parent
+                WHERE ini.serial_no IN %(serials)s
+                """,
+                {"serials": tuple(serial_candidates)},
+                as_dict=True
+            )
+            serial_to_date = {}
+            for r in rows:
+                # Eğer aynı seri için birden fazla kayıt varsa en güncel tarihi seç
+                current = serial_to_date.get(r.serial_no)
+                if not current or (r.inst_date and r.inst_date > current):
+                    serial_to_date[r.serial_no] = r.inst_date
+            for i in issues:
+                serial_or_subject = (i.get("serial_no") or i.get("subject") or "").strip()
+                if serial_or_subject in serial_to_date:
+                    i["installation_date"] = serial_to_date[serial_or_subject]
+
+        # 2) Fallback: Installation Note.sales_order üzerinden (kalanlar için)
+        remaining_orders = list({
+            extract_order_name(i) for i in issues
+            if not i.get("installation_date") and extract_order_name(i)
+        })
+        remaining_orders = [o for o in remaining_orders if o]
+        if remaining_orders:
+            in_rows = frappe.get_all(
+                "Installation Note",
+                filters={"sales_order": ["in", remaining_orders], "docstatus": 1},
+                fields=["sales_order", "inst_date"],
+                order_by="inst_date desc"
+            )
+            # En güncel tarihi seç
+            order_to_date = {}
+            for r in in_rows:
+                if r.get("sales_order") and (r.get("sales_order") not in order_to_date or r.inst_date > order_to_date[r.get("sales_order")]):
+                    order_to_date[r.get("sales_order")] = r.inst_date
+            for i in issues:
+                if not i.get("installation_date"):
+                    so = extract_order_name(i)
+                    if so and so in order_to_date:
+                        i["installation_date"] = order_to_date[so]
+
+        total_pages = (total + page_size - 1) // page_size
+        has_next = page < total_pages
+        has_prev = page > 1
+
+        return {
+            "success": True,
+            "message": f"{customer_name} için {total} kayıt bulundu",
+            "data": {
+                "customer": customer_name,
+                "issues": issues,
+                "total": total,
+                "pagination": {
+                    "current_page": page,
+                    "page_size": page_size,
+                    "total_pages": total_pages,
+                    "has_next": has_next,
+                    "has_prev": has_prev,
+                    "showing": f"{offset + 1}-{min(offset + page_size, total)} / {total}"
+                }
+            }
+        }
+
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "get_issues_by_logged_customer error")
+        return {
+            "success": False,
+            "message": f"Hata oluştu: {str(e)}",
+            "data": None
+        }

@@ -18,6 +18,7 @@ import Market from './pages/Market';
 import DeliveryNoteCreate from './pages/DeliveryNoteCreate';
 import Orders from './pages/Bayi/Orders';
 import { Installation } from './pages/Bayi/Installation';
+import Services from './pages/Bayi/Services';
 const queryClient = new QueryClient()
 const basePath = import.meta.env.VITE_BASE_PATH || '/';
 
@@ -40,6 +41,7 @@ function App() {
 								<Route element={<Bayipanel />} path="/dealerpanel" />
 								<Route element={<Orders />} path="/dealerpanel/orders" />
 								<Route element={<Installation />} path="/dealerpanel/installation" />
+								<Route element={<Services />} path="/dealerpanel/service" />
 								<Route element={<Market/>} path='/market' />
 								<Route element={<DeliveryNoteCreate/>} path='/sevkiyat'/>
 							</Route>

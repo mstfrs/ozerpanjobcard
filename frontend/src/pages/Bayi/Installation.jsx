@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getDeliveredOrdersWithoutInstallation, getDeliveredItemsByOrder } from '../../services/DelaerServices';
 import InstallationTable from '../../components/InstallationTable';
+import CompletedInstallations from '../../components/DelaerPage/CompletedInstallations';
 import { Dropdown } from 'primereact/dropdown';
 import { Button } from 'primereact/button';
 import { Card } from 'primereact/card';
@@ -14,6 +15,7 @@ export const Installation = () => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [activeView, setActiveView] = useState('pending'); // 'pending' veya 'completed'
 
   useEffect(() => {
     loadOrders();
@@ -179,14 +181,66 @@ export const Installation = () => {
     );
   };
 
+  const handleViewChange = (view) => {
+    setActiveView(view);
+    // View değiştiğinde formu temizle
+    setSelectedOrder(null);
+    setOrderItems([]);
+    setSelectedItems([]);
+    setError('');
+  };
+
+  const testInstallationFields = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/method/ozerpanjobcard.dealerApi.test_installation_note_fields`, {
+        method: "GET",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const result = await response.json();
+      if (result.message && result.message.success) {
+        console.log("Installation Note fields:", result.message.data);
+        alert(`Installation Note Alanları:\n\nAna Alanlar: ${result.message.data.installation_note_fields.join(', ')}\n\nItem Alanları: ${result.message.data.installation_note_item_fields.join(', ')}`);
+      } else {
+        setError('Test fonksiyonu çalıştırılamadı');
+      }
+    } catch (err) {
+      setError('Test fonksiyonu çalıştırılırken hata oluştu');
+      console.error('Error testing installation fields:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-       
+        
+        {/* View Seçim Butonları */}
+        <div className="mb-6">
+          <div className="flex space-x-4">
+            <Button
+              label="Bekleyen Montajlar"
+              icon="pi pi-clock"
+              className={`${activeView === 'pending' ? 'bg-blue-600' : 'bg-gray-400'} text-white border-0 p-2`}
+              onClick={() => handleViewChange('pending')}
+            />
+            <Button
+              label="Tamamlanan Montajlar"
+              icon="pi pi-check-circle"
+              className={`${activeView === 'completed' ? 'bg-green-600' : 'bg-gray-400'} text-white border-0 p-2`}
+              onClick={() => handleViewChange('completed')}
+            />
+          </div>
+        </div>
 
-        {/* Sipariş Seçimi */}
-     
-            <div>
+        {/* Bekleyen Montajlar View */}
+        {activeView === 'pending' && (
+          <>
+            {/* Sipariş Seçimi */}
+            <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Sipariş Numarası
               </label>
@@ -204,60 +258,29 @@ export const Installation = () => {
                 className="w-full"
                 disabled={loading}
                 showClear
-              />
-              
-              {/* Test Butonu - Debug için */}
-              {/* {orders.length > 0 && (
-                <div className="mt-2">
-                  <Button
-                    label="Installation Filtreleme Test Et"
-                    icon="pi pi-search"
-                    onClick={() => testInstallationFiltering(orders[0].sales_order)}
-                    disabled={loading}
-                    className="p-button-secondary p-button-sm"
-                    size="small"
-                  />
-                  <span className="ml-2 text-xs text-gray-500">
-                    İlk sipariş için test et
-                  </span>
-                </div>
-              )} */}
+              />           
             </div>
-        
-        {/* Ürün Tablosu */}
-        {orderItems.length > 0 && (
-          <div className="mb-6">
-            <InstallationTable 
-              items={orderItems} 
-              onSelectionChange={handleItemSelection}
-              onInstallationNoteCreated={handleInstallationNoteCreated}
-            />
-          </div>
+            
+            {/* Ürün Tablosu */}
+            {orderItems.length > 0 && (
+              <div className="mb-6">
+                <InstallationTable 
+                  items={orderItems} 
+                  onSelectionChange={handleItemSelection}
+                  onInstallationNoteCreated={handleInstallationNoteCreated}
+                />
+              </div>
+            )}
+          </>
         )}
 
-        {/* Installation Note Oluştur Butonu */}
-        {/* {selectedItems.length > 0 && (
-          <Card>
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Installation Note Oluştur
-                </h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  {selectedItems.length} ürün seçildi
-                </p>
-              </div>
-              <Button
-                label="Installation Note Oluştur"
-                icon="pi pi-plus"
-                onClick={handleCreateInstallationNote}
-                disabled={loading}
-                className="p-button-primary"
-                size="large"
-              />
-            </div>
-          </Card>
-        )} */}
+        {/* Tamamlanan Montajlar View */}
+        {activeView === 'completed' && (
+          <div className="mb-6">
+            
+            <CompletedInstallations />
+          </div>
+        )}
 
         {/* Loading Overlay */}
         {loading && (
