@@ -209,7 +209,7 @@ def update_profile_stock_ledger_qty(profile_type, length, qty):
 
 @frappe.whitelist(allow_guest=True)
 def get_serial_details(serial):
-    print(serial)
+    
     try:
         frappe.logger().debug(f"Getting details for serial: {serial}")
         
@@ -224,62 +224,272 @@ def get_serial_details(serial):
             return None
             
         serial_doc = serial_doc[0]  # Get the first (and should be only) result
-        print(serial_doc)
+        
         frappe.logger().debug(f"Serial doc found: {serial_doc}")
 
         # Get the sales order details
         sales_order = None
-        if serial_doc.get("purchase_document_type") == "Sales Order":
-            frappe.logger().debug(f"Getting sales order: {serial_doc.get('purchase_document_no')}")
-            sales_order = frappe.get_doc("Sales Order", serial_doc.get("purchase_document_no"))
-            frappe.logger().debug(f"Sales order found: {sales_order}")
+        print("DEBUG - Serial doc purchase_document_type:", serial_doc.get("purchase_document_type"))
+        print("DEBUG - Serial doc purchase_document_no:", serial_doc.get("purchase_document_no"))
+        print("DEBUG - Serial doc fields:", list(serial_doc.keys()))
+        
+        # Serial numarasından Sales Order'ı bul
+        # S502623-1-1 formatından S502623 kısmını al
+        serial_parts = serial.split('-')
+        if len(serial_parts) >= 1:
+            sales_order_no = serial_parts[0]  # S502623
+            print("DEBUG - Extracted Sales Order No from serial:", sales_order_no)
+            
+            if frappe.db.exists("Sales Order", sales_order_no):
+                print("DEBUG - Sales Order found by serial number:", sales_order_no)
+                sales_order = frappe.get_doc("Sales Order", sales_order_no)
+                frappe.logger().debug(f"Sales order found: {sales_order}")
+            else:
+                print("DEBUG - Sales Order not found by serial number:", sales_order_no)
+        else:
+            print("DEBUG - Could not extract Sales Order No from serial:", serial)
 
         # Get the customer details
         customer = None
+        
         if sales_order:
             frappe.logger().debug(f"Getting customer: {sales_order.customer}")
             customer = frappe.get_doc("Customer", sales_order.customer)
             frappe.logger().debug(f"Customer found: {customer}")
+            
+            # Customer dokümanının alanlarını kontrol et
+            try:
+                customer_fields = [f.fieldname for f in customer.meta.fields]
+                
+            except Exception as e:
+                print("DEBUG - Error getting customer fields:", str(e))
 
         # Get the item details
+        item = None
+        cam_item = None
+        
+        # Önce serial_parts'ı tanımla
+        print(f"DEBUG - Processing serial: {serial}")
+        serial_parts = serial.split('-')
+        print(f"DEBUG - Serial parts: {serial_parts}")
+        print(f"DEBUG - Serial parts length: {len(serial_parts)}")
+        
         frappe.logger().debug(f"Getting item: {serial_doc.get('item_code')}")
-        item = frappe.get_doc("Item", serial_doc.get("item_code"))
-        frappe.logger().debug(f"Item found: {item}")
+        
+        # PVC ana ürününü al (custom_serial ve custom_color için)
+        item = None
+        try:
+            # Önce serial_doc.item_code ile dene
+            item = frappe.get_doc("Item", serial_doc.get("item_code"))
+            frappe.logger().debug(f"Item found with serial_doc.item_code: {item.name}")
+        except Exception as e:
+            print("DEBUG - Item not found with serial_doc.item_code:", serial_doc.get("item_code"))
+            print("DEBUG - Error:", str(e))
+            frappe.logger().error(f"Item not found: {serial_doc.get('item_code')}")
+            
+            # Item bulunamadıysa, ana ürün kodu ile tekrar dene
+            if len(serial_parts) >= 2:
+                ana_urun_kodu = f"{serial_parts[0]}-{serial_parts[1]}"
+                print(f"DEBUG - Trying to find PVC item with ana_urun_kodu: {ana_urun_kodu}")
+                try:
+                    item = frappe.get_doc("Item", ana_urun_kodu)
+                    print(f"DEBUG - PVC Item found with ana_urun_kodu: {item.name}")
+                except Exception as e2:
+                    print(f"DEBUG - PVC Item not found with ana_urun_kodu either: {str(e2)}")
+                    item = None
+        
+        # Seri numarasından cam bilgisini çıkar (try-except dışında)
+        # S502225-9-1 formatından S502225-9 kısmını al (PVC ürün)
+        # S502225-9-367210041640 formatından 367210041640 kısmını al (Cam ürün)
+        
+        if len(serial_parts) >= 3:
+            # PVC ürün kodu: S502225-9
+            pvc_product_code = f"{serial_parts[0]}-{serial_parts[1]}"
+            # Cam ürün kodu: 367210041640 (3. parça)
+            cam_product_code = serial_parts[2]
+            
+            print(f"DEBUG - PVC Product Code: {pvc_product_code}")
+            print(f"DEBUG - Cam Product Code: {cam_product_code}")
+            
+            # Cam ürününü Item'lardan bul
+            if frappe.db.exists("Item", cam_product_code):
+                cam_item = frappe.get_doc("Item", cam_product_code)
+                print(f"DEBUG - Cam Item found: {cam_item.name}")
+                print(f"DEBUG - Cam Item details: {cam_item.as_dict()}")
+            else:
+                print(f"DEBUG - Cam Item not found: {cam_product_code}")
+                # Item tablosunda bu kod yoksa, tüm Item'ları kontrol et
+                all_items = frappe.get_all("Item", fields=["name", "item_name"], limit=10)
+                print(f"DEBUG - Sample items in database: {all_items}")
+        else:
+            print(f"DEBUG - Serial format not as expected. Parts: {serial_parts}")
+        
+        # Cam bilgisini Item tablosundan ara (ana ürün kodu ile başlayan tüm ürünler)
+        if len(serial_parts) >= 2:
+            # Ana ürün kodu: S502225-1
+            ana_urun_kodu = f"{serial_parts[0]}-{serial_parts[1]}"
+            
+            print(f"DEBUG - Ana ürün kodu: {ana_urun_kodu}")
+            
+            # Item tablosunda bu kodla başlayan tüm ürünleri bul
+            # LIKE ile arama yap: S502225-1%
+            related_items = frappe.get_all(
+                "Item",
+                filters=[
+                    ["Item", "name", "like", f"{ana_urun_kodu}%"]
+                ],
+                fields=["name", "item_name", "item_group"],
+                order_by="name"
+            )
+            
+            print(f"DEBUG - Found {len(related_items)} related items")
+            for related_item in related_items:
+                print(f"DEBUG - Related item: {related_item}")
+            
+            # Cam ürünlerini filtrele (ana ürün kodu değil, daha uzun olanlar)
+            cam_items = []
+            for related_item in related_items:
+                if related_item.name != ana_urun_kodu and len(related_item.name) > len(ana_urun_kodu):
+                    # S502225-1-367210041640 formatındaki ürünler
+                    cam_items.append(related_item)
+                    print(f"DEBUG - Cam item found: {related_item.name}")
+            
+            print(f"DEBUG - Found {len(cam_items)} cam items")
+            
+            # İlk cam ürününü seç (birden fazla varsa ilkini al)
+            if cam_items:
+                selected_cam_item = cam_items[0]
+                print(f"DEBUG - Selected cam item: {selected_cam_item.name}")
+                
+                # Cam ürün kodundan sadece cam kısmını çıkar
+                # S502623-1-367210041140 -> 367210041140
+                if "-" in selected_cam_item.name:
+                    cam_code_parts = selected_cam_item.name.split("-")
+                    if len(cam_code_parts) >= 3:
+                        cam_code = cam_code_parts[2]  # 3. parça: 367210041140
+                        print(f"DEBUG - Extracted cam code: {cam_code}")
+                        
+                        # Bu cam kodu ile Item tablosunda ara
+                        if frappe.db.exists("Item", cam_code):
+                            cam_item = frappe.get_doc("Item", cam_code)
+                            print(f"DEBUG - Cam Item found by code: {cam_item.name} - {cam_item.item_name}")
+                        else:
+                            print(f"DEBUG - Cam Item not found for code: {cam_code}")
+                            cam_item = None
+                    else:
+                        print(f"DEBUG - Could not extract cam code from: {selected_cam_item.name}")
+                        cam_item = None
+                else:
+                    print(f"DEBUG - No dash found in cam item name: {selected_cam_item.name}")
+                    cam_item = None
+            else:
+                print(f"DEBUG - No cam items found")
+                cam_item = None
 
         # Get any existing issues for this serial number
+        
         frappe.logger().debug(f"Getting issues for serial: {serial}")
-        issues = frappe.get_all("Issue",
-            filters={"serial_no": serial},
-            fields=["name", "description", "status", "creation"],
-            order_by="creation desc"
-        )
-        frappe.logger().debug(f"Found {len(issues)} issues")
+        
+        # Subject LIKE ile serial'ı içeren Issue'ları getir
+        issues = []
+        try:
+            issues = frappe.get_all(
+                "Issue",
+                filters=[["Issue", "subject", "like", f"%{serial}%"]],
+                fields=["name", "subject", "description", "status", "creation","customer"],
+                order_by="creation desc"
+            )
+            frappe.logger().debug(f"Found {len(issues)} issues by subject like")
+        except Exception as e:
+            frappe.logger().error(f"Error getting issues by subject like: {str(e)}")
+            issues = []
 
         # Get tasks for each issue
-        for issue in issues:
+        
+        for i, issue in enumerate(issues):
+            
             frappe.logger().debug(f"Getting tasks for issue: {issue.name}")
-            issue["tasks"] = frappe.get_all("Task",
-                filters={"issue": issue.name},
-                fields=["name", "subject", "status", "assigned_to"]
-            )
-            frappe.logger().debug(f"Found {len(issue['tasks'])} tasks")
+            try:
+                issue["tasks"] = frappe.get_all(
+                    "Task",
+                    filters={"issue": issue.name},
+                    fields=["name", "subject", "status"]
+                )
+                
+                # Fetch assignees from ToDo for each task
+                assignees = frappe.get_all(
+                    "ToDo",
+                    filters={"reference_type": "Task", "reference_name": issue["tasks"][0]["name"]} if issue["tasks"] else {"name": None},
+                    fields=["allocated_to"]
+                )
+                issue["tasks"] = [
+                    {
+                        **t,
+                        "assignees": [a["allocated_to"] for a in frappe.get_all(
+                            "ToDo",
+                            filters={"reference_type": "Task", "reference_name": t["name"]},
+                            fields=["allocated_to"]
+                        )]
+                    }
+                    for t in issue["tasks"]
+                ]
+                
+                frappe.logger().debug(f"Found {len(issue['tasks'])} tasks")
+            except Exception as e:
+                print(f"DEBUG - Error getting tasks for issue {issue.name}:", str(e))
+                issue["tasks"] = []
 
-        response = {
-            "serial": serial,
-            "serial_details": serial_doc,  # This will contain all fields from Serial No
-            "item_code": serial_doc.get("item_code"),
-            "sales_order_no": sales_order.name if sales_order else None,
-            "customer": customer.name if customer else None,
-            "address_display": customer.address_display if customer else None,
-            "contact_mobile": customer.mobile_no if customer else None,
-            "custom_serial": item.custom_serial if item else None,
-            "custom_color": item.custom_color if item else None,
-            "cam_text": item.custom_cam_text if item else None,
-            "warranty_expiry": serial_doc.get("warranty_expiry_date"),
-            "issues": issues
-        }
+        
+        
+        
+        
+        try:
+            # Customer alanlarını güvenli şekilde al
+            customer_name = customer.name if customer else None
+            address_display = getattr(customer, 'address_display', None) if customer else None
+            contact_mobile = getattr(customer, 'mobile_no', None) if customer else None
+            
+            # Item alanlarını güvenli şekilde al
+            custom_serial = getattr(item, 'custom_serial', None) if item else None
+            custom_color = getattr(item, 'custom_color', None) if item else None
+            
+            print(f"DEBUG - PVC Item: {item.name if item else 'None'}")
+            print(f"DEBUG - custom_serial: {custom_serial}")
+            print(f"DEBUG - custom_color: {custom_color}")
+            print(f"DEBUG - Cam Item: {cam_item.name if cam_item else 'None'}")
+            
+            # Cam bilgisini cam_item'dan al
+            cam_text = None
+            if cam_item:
+                cam_text = cam_item.item_name or cam_item.name
+            else:
+                # Eski yöntem (geriye uyumluluk için)
+                cam_text = getattr(item, 'custom_cam_text', None) if item else None
+            
+            response = {
+                "serial": serial,
+                "serial_details": serial_doc,  # This will contain all fields from Serial No
+                "item_code": serial_doc.get("item_code"),
+                "sales_order_no": sales_order.name if sales_order else None,
+                "customer": customer_name,
+                "address_display": address_display,
+                "contact_mobile": contact_mobile,
+                "custom_serial": custom_serial,
+                "custom_color": custom_color,
+                "cam_text": cam_text,
+                "cam_item_code": cam_item.name if cam_item else None,
+                "cam_item_name": cam_item.item_name if cam_item else None,
+                "warranty_expiry": serial_doc.get("warranty_expiry_date"),
+                "issues": issues
+            }
+            print("DEBUG - Response:", response)
+        except Exception as e:
+            print("DEBUG - Error creating response:", str(e))
+            frappe.logger().error(f"Error creating response: {str(e)}")
+            response = {"error": "Failed to create response"}
         
         frappe.logger().debug(f"Returning response: {response}")
+        
         return response
 
     except Exception as e:
@@ -305,6 +515,25 @@ def guest_create_issue(subject, description, custom_name_surname, custom_phone, 
             "status": "Open"
         })
         issue.insert(ignore_permissions=True)
+
+        # Assign Issue to the Customer's linked user (custom_user_link)
+        try:
+            if customer:
+                cust_doc = frappe.get_doc("Customer", customer)
+                user_to_assign = getattr(cust_doc, "custom_user_link", None)
+                if user_to_assign:
+                    todo = frappe.get_doc({
+                        "doctype": "ToDo",
+                        "allocated_to": user_to_assign,
+                        "reference_type": "Issue",
+                        "reference_name": issue.name,
+                        "description": subject,
+                        "status": "Open"
+                    })
+                    todo.insert(ignore_permissions=True)
+        except Exception as assign_err:
+            frappe.log_error(frappe.get_traceback(), _("Error assigning Issue to user"))
+
         return issue.name
 
     except Exception as e:

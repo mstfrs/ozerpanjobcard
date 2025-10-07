@@ -1,9 +1,12 @@
 import { create } from 'zustand'
 const useJobcardsStore = create((set) => ({
   currentUser: null,
+  selectedDealer: null,
   currentWorkstation: null,
   currentOperation: null,
   currentJobcard: null,
+  currentJobcardNames: [], // Job card names array'i
+  currentSelectedJobCard: null, // Seçili tek job card
   currentJobcardStatus: null,
   currentOpt: null,
   currentBarkod: null,
@@ -25,9 +28,12 @@ const useJobcardsStore = create((set) => ({
   setMaxSanalAdet: (maxSanalAdet) => set({ maxSanalAdet: maxSanalAdet }),
   setQualityCheckCode: (qualityCheckCode) => set({ qualityCheckCode: qualityCheckCode }),
   setCurrentUser: (user) => set({ currentUser: user }),
+  setSelectedDealer: (dealer) => set({ selectedDealer: dealer }),
   setCurrentWorkstation: (workstation) => set({ currentWorkstation: workstation }),
   setCurrentOperation: (operation) => set({ currentOperation: operation }),
   setCurrentJobcard: (jobcard) => set({ currentJobcard: jobcard }),
+  setCurrentJobcardNames: (jobcardNames) => set({ currentJobcardNames: jobcardNames }),
+  setCurrentSelectedJobCard: (selectedJobCard) => set({ currentSelectedJobCard: selectedJobCard }),
   setCurrentJobcardStatus: (jobcardStatus) => set({ currentJobcardStatus: jobcardStatus }),
   setCurrentOpt: (opt) => set({ currentOpt: opt }),
   setCurrentBarkod: (barkod) => set({ currentBarkod: barkod }),

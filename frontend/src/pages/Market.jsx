@@ -19,8 +19,9 @@ const Market = () => {
     currentOpt,
     setJobCardList,
     setEmployee,
+    currentSelectedJobCard,
   } = useJobcardsStore();
-  console.log(currentJobcard)
+  console.log(currentSelectedJobCard)
   useEffect(() => {
     fetchCurrentUser().then((currentUsr) => {
       setCurrentUser(currentUsr.message);
@@ -47,7 +48,7 @@ const Market = () => {
   
       {currentJobcard && (
                 <h3 className="text-lg font-medium">
-                  İş Kartı No : {currentJobcard?.name}
+                  İş Kartı No : {currentSelectedJobCard?.name}
                 </h3>
               )}
             <DataTable value={pozBomData?.bom_items} className='text-sm'>
