@@ -266,17 +266,125 @@ def get_serial_details(serial):
 
         # Get the item details
         item = None
+        cam_item = None
+        
+        # Önce serial_parts'ı tanımla
+        print(f"DEBUG - Processing serial: {serial}")
+        serial_parts = serial.split('-')
+        print(f"DEBUG - Serial parts: {serial_parts}")
+        print(f"DEBUG - Serial parts length: {len(serial_parts)}")
         
         frappe.logger().debug(f"Getting item: {serial_doc.get('item_code')}")
+        
+        # PVC ana ürününü al (custom_serial ve custom_color için)
+        item = None
         try:
+            # Önce serial_doc.item_code ile dene
             item = frappe.get_doc("Item", serial_doc.get("item_code"))
-            
-            frappe.logger().debug(f"Item found: {item}")
+            frappe.logger().debug(f"Item found with serial_doc.item_code: {item.name}")
         except Exception as e:
-            print("DEBUG - Item not found:", serial_doc.get("item_code"))
+            print("DEBUG - Item not found with serial_doc.item_code:", serial_doc.get("item_code"))
             print("DEBUG - Error:", str(e))
             frappe.logger().error(f"Item not found: {serial_doc.get('item_code')}")
-            item = None
+            
+            # Item bulunamadıysa, ana ürün kodu ile tekrar dene
+            if len(serial_parts) >= 2:
+                ana_urun_kodu = f"{serial_parts[0]}-{serial_parts[1]}"
+                print(f"DEBUG - Trying to find PVC item with ana_urun_kodu: {ana_urun_kodu}")
+                try:
+                    item = frappe.get_doc("Item", ana_urun_kodu)
+                    print(f"DEBUG - PVC Item found with ana_urun_kodu: {item.name}")
+                except Exception as e2:
+                    print(f"DEBUG - PVC Item not found with ana_urun_kodu either: {str(e2)}")
+                    item = None
+        
+        # Seri numarasından cam bilgisini çıkar (try-except dışında)
+        # S502225-9-1 formatından S502225-9 kısmını al (PVC ürün)
+        # S502225-9-367210041640 formatından 367210041640 kısmını al (Cam ürün)
+        
+        if len(serial_parts) >= 3:
+            # PVC ürün kodu: S502225-9
+            pvc_product_code = f"{serial_parts[0]}-{serial_parts[1]}"
+            # Cam ürün kodu: 367210041640 (3. parça)
+            cam_product_code = serial_parts[2]
+            
+            print(f"DEBUG - PVC Product Code: {pvc_product_code}")
+            print(f"DEBUG - Cam Product Code: {cam_product_code}")
+            
+            # Cam ürününü Item'lardan bul
+            if frappe.db.exists("Item", cam_product_code):
+                cam_item = frappe.get_doc("Item", cam_product_code)
+                print(f"DEBUG - Cam Item found: {cam_item.name}")
+                print(f"DEBUG - Cam Item details: {cam_item.as_dict()}")
+            else:
+                print(f"DEBUG - Cam Item not found: {cam_product_code}")
+                # Item tablosunda bu kod yoksa, tüm Item'ları kontrol et
+                all_items = frappe.get_all("Item", fields=["name", "item_name"], limit=10)
+                print(f"DEBUG - Sample items in database: {all_items}")
+        else:
+            print(f"DEBUG - Serial format not as expected. Parts: {serial_parts}")
+        
+        # Cam bilgisini Item tablosundan ara (ana ürün kodu ile başlayan tüm ürünler)
+        if len(serial_parts) >= 2:
+            # Ana ürün kodu: S502225-1
+            ana_urun_kodu = f"{serial_parts[0]}-{serial_parts[1]}"
+            
+            print(f"DEBUG - Ana ürün kodu: {ana_urun_kodu}")
+            
+            # Item tablosunda bu kodla başlayan tüm ürünleri bul
+            # LIKE ile arama yap: S502225-1%
+            related_items = frappe.get_all(
+                "Item",
+                filters=[
+                    ["Item", "name", "like", f"{ana_urun_kodu}%"]
+                ],
+                fields=["name", "item_name", "item_group"],
+                order_by="name"
+            )
+            
+            print(f"DEBUG - Found {len(related_items)} related items")
+            for related_item in related_items:
+                print(f"DEBUG - Related item: {related_item}")
+            
+            # Cam ürünlerini filtrele (ana ürün kodu değil, daha uzun olanlar)
+            cam_items = []
+            for related_item in related_items:
+                if related_item.name != ana_urun_kodu and len(related_item.name) > len(ana_urun_kodu):
+                    # S502225-1-367210041640 formatındaki ürünler
+                    cam_items.append(related_item)
+                    print(f"DEBUG - Cam item found: {related_item.name}")
+            
+            print(f"DEBUG - Found {len(cam_items)} cam items")
+            
+            # İlk cam ürününü seç (birden fazla varsa ilkini al)
+            if cam_items:
+                selected_cam_item = cam_items[0]
+                print(f"DEBUG - Selected cam item: {selected_cam_item.name}")
+                
+                # Cam ürün kodundan sadece cam kısmını çıkar
+                # S502623-1-367210041140 -> 367210041140
+                if "-" in selected_cam_item.name:
+                    cam_code_parts = selected_cam_item.name.split("-")
+                    if len(cam_code_parts) >= 3:
+                        cam_code = cam_code_parts[2]  # 3. parça: 367210041140
+                        print(f"DEBUG - Extracted cam code: {cam_code}")
+                        
+                        # Bu cam kodu ile Item tablosunda ara
+                        if frappe.db.exists("Item", cam_code):
+                            cam_item = frappe.get_doc("Item", cam_code)
+                            print(f"DEBUG - Cam Item found by code: {cam_item.name} - {cam_item.item_name}")
+                        else:
+                            print(f"DEBUG - Cam Item not found for code: {cam_code}")
+                            cam_item = None
+                    else:
+                        print(f"DEBUG - Could not extract cam code from: {selected_cam_item.name}")
+                        cam_item = None
+                else:
+                    print(f"DEBUG - No dash found in cam item name: {selected_cam_item.name}")
+                    cam_item = None
+            else:
+                print(f"DEBUG - No cam items found")
+                cam_item = None
 
         # Get any existing issues for this serial number
         
@@ -344,7 +452,19 @@ def get_serial_details(serial):
             # Item alanlarını güvenli şekilde al
             custom_serial = getattr(item, 'custom_serial', None) if item else None
             custom_color = getattr(item, 'custom_color', None) if item else None
-            cam_text = getattr(item, 'custom_cam_text', None) if item else None
+            
+            print(f"DEBUG - PVC Item: {item.name if item else 'None'}")
+            print(f"DEBUG - custom_serial: {custom_serial}")
+            print(f"DEBUG - custom_color: {custom_color}")
+            print(f"DEBUG - Cam Item: {cam_item.name if cam_item else 'None'}")
+            
+            # Cam bilgisini cam_item'dan al
+            cam_text = None
+            if cam_item:
+                cam_text = cam_item.item_name or cam_item.name
+            else:
+                # Eski yöntem (geriye uyumluluk için)
+                cam_text = getattr(item, 'custom_cam_text', None) if item else None
             
             response = {
                 "serial": serial,
@@ -357,10 +477,12 @@ def get_serial_details(serial):
                 "custom_serial": custom_serial,
                 "custom_color": custom_color,
                 "cam_text": cam_text,
+                "cam_item_code": cam_item.name if cam_item else None,
+                "cam_item_name": cam_item.item_name if cam_item else None,
                 "warranty_expiry": serial_doc.get("warranty_expiry_date"),
                 "issues": issues
             }
-            
+            print("DEBUG - Response:", response)
         except Exception as e:
             print("DEBUG - Error creating response:", str(e))
             frappe.logger().error(f"Error creating response: {str(e)}")

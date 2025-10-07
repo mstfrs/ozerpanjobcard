@@ -3,27 +3,28 @@ import React, { useEffect, useState } from 'react'
 import { getDealerWithDetailsByLoggedUser } from '../../services/DelaerServices'
 import DealerInfo from '../../components/Cards/DealerInfo'
 import useJobcardsStore from '../../store/jobcardStore'
+import BayiNavbar from '../../components/Navbar/BayiNavbar'
 
 const titles = [
   {
     title: "Montaj",
     icon: "pi pi-truck",
-    link: "/dealerpanel/installation"
+    link: "dealerpanel/installation"
   },
   {
     title: "Bakım & Onarım",
     icon: "pi pi-wrench",
-    link: "/dealerpanel/maintenance"
+    link: "dealerpanel/maintenance"
   },
   {
     title: "Servis Talepleri",
     icon: "pi pi-tags",
-    link: "/dealerpanel/service"
+    link: "dealerpanel/service"
   },
   {
     title: "Siparişler",
     icon: "pi pi-sparkles",
-    link: "/dealerpanel/orders"
+    link: "dealerpanel/orders"
   }
 ]
 
@@ -65,16 +66,18 @@ const Bayipanel = () => {
   }
 
   return (
-    <div className='flex flex-col gap-4 w-full items-center justify-center h-dvh'>
-      <DealerInfo dealer={dealer}/>
+    <div className='w-full'>
+      <div className='flex flex-col gap-4 w-full items-center justify-center h-dvh'>
+        <DealerInfo dealer={dealer}/>
 
-      <div className='flex flex-col gap-4 w-full items-center justify-center h-dvh mx-4'>
-        {
-          titles.map((title, index) => (
-            <a href={title.link} key={index}>
-              <Button label={title.title} icon={title.icon} size="large" className='w-svw md:w-64 h-20 mx-20 bg-red-500 py-2 px-4 rounded-md text-white text-xl' /></a>
-          ))
-        }
+        <div className='flex flex-col gap-4 w-full items-center justify-start h-dvh mx-4'>
+          {
+            titles.map((title, index) => (
+              <a href={title.link} key={index}>
+                <Button label={title.title} icon={title.icon} size="large" className='w-svw md:w-64 h-20 mx-20 bg-red-500 py-2 px-4 rounded-md text-white text-xl' /></a>
+            ))
+          }
+        </div>
       </div>
     </div>
   )

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { getIssuesByLoggedCustomer } from '../../services/DelaerServices'
+import BayiNavbar from '../../components/Navbar/BayiNavbar'
 
 const Services = () => {
   const [issuesData, setIssuesData] = useState(null)
@@ -27,8 +28,9 @@ const Services = () => {
   }, [statusFilter, page])
 
   return (
-    <div className="p-4">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="">
+      <BayiNavbar />
+      <div className="flex items-center gap-2 mb-4 px-2">
         <select
           className="border rounded p-2"
           value={statusFilter}

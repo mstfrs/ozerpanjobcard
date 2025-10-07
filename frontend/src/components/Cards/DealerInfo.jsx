@@ -5,7 +5,7 @@ import { FaPhone } from "react-icons/fa";
 const DealerInfo = ( {dealer} ) => {
     return (
         <div
-            className=" flex  flex-col items-center w-full mx-1 gap-1 py-8 px-8 max-w-sm bg-white rounded-xl shadow-lg space-y-2 sm:py-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-6">
+            className=" flex  flex-col items-center w-full mx-1 gap-1 py-2 px-8 max-w-sm bg-white rounded-xl shadow-lg space-y-2 sm:py-4 sm:flex sm:items-center sm:space-y-0 sm:space-x-6">
            <div className='flex flex-row gap-4 items-center'>
            <div>
                 <img className="block mx-auto h-24 rounded-full sm:mx-0 sm:shrink-0" src={dealer?.customer?.image} alt="Woman's Face" />

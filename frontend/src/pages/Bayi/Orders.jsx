@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { getAllOrdersByCustomer, getDealerWithDetailsByLoggedUser } from '../../services/DelaerServices';
 import useJobcardsStore from '../../store/jobcardStore';
 import OrdersList from '../../components/DelaerPage/OrdersList';
+import BayiNavbar from '../../components/Navbar/BayiNavbar'
 
 const Orders = () => {
     const {selectedDealer} = useJobcardsStore();
@@ -27,7 +28,10 @@ const Orders = () => {
     }, [selectedDealer]);
 
     return (
-        <OrdersList orders={orders} isLoading={isLoading} />
+        <div className='w-full'>
+            <BayiNavbar />
+            <OrdersList orders={orders} isLoading={isLoading} />
+        </div>
     );
 };
 
