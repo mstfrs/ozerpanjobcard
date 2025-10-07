@@ -159,7 +159,7 @@ const ProfilTemin = () => {
       custom_transfered: currentValue,
     };
     updateProfile(profilePayload);
-    updateProfileStockLedgerQty(rowData?.item_code, rowData?.boy.toString().replace(".", ","), diff, currentOpt?.custom_opti_no);
+    updateProfileStockLedgerQty(rowData?.item_code, rowData?.boy.toString(), diff, currentOpt?.custom_opti_no);
     
   }, [profileOptInfo?.profile_list, updateProfile, inputValues]);
 
