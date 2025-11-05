@@ -1055,59 +1055,43 @@ def create_delivery_note_from_sales_orders(
             # Clear existing items
             dn_doc.items = []
             
-            # so_doc = frappe.get_doc("Sales Order", so_name)
-            so_doc = frappe.get_all("Sales Order Item", filters={"parent": so_name}, fields=["item_code", "item_name", "qty", "rate", "warehouse", "uom"])
+            # Sales Order Item'ları al - name alanı so_detail için gerekli
+            so_doc = frappe.get_all("Sales Order Item", filters={"parent": so_name}, fields=[
+                "name", "item_code", "item_name", "qty", "rate", "warehouse", "uom",
+                "amount", "net_rate", "net_amount", "price_list_rate", "base_price_list_rate",
+                "base_rate", "base_amount", "base_net_rate", "base_net_amount", "stock_uom",
+                "conversion_factor", "stock_qty", "description", "cost_center"
+            ])
           
             
             for detail in item_details:
                 so_item = next((i for i in so_doc if i.item_code == detail["item_code"]), None)
                 if so_item:
-                    # Directly copy price fields from Sales Order Item instead of using get_item_details
+                    print("\n\n\n DEBUG so_items",so_item)
+                    # Sales Order Item'dan fiyat ve bağlantı bilgilerini kopyala
                     item_dict = {
                         "item_code": detail["item_code"],
                         "qty": float(detail.get("qty", 1)),
-                        # "against_sales_order": so_name,
-                        # "so_detail": so_item.name,
-                        # "warehouse": so_item.warehouse if hasattr(so_item, 'warehouse') else None,
-                        # "rate": so_item.rate,
-                        # "amount": so_item.qty,
-                        # "net_rate": so_item.net_rate,
-                        # "net_amount": so_item.net_amount,
-                        # "price_list_rate": so_item.price_list_rate,
-                        # "base_price_list_rate": so_item.base_price_list_rate,
-                        # "base_rate": so_item.base_rate,
-                        # "base_amount": so_item.base_amount,
-                        # "base_net_rate": so_item.base_net_rate,
-                        # "base_net_amount": so_item.base_net_amount,
-                        # "uom": so_item.uom,
-                        # "stock_uom": so_item.stock_uom,
-                        # "conversion_factor": so_item.conversion_factor,
-                        # "stock_qty": so_item.stock_qty,
-                        # "item_name": so_item.item_name,
-                        # "description": so_item.description,
-                        # "cost_center": so_item.cost_center,
-                        # "item_group": so_item.item_group,
-                        # "brand": so_item.brand,
-                        # "image": so_item.image,
-                        # "margin_type": so_item.margin_type,
-                        # "margin_rate_or_amount": so_item.margin_rate_or_amount,
-                        # "rate_with_margin": so_item.rate_with_margin,
-                        # "discount_percentage": so_item.discount_percentage,
-                        # "discount_amount": so_item.discount_amount,
-                        # "base_rate_with_margin": so_item.base_rate_with_margin,
-                        # "pricing_rules": so_item.pricing_rules,
-                        # "stock_uom_rate": so_item.stock_uom_rate,
-                        # "is_free_item": so_item.is_free_item,
-                        # "grant_commission": so_item.grant_commission,
-                        # "item_tax_template": so_item.item_tax_template,
-                        # "billed_amt": so_item.billed_amt,
-                        # "weight_per_unit": so_item.weight_per_unit,
-                        # "total_weight": so_item.total_weight,
-                        # "weight_uom": so_item.weight_uom,
-                        # "target_warehouse": so_item.target_warehouse,                        
-                        # "actual_qty": 0.0,  # Set to 0.0 to avoid stock issues
-                        # "returned_qty": 0.0,  # Set to 0.0 to avoid NoneType error                        
-                        # "item_tax_rate": so_item.item_tax_rate,
+                        "against_sales_order": so_name,
+                        "so_detail": so_item.get("name"),
+                        "warehouse": so_item.get("warehouse"),
+                        "rate": so_item.get("rate"),
+                        "amount": so_item.get("rate") * float(detail.get("qty", 1)),
+                        "net_rate": so_item.get("net_rate"),
+                        "net_amount": so_item.get("net_rate") * float(detail.get("qty", 1)) if so_item.get("net_rate") else None,
+                        "price_list_rate": so_item.get("price_list_rate"),
+                        "base_price_list_rate": so_item.get("base_price_list_rate"),
+                        "base_rate": so_item.get("base_rate"),
+                        "base_amount": so_item.get("base_rate") * float(detail.get("qty", 1)) if so_item.get("base_rate") else None,
+                        "base_net_rate": so_item.get("base_net_rate"),
+                        "base_net_amount": so_item.get("base_net_rate") * float(detail.get("qty", 1)) if so_item.get("base_net_rate") else None,
+                        "uom": so_item.get("uom"),
+                        "stock_uom": so_item.get("stock_uom"),
+                        "conversion_factor": so_item.get("conversion_factor"),
+                        "stock_qty": so_item.get("conversion_factor") * float(detail.get("qty", 1)) if so_item.get("conversion_factor") else float(detail.get("qty", 1)),
+                        "item_name": so_item.get("item_name"),
+                        "description": so_item.get("description"),
+                        "cost_center": so_item.get("cost_center"),
                         "use_serial_batch_fields": 1,
                      
                     }
