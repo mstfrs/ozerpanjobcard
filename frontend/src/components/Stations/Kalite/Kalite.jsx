@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
-import { barcodeAction, getPozData } from "../../../services/TesDetayServices";
+import { barcodeAction, barcodeActionForAutoComplete, getPozData } from "../../../services/TesDetayServices";
 import CustomerInfoCard from "../../Cards/CustomerInfo";
 import AccessoryInfoCard from "../../Cards/AccessoryInfo";
 import { InputText } from "primereact/inputtext";
@@ -96,7 +96,7 @@ const Kalite = () => {
     setLoading(true);
 
     try {
-      const barcodeDetails = await barcodeAction({
+      const barcodeDetails = await barcodeActionForAutoComplete({
         barcode: barcodeValue,
         employee: employee?.name,
         operation: currentOperation?.operations,
@@ -109,12 +109,18 @@ const Kalite = () => {
       }
 
       // Check for unfinished operations
-      if (barcodeDetails?.status === "error" && barcodeDetails?.error_type === "unfinished operations") {
-        setUnfinishedOps(barcodeDetails.unfinished_operations);
-        setShowUnfinishedOpsModal(true);
-        setLoading(false);
-        return;
-      }
+      // if (barcodeDetails?.error_type === "unfinished operations") {
+        // const barcodeDetails = await barcodeActionForAutoComplete({
+        //   barcode: barcodeValue,
+        //   employee: employee?.name,
+        //   operation: currentOperation?.operations,
+         
+        // });
+        // setUnfinishedOps(barcodeDetails.unfinished_operations);
+        // setShowUnfinishedOpsModal(true);
+        // setLoading(false);
+        // return;
+      // }
       if (barcodeDetails?.status === "information_only") {
         toast.info("Barkod zaten tamamlanmış");
         setCurrentJobcard(barcodeDetails?.job_card);
@@ -161,6 +167,10 @@ const Kalite = () => {
         barcode: activeBarcode,
         employee: employee?.name,
         operation: currentOperation?.operations,
+        order_no: selectedPoz.siparis_no,
+        poz_no: selectedPoz.poz_no,
+        sanal_adet: selectedPoz.sanal_adet,
+        tesdetay_name: selectedPoz.name, 
         quality_data: {
           criteria: criteria, // Mevcut criteria durumunu gönder
           overall_notes: "Kalite kontrol tamamlandı",
@@ -171,6 +181,11 @@ const Kalite = () => {
       if (barcodeDetails) {
         setCurrentJobcard(barcodeDetails?.message?.job_card);
         setTesDetay(barcodeDetails);
+        if (barcodeDetails.status === "error") {
+          toast.error(barcodeDetails?.message);
+        } else {
+          toast.success("Kalite kontrol tamamlandı");
+        }
       }
     } catch (error) {
       console.error("Onaylama işlemi sırasında hata:", error);
@@ -357,7 +372,7 @@ const Kalite = () => {
           setSelectedPoz(selected)
           setLoading(true);
           try {
-            const barcodeDetails = await barcodeAction({
+            const barcodeDetails = await barcodeActionForAutoComplete({
               barcode: pendingBarcode, // Saklanan barkod kullanılır
               employee: employee?.name,
               operation: currentOperation?.operations,
@@ -369,19 +384,20 @@ const Kalite = () => {
             });
             // Check for unfinished operations
             if (barcodeDetails?.status === "error" && barcodeDetails?.error_type === "unfinished operations") {
-              setUnfinishedOps(barcodeDetails.unfinished_operations);
-              setShowUnfinishedOpsModal(true);
+              console.log("DEBUG!!!!!-11111");
+              // setUnfinishedOps(barcodeDetails.unfinished_operations);
+              // setShowUnfinishedOpsModal(true);
               setLoading(false);
               return;
             }
            
-            if (barcodeDetails.status === "multiple_options") {
-              setPozOptions(barcodeDetails.options);
-              setPendingBarcode(barcodeValue); // Barkodu sakla
-              setPozModalVisible(true);
-              setLoading(false);
-              return; // Diğer işlemleri durdur
-            }
+            // if (barcodeDetails.status === "multiple_options") {
+            //   setPozOptions(barcodeDetails.options);
+            //   setPendingBarcode(barcodeValue); // Barkodu sakla
+            //   setPozModalVisible(true);
+            //   setLoading(false);
+            //   return; // Diğer işlemleri durdur
+            // }
             if (barcodeDetails?.status === "error") {
               toast.error(barcodeDetails?.message);
               setIsBgActive(false);

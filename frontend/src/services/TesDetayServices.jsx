@@ -66,6 +66,26 @@ export const getAllBarcodesOfPoz = async (pozNo,siparisNo) => {
         console.error("Hata:", error);
     }
 };  
+
+export const barcodeActionForAutoComplete = async (params) => {
+  try {
+      const response = await fetch(`${baseUrl}/method/ozerpan_ercom_sync.custom_api.api.finish_with_previous_operations`, {
+          credentials: 'include',
+          method:'POST',
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(params)
+      });
+
+      if (response.ok) {
+          const  message  = await response.json();
+          return message.message;
+      } else {
+          throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+  } catch (error) {
+      console.error("Hata:", error);
+  }
+};  
   export const getPozData = async (params) => {
     console.log(params)
     try {
