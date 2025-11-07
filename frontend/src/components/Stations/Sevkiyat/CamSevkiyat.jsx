@@ -578,9 +578,16 @@ export default function CamSevkiyat() {
                     className="text-xs"
                     style={{ fontSize: 12 }}
                     selection={selectedPozlar}
-                    onSelectionChange={e => setSelectedPozlar(e.value)}
+                    onSelectionChange={(e) => {
+                      // Sadece Hazır olan ürünleri seçime izin ver
+                      const validSelection = e.value.filter(item => 
+                        item.is_ready === 'Hazır' && (parseFloat(item.qty) || 0) > 0
+                      );
+                      setSelectedPozlar(validSelection);
+                    }}
                     selectionMode="multiple"
-                    rowSelectable={rowData => rowData.is_ready === 'Hazır'} // <-- sadece Hazır olanlar seçilebilir
+                    dataKey="item_code"
+                    rowClassName={(data) => data.is_ready !== 'Hazır' ? 'opacity-50 cursor-not-allowed' : ''}
                     scrollable
                     scrollHeight="200px"
                   >

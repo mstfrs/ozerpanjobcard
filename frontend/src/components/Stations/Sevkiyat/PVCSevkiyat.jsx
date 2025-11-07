@@ -487,10 +487,17 @@ export default function PVCSevkiyat() {
                     loading={loading} 
                     className="text-xs" 
                     style={{ fontSize: 12 }}
-                    selection={selectedPozlar}
-                    onSelectionChange={(e) => setSelectedPozlar(e.value)}
-                    selectionMode="multiple"
-                    rowSelectable={(data) => data.is_ready === 'Hazır' && (parseFloat(data.qty) || 0) > 0}
+                     selection={selectedPozlar}
+                     onSelectionChange={(e) => {
+                       // Sadece Hazır olan ürünleri seçime izin ver
+                       const validSelection = e.value.filter(item => 
+                         item.is_ready === 'Hazır' && (parseFloat(item.qty) || 0) > 0
+                       );
+                       setSelectedPozlar(validSelection);
+                     }}
+                     selectionMode="multiple"
+                     dataKey="item_code"
+                     rowClassName={(data) => data.is_ready !== 'Hazır' ? 'opacity-50 cursor-not-allowed' : ''}
                     scrollable
                     scrollHeight="200px"
                   >
