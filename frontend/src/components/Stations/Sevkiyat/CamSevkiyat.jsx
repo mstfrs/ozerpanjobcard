@@ -13,9 +13,9 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { Sidebar } from 'primereact/sidebar';
 import { Dialog } from 'primereact/dialog';
+import { Accordion, AccordionTab } from 'primereact/accordion';
 // import { InputMask } from 'primereact/inputmask';
 import { 
-  getWorkOrderProducts, 
   getFiyat2ItemsForSalesOrder, 
   getSalesOrderItemsWithWorkOrderStatus, 
   getTotalCuttingForSalesOrders,
@@ -34,7 +34,6 @@ export default function CamSevkiyat() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [salesOrders, setSalesOrders] = useState([]);
   const [selectedSalesOrders, setSelectedSalesOrders] = useState([]);
-  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [fiyat2Items, setFiyat2Items] = useState([]);
   const [pozlar, setPozlar] = useState([]);
@@ -67,6 +66,7 @@ export default function CamSevkiyat() {
   const [showDeliveredItemsDialog, setShowDeliveredItemsDialog] = useState(false);
   const [isLoadingDeliveredItems, setIsLoadingDeliveredItems] = useState(false);
   const [deliveredQtyByItem, setDeliveredQtyByItem] = useState({});
+  const [activeAccordionIndex, setActiveAccordionIndex] = useState(0);
 
   // Grand total hesapla (seçili cam pozlar için)
   const calculateGrandTotal = () => {
@@ -222,33 +222,12 @@ export default function CamSevkiyat() {
     if (!selectedCustomer) {
       setSalesOrders([]);
       setSelectedSalesOrders([]);
-      setProducts([]);
       return;
     }
     const customerObj = customers.find(c => c.value === selectedCustomer);
     setSalesOrders(customerObj ? customerObj.sales_orders : []);
     setSelectedSalesOrders([]);
-    setProducts([]);
   }, [selectedCustomer, customers]);
-
-  // Sales order seçilince ürünleri getir (tüm seçili siparişler için)
-  useEffect(() => {
-    async function fetchProducts() {
-      if (!selectedSalesOrders.length) {
-        setProducts([]);
-        return;
-      }
-      setLoading(true);
-      try {
-        const data = await getWorkOrderProducts(selectedSalesOrders);
-        setProducts(data);
-      } catch (e) {
-        setProducts([]);
-      }
-      setLoading(false);
-    }
-    fetchProducts();
-  }, [selectedSalesOrders]);
 
   // Sales order seçilince Fiyat2 ürünlerini getir (tüm seçili siparişler için)
   useEffect(() => {
@@ -395,6 +374,10 @@ export default function CamSevkiyat() {
     }
   }, [glassTypes]);
 
+  useEffect(() => {
+    setSelectedPozlar([]);
+  }, [selectedSalesOrders]);
+
   // Yardımcı ürünleri aynı stock_code'a göre grupla ve miktarları topla
   function groupFiyat2Items(items) {
     const grouped = {};
@@ -472,7 +455,6 @@ export default function CamSevkiyat() {
 
   // Güncellenmiş pozlar verisinden cam pozlarını al
   const camPozlar = updatedPozlar.filter(p => p.item_group === 'Camlar');
-  const pvcPozlar = updatedPozlar.filter(p => p.item_group === 'PVC');
 
   // Kalan cam miktarını hesapla
   const totalRemainingCam = camPozlar.reduce((total, poz) => {
@@ -480,9 +462,6 @@ export default function CamSevkiyat() {
   }, 0);
 
  
-
-  // Pozlar tablosı için sadece sıralı veri (grup başlığı yok)
-  const groupedPozlar = [...pvcPozlar, ...camPozlar];
 
   // Kalan cam miktarını state'e set et
   React.useEffect(() => {
@@ -499,176 +478,31 @@ export default function CamSevkiyat() {
   };
 
   return (
-    <div className='w-screen h-screen flex relative overflow-hidden'>
+    <div className='w-full min-h-screen flex relative bg-gray-50'>
       <Toast ref={toast} />
-      {/* Sidebar */}
-      <div style={{ background: '#f4f4f4', padding: 10, display: 'flex', flexDirection: 'column' }}>
-        {/* Dropdownlar */}
-        <div className='text-xs lg:text-sm' style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 4 }}>
-          <div className='min-w-[200px] lg:min-w-[240px]'>
-            <label className='text-red-500 font-bold text-xs lg:text-sm'>Müşteri</label>
-            <Dropdown
-              value={selectedCustomer}
-              options={customers}
-              onChange={e => {
-                setSelectedCustomer(e.value);
-              }}
-              placeholder="Müşteri seçin"
-              style={{ width: '100%' }}
-              loading={loading}
-              className='text-xs lg:text-sm'
-              pt={{
-                input: { className: 'text-xs lg:text-sm' },
-                list: { className: 'text-xs lg:text-sm' },
-                item: { className: 'text-xs lg:text-sm' }
-              }}
-            />
-          </div>
-          <div className='min-w-[280px] lg:min-w-[320px]'>
-            <label className=' text-red-500 font-bold text-xs lg:text-sm'>Sales Order</label>
-            <MultiSelect
-              value={selectedSalesOrders}
-              options={salesOrders}
-              onChange={e => setSelectedSalesOrders(e.value)}
-              placeholder="Sales Order seçin"
-              style={{ width: '100%' }}
-              disabled={!selectedCustomer}
-              loading={loading}
-              className='text-xs lg:text-sm'
-              pt={{
-                input: { className: 'text-xs lg:text-sm' },
-                list: { className: 'text-xs lg:text-sm' },
-                item: { className: 'text-xs lg:text-sm' },
-                token: { className: 'text-xs lg:text-sm' }
-              }}
-            />
-          </div>
-        </div>
-        {/* Tablolar ve toplam doğrama alanı sadece sipariş seçiliyse görünsün */}
-        {selectedSalesOrders.length > 0 && (
-          <>
-            {/* Cam Çeşitleri ve Adetleri */}
-            <div className='min-h-40' style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>CAM ÇEŞİTLERİ VE ADETLERİ</h3>
-              <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-                <DataTable 
-                  value={glassTypes} 
-                  emptyMessage="Cam çeşidi bulunamadı" 
-                  loading={loading} 
-                  className="text-xs" 
-                  style={{ fontSize: 12 }}
-                  scrollable
-                  scrollHeight="150px"
-                >
-                  <Column field="type" header="Cam Çeşidi" />
-                  <Column field="record_count" header="Miktar" />
-          
-                </DataTable>
-              </div>
-            </div>
-            {/* Tablolar alt alta ve scroll'lu */}
-            <div className='h-full' style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>POZLAR</h3>
-                <div style={{ fontSize: 13, flex: 1, minHeight: 0, overflow: 'auto' }}>
-                  <DataTable
-                    value={camPozlar}
-                    emptyMessage="Ürün yok"
-                    loading={loading}
-                    className="text-xs"
-                    style={{ fontSize: 12 }}
-                    selection={selectedPozlar}
-                    onSelectionChange={(e) => {
-                      // Sadece Hazır olan ürünleri seçime izin ver
-                      const validSelection = e.value.filter(item => 
-                        item.is_ready === 'Hazır' && (parseFloat(item.qty) || 0) > 0
-                      );
-                      setSelectedPozlar(validSelection);
-                    }}
-                    selectionMode="multiple"
-                    dataKey="item_code"
-                    rowClassName={(data) => data.is_ready !== 'Hazır' ? 'opacity-50 cursor-not-allowed' : ''}
-                    scrollable
-                    scrollHeight="200px"
-                  >
-                    <Column selectionMode="multiple" headerStyle={{ width: '3em' }} />
-                    <Column field="item_code" header="Ürün Kodu" />
-                    {/* <Column field="item_name" header="Ürün Adı" /> */}
-                    <Column 
-                      header="Miktar" 
-                      body={rowData => {
-                        if (rowData.item_group !== 'Camlar') return '';
-                        
-                        return (
-                          <input
-                            key={`qty-${rowData.item_code}`}
-                            type="number"
-                            defaultValue={parseInt(rowData.qty) || 0}
-                            onChange={(e) => {
-                              const value = parseInt(e.target.value) || 0;
-                              if (value < 1) {
-                                toast.current.show({ 
-                                  severity: 'warn', 
-                                  summary: 'Uyarı', 
-                                  detail: 'Minimum değer 1 olmalıdır.', 
-                                  life: 3000 
-                                });
-                                return;
-                              }
-                              setQuantityChanges(prev => ({
-                                ...prev,
-                                [rowData.item_code]: value
-                              }));
-                            }}
-                            min="1"
-                            max={parseInt(rowData.qty) || 0}
-                            step="1"
-                            className="w-16 text-xs border rounded px-1 py-0.5 text-center"
-                            style={{ fontSize: '11px' }}
-                          />
-                        );
-                      }}
-                    />
-                    <Column header="Durum" body={rowData => rowData.is_ready === 'Hazır' ? (<FaCheckCircle color="#22c55e" size={18} title="Hazır" />) : null} style={{ textAlign: 'center' }} />
-                  </DataTable>
-                </div>
-              </div>
-              {/* <div className='min-h-80' style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 className='text-center text-red-500 font-bold'>YARDIMCI ÜRÜNLER</h3>
-                <div style={{  flex: 1, minHeight: 0, overflow: 'auto' }}>
-                  <DataTable 
-                    value={groupFiyat2Items(fiyat2Items)} 
-                    emptyMessage="Yardımcı Malzeme bulunamadı "
-                    loading={loading}
-                    scrollable
-                    className='text-xs'
-                  >
-                    <Column field="stock_code" header="Stok Kodu" />
-                    <Column field="stock_name" header="Stok Adı" />
-                    <Column field="qty" header="Miktar" />
-                  </DataTable>
-                </div>
-              </div> */}
-            </div>
-          
-          </>
-        )}
-      </div>
-      {/* Main Content */}
-      <div className='flex-1 p-2 flex flex-col justify-between relative overflow-hidden'>
-        {/* PrimeReact Sidebar */}
-        <Sidebar visible={sidebarVisible} position="right" style={{ width: 400 }} onHide={() => {
+
+      {/* Teslimat Modal */}
+      <Sidebar 
+        visible={sidebarVisible} 
+        position="right" 
+        className="w-full sm:w-96"
+        onHide={() => {
           setSidebarVisible(false);
           setSelectedPozlar([]);
-          // Kamera kapatma işlemi
           setCameraActive(false);
           if (videoRef.current && videoRef.current.srcObject) {
             const tracks = videoRef.current.srcObject.getTracks();
             tracks.forEach(track => track.stop());
             videoRef.current.srcObject = null;
           }
-        }}>
-          <form className="flex flex-col gap-2" onSubmit={e => { e.preventDefault(); handleTeslimatFisOlustur(); }}>
+        }}
+        pt={{
+          root: { className: 'h-screen' },
+          content: { className: 'h-full overflow-y-auto' }
+        }}
+      >
+        <form className="flex flex-col gap-3 h-full" onSubmit={e => { e.preventDefault(); handleTeslimatFisOlustur(); }}>
+          <div className="flex-1 overflow-y-auto space-y-3">
             <div>
               <label className="block text-sm font-bold mb-1 text-red-600">Teslim Alan</label>
               <input
@@ -687,7 +521,6 @@ export default function CamSevkiyat() {
                 onChange={e => {
                   const value = e.target.value.toUpperCase().replace(/\s+/g, '');
                   setAracPlaka(value);
-                  // Plaka regex: 2 rakam, 1-3 harf, 3-4 rakam, boşluksuz
                   const regex = /^\d{2}[A-ZÇĞİÖŞÜ]{1,3}\d{3,4}$/;
                   if (value.length > 0 && !regex.test(value)) {
                     setPlakaError('Plaka formatı geçersiz. Örnek: 38AAA123 veya 34AB1234');
@@ -704,22 +537,28 @@ export default function CamSevkiyat() {
             <div>
               <label className="block text-sm font-bold mb-1 text-red-600">Teslim Fotoğrafı</label>
               {!photo && !cameraActive && (
-                <Button label="Kamerayı Aç" className="p-button-info p-1 mb-2" onClick={() => setCameraActive(true)} />
+                <Button 
+                  label="Kamerayı Aç" 
+                  className="p-button-info w-full" 
+                  size="small"
+                  onClick={() => setCameraActive(true)} 
+                />
               )}
               {cameraActive && (
                 <div className="flex flex-col items-center gap-2">
-                  <video ref={videoRef} width={320} height={240} autoPlay className="rounded border" />
-                  <Button label="Fotoğraf Çek" className="p-button-success p-1" onClick={handleTakePhoto} />
-                  <Button label="Kapat" className="p-button-secondary p-1" onClick={() => setCameraActive(false)} />
+                  <video ref={videoRef} className="w-full max-w-xs rounded border" autoPlay />
+                  <div className="flex gap-2 w-full">
+                    <Button label="Çek" className="p-button-success flex-1" size="small" onClick={handleTakePhoto} />
+                    <Button label="Kapat" className="p-button-secondary flex-1" size="small" onClick={() => setCameraActive(false)} />
+                  </div>
                 </div>
               )}
               {photo && (
                 <div className="flex flex-col items-center gap-2">
-                  <img src={photo} alt="Teslim Fotoğrafı" className="rounded border w-[320px] h-[240px] object-contain" />
-                  <Button label="Fotoğrafı Sil" className="p-button-danger p-1" onClick={() => setPhoto(null)} />
+                  <img src={photo} alt="Teslim Fotoğrafı" className="rounded border w-full max-w-xs object-contain" />
+                  <Button label="Fotoğrafı Sil" className="p-button-danger w-full" size="small" onClick={() => setPhoto(null)} />
                 </div>
               )}
-              {/* Canvas gizli, sadece fotoğraf almak için */}
               <canvas ref={canvasRef} width={320} height={240} style={{ display: 'none' }} />
             </div>
             <div>
@@ -733,129 +572,431 @@ export default function CamSevkiyat() {
                 Yardımcı Malzemeler Teslim Edildi
               </label>
             </div>
-            <div className="mt-4">
-              <Button
-                label="Teslimat Fişi Oluştur"
-                className="p-button-success w-full"
-                type="submit"
-                loading={isCreating}
-                disabled={isCreating || !teslimAlan || !!plakaError || selectedPozlar.length === 0}
-              />
-            </div>
-          </form>
-        </Sidebar>
-        <div className='flex flex-col gap-4 h-full overflow-hidden'>
-          <div className='flex flex-row justify-between items-center'>
-            <div className='flex flex-col'>
-              <h3 className='text-red-500 text-sm lg:text-lg font-bold'>Cam Listesi</h3>
-              {/* Cam Çeşitleri Bilgisi */}
-              {/* {glassTypes.length > 0 && (
-                <div className='text-xs text-gray-600 mt-1'>
-                  <span className='font-semibold'>Cam Çeşitleri:</span>
-                  {glassTypes.map((type, idx) => (
-                    <span key={idx} className='ml-2'>
-                      {type.type} ({type.remaining_qty}/{type.total_qty})
-                    </span>
-                  ))}
-                </div>
-              )} */}
-            </div>
-            {/* Sağ: Butonlar */}
-            <div className=' flex-1 w-full p-2 md:text-md text-xs text-right items-center '>
-              <Button
-                label={`Cam Sevkiyat${selectedPozlar.length > 0 ? ` (${selectedPozlar.length} ürün)` : ''}`}
-                className="p-button-success  p-1"
-                onClick={() => handleSevkiyatClick("Camlar")}
-                disabled={selectedPozlar.length === 0}
-              />
-              {/* <Button
-                label="Camlar Sevkiyat"
-                className="p-button-info p-1"
-                onClick={() => handleSevkiyatClick("Camlar")}
-              />
-              <Button
-                label="Detay"
-                className="p-button-help p-1"
-                onClick={() => setSidebarVisible(true)}
-              /> */}
-            </div>
           </div>
-          <div className='flex flex-col gap-4 flex-1 overflow-hidden'>
-            {/* CamListe Detaylı Verileri */}
-            {camListeItems.length > 0 && (
-              <div className='bg-white p-4 rounded-lg shadow-sm flex-1 overflow-hidden'>
-                {/* <h3 className='text-red-500 text-sm lg:text-lg font-bold mb-3'>CamListe Detayları</h3> */}
-                <div className='overflow-x-auto h-full'>
-                  <DataTable 
-                    value={camListeItems} 
-                    emptyMessage="Cam verisi bulunamadı" 
-                    loading={loading} 
-                    className="text-xs" 
-                    style={{ fontSize: 12 }}
-                    scrollable
-                    scrollHeight={`calc(100vh - 80px)`}
-                 
-                  >
-                    <Column field="poz_no" header="Poz No"  />
-                    <Column field="stok_kodu" header="Stok Kodu"  />
-                    <Column field="genislik" header="Genişlik"  body={rowData => rowData.genislik ? `${rowData.genislik} mm` : '-'} />
-                    <Column field="yukseklik" header="Yükseklik"  body={rowData => rowData.yukseklik ? `${rowData.yukseklik} mm` : '-'} />
-                    <Column field="aciklama" header="Cam Çeşidi" sortable />
-              
-                  </DataTable>
-                </div>
-              </div>
-            )}
-            
-         
+          <div className="sticky bottom-0 bg-white pt-3 border-t">
+            <Button
+              label="Teslimat Fişi Oluştur"
+              className="p-button-success w-full"
+              type="submit"
+              loading={isCreating}
+              disabled={isCreating || !teslimAlan || !!plakaError || selectedPozlar.length === 0}
+            />
+          </div>
+        </form>
+      </Sidebar>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex flex-col bg-gray-100 p-2" style={{ minWidth: 320 }}>
+        <div className='space-y-3'>
+          <div>
+            <label className='text-red-500 font-bold text-sm'>Müşteri</label>
+            <Dropdown
+              value={selectedCustomer}
+              options={customers}
+              onChange={e => setSelectedCustomer(e.value)}
+              placeholder="Müşteri seçin"
+              style={{ width: '100%' }}
+              loading={loading}
+              className='text-sm'
+            />
+          </div>
+          <div>
+            <label className='text-red-500 font-bold text-sm'>Sales Order</label>
+            <MultiSelect
+              value={selectedSalesOrders}
+              options={salesOrders}
+              onChange={e => setSelectedSalesOrders(e.value)}
+              placeholder="Sales Order seçin"
+              style={{ width: '100%' }}
+              disabled={!selectedCustomer}
+              loading={loading}
+              className='text-sm'
+              display="chip"
+            />
           </div>
         </div>
-        {/* Sticky cam miktarları bildirim alanı */}
+
         {selectedSalesOrders.length > 0 && (
-          <div className='w-full sticky bottom-0 left-0 z-20 p-0 flex flex-row justify-between items-center rounded-lg bg-slate-300'>
-            {/* Sol: Cam Miktarları Bilgileri */}
-            {camPozlar.length > 0 && (
-              <div className='flex-1 p-1 rounded-lg lg:text-md text-xs font-bold text-red-700 flex flex-row justify-between gap-1'>
-                <div>Toplam Cam: {initialTotalCamQty}</div>
-                <div>Kalan Cam: {totalRemainingCam}</div>
-                <div 
-                  className="cursor-pointer hover:underline hover:text-blue-700"
-                  onClick={handleShowDeliveredItems}
-                  title="Teslim edilen cam ürünlerini görüntüle"
-                >
-                  Teslim Edilen Cam: {deliveredCamQty}
-                </div>
-              </div>
-            )}
+          <div className='flex-1 mt-3 flex flex-col gap-3 overflow-y-auto'>
+            <div className='flex flex-col'>
+              <h3 className='text-center text-sm font-bold text-red-500 mb-2'>Cam Çeşitleri</h3>
+              <DataTable 
+                value={glassTypes} 
+                emptyMessage="Cam çeşidi bulunamadı" 
+                loading={loading} 
+                className="text-xs"
+                scrollable
+                scrollHeight="150px"
+              >
+                <Column field="type" header="Çeşit" />
+                <Column field="record_count" header="Adet" />
+              </DataTable>
+            </div>
+
+            <div className='flex flex-col'>
+              <h3 className='text-center text-sm font-bold text-red-500 mb-2'>Cam Pozlar</h3>
+              <DataTable 
+                value={camPozlar} 
+                emptyMessage="Ürün yok" 
+                loading={loading} 
+                className="text-xs"
+                dataKey="item_code"
+                selection={selectedPozlar}
+                onSelectionChange={(e) => {
+                  const validSelection = (e.value || []).filter(item => item.is_ready === 'Hazır' && (parseFloat(item.qty) || 0) > 0);
+                  setSelectedPozlar(validSelection);
+                }}
+                selectionMode="multiple"
+                rowSelectable={(data) => data.is_ready === 'Hazır' && (parseFloat(data.qty) || 0) > 0}
+                rowClassName={(data) => data.is_ready !== 'Hazır' ? 'opacity-50' : ''}
+                scrollable
+                scrollHeight="220px"
+              >
+                <Column selectionMode="multiple" headerStyle={{ width: '3em' }} />
+                <Column field="item_code" header="Ürün Kodu" />
+                <Column 
+                  header="Miktar" 
+                  body={rowData => {
+                    if (rowData.item_group !== 'Camlar') return '';
+                    const isReady = rowData.is_ready === 'Hazır';
+                    return (
+                      <input
+                        key={`qty-${rowData.item_code}`}
+                        type="number"
+                        defaultValue={parseInt(rowData.qty) || 0}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          if (value < 1) {
+                            toast.current.show({ 
+                              severity: 'warn', 
+                              summary: 'Uyarı', 
+                              detail: 'Minimum değer 1 olmalıdır.', 
+                              life: 3000 
+                            });
+                            return;
+                          }
+                          setQuantityChanges(prev => ({
+                            ...prev,
+                            [rowData.item_code]: value
+                          }));
+                        }}
+                        min="1"
+                        max={parseInt(rowData.qty) || 1}
+                        step="1"
+                        disabled={!isReady}
+                        className={`w-16 text-xs border rounded px-1 py-0.5 text-center ${!isReady ? 'bg-gray-200 cursor-not-allowed' : ''}`}
+                      />
+                    );
+                  }}
+                />
+                <Column 
+                  header="Durum" 
+                  body={rowData => rowData.is_ready === 'Hazır' ? (
+                    <FaCheckCircle color="#22c55e" size={16} title="Hazır" />
+                  ) : (
+                    <span className="text-xs text-gray-500">Hazır Değil</span>
+                  )} 
+                  style={{ textAlign: 'center' }} 
+                />
+              </DataTable>
+            </div>
+
+            <div className='flex flex-col'>
+              <h3 className='text-center text-sm font-bold text-red-500 mb-2'>Yardımcı Ürünler</h3>
+              <DataTable 
+                value={groupFiyat2Items(fiyat2Items)} 
+                emptyMessage="Yardımcı Malzeme bulunamadı"
+                loading={loading}
+                scrollable
+                scrollHeight="160px"
+                className='text-xs'
+              >
+                <Column field="stock_code" header="Stok Kodu" />
+                <Column field="stock_name" header="Stok Adı" />
+                <Column field="qty" header="Miktar" />
+              </DataTable>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Desktop Main */}
+      <div className='hidden md:flex flex-1 flex-col p-2 relative gap-3'>
+        <div className='bg-white rounded-lg shadow p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3'>
+          <div>
+        
+          </div>
+          <Button
+            label={`Cam Sevkiyat${selectedPozlar.length > 0 ? ` (${selectedPozlar.length})` : ''}`}
+            className="p-button-success w-full sm:w-auto"
+            size="small"
+            onClick={() => handleSevkiyatClick("Camlar")}
+            disabled={selectedPozlar.length === 0}
+          />
+        </div>
+
+        <div className='flex-1 bg-white rounded-lg shadow-sm p-4 overflow-hidden flex flex-col'>
+          <div className='flex justify-between items-center mb-2'>
+            <h3 className='text-red-500 text-sm lg:text-lg font-bold'>Cam Liste Detayları</h3>
+            <span className='text-xs text-gray-500'>Toplam Kayıt: {camListeItems.length}</span>
+          </div>
+          <div className='flex-1 overflow-hidden'>
+            <DataTable 
+              value={camListeItems} 
+              emptyMessage="Cam verisi bulunamadı" 
+              loading={loading} 
+              className="text-xs"
+              scrollable
+              scrollHeight="100%"
+              responsiveLayout='scroll'
+            >
+              <Column field="poz_no" header="Poz No" style={{ minWidth: '90px' }} />
+              <Column field="stok_kodu" header="Stok Kodu" style={{ minWidth: '120px' }} />
+              <Column field="genislik" header="Genişlik" body={rowData => rowData.genislik ? `${rowData.genislik} mm` : '-'} style={{ minWidth: '110px' }} />
+              <Column field="yukseklik" header="Yükseklik" body={rowData => rowData.yukseklik ? `${rowData.yukseklik} mm` : '-'} style={{ minWidth: '110px' }} />
+              <Column field="aciklama" header="Cam Çeşidi" style={{ minWidth: '140px' }} />
+            </DataTable>
+          </div>
+        </div>
+
+        {selectedSalesOrders.length > 0 && (
+          <div className='w-full sticky bottom-0 left-0 z-20 p-2 flex flex-row justify-between items-center rounded-lg bg-slate-300'>
+            <div className='flex-1 flex flex-row justify-between gap-2 text-sm font-bold text-red-700'>
+              <div>Toplam Cam: {initialTotalCamQty}</div>
+              <div>Kalan Cam: {totalRemainingCam}</div>
+              <div 
+                className="cursor-pointer hover:underline hover:text-blue-700"
+                onClick={handleShowDeliveredItems}
+                title="Teslim edilen cam ürünlerini görüntüle"
+              >
+                Teslim Edilen Cam: {deliveredCamQty}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Mobile View */}
+      <div className="md:hidden w-full p-2 space-y-3">
+        <div className="bg-white rounded-lg shadow p-3 flex flex-col gap-2">
+          <h2 className="text-lg font-bold text-red-600">Cam Sevkiyat</h2>
+          <Button
+            label={`Cam Sevkiyat${selectedPozlar.length > 0 ? ` (${selectedPozlar.length})` : ''}`}
+            className="p-button-success w-full"
+            size="small"
+            onClick={() => handleSevkiyatClick("Camlar")}
+            disabled={selectedPozlar.length === 0}
+          />
+        </div>
+
+        <Accordion activeIndex={activeAccordionIndex} onTabChange={(e) => setActiveAccordionIndex(e.index)}>
+          <AccordionTab header={<span className='font-bold text-red-600'>Müşteri ve Sipariş</span>}>
+            <div className='space-y-3'>
+              <div>
+                <label className='block text-sm font-bold mb-2 text-red-500'>Müşteri</label>
+                <Dropdown
+                  value={selectedCustomer}
+                  options={customers}
+                  onChange={e => setSelectedCustomer(e.value)}
+                  placeholder="Müşteri seçin"
+                  className="w-full text-sm"
+                  loading={loading}
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-bold mb-2 text-red-500'>Sales Order</label>
+                <MultiSelect
+                  value={selectedSalesOrders}
+                  options={salesOrders}
+                  onChange={e => setSelectedSalesOrders(e.value)}
+                  placeholder="Sales Order seçin"
+                  className="w-full text-sm"
+                  disabled={!selectedCustomer}
+                  loading={loading}
+                  display="chip"
+                />
+              </div>
+            </div>
+          </AccordionTab>
+
+          <AccordionTab header={<span className='font-bold text-red-600'>Cam Çeşitleri</span>}>
+            {selectedSalesOrders.length > 0 ? (
+              <DataTable 
+                value={glassTypes} 
+                emptyMessage="Cam çeşidi bulunamadı" 
+                loading={loading} 
+                className="text-xs"
+                scrollable
+                scrollHeight="200px"
+                responsiveLayout='scroll'
+              >
+                <Column field="type" header="Çeşit" />
+                <Column field="record_count" header="Adet" />
+              </DataTable>
+            ) : (
+              <div className='text-center text-sm text-gray-500 py-4'>
+                Cam çeşitlerini görmek için Sales Order seçiniz.
+              </div>
+            )}
+          </AccordionTab>
+
+          <AccordionTab header={<span className='font-bold text-red-600'>Cam Pozlar</span>}>
+            {selectedSalesOrders.length > 0 ? (
+              <DataTable 
+                value={camPozlar.filter(p => (parseFloat(p.qty) || 0) > 0)} 
+                emptyMessage="Ürün yok" 
+                loading={loading} 
+                className="text-xs"
+                dataKey="item_code"
+                selection={selectedPozlar}
+                onSelectionChange={(e) => {
+                  const validSelection = (e.value || []).filter(item => item.is_ready === 'Hazır' && (parseFloat(item.qty) || 0) > 0);
+                  setSelectedPozlar(validSelection);
+                }}
+                selectionMode="multiple"
+                rowSelectable={(data) => data.is_ready === 'Hazır' && (parseFloat(data.qty) || 0) > 0}
+                rowClassName={(data) => data.is_ready !== 'Hazır' ? 'opacity-50' : ''}
+                scrollable
+                scrollHeight="250px"
+                responsiveLayout='scroll'
+              >
+                <Column selectionMode="multiple" headerStyle={{ width: '3em' }} />
+                <Column field="item_code" header="Ürün Kodu" style={{ minWidth: '120px' }} />
+                <Column 
+                  header="Miktar" 
+                  style={{ minWidth: '90px' }}
+                  body={rowData => {
+                    if (rowData.item_group !== 'Camlar') return '';
+                    const isReady = rowData.is_ready === 'Hazır';
+                    return (
+                      <input
+                        key={`qty-${rowData.item_code}`}
+                        type="number"
+                        defaultValue={parseInt(rowData.qty) || 0}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          if (value < 1) {
+                            toast.current.show({ 
+                              severity: 'warn', 
+                              summary: 'Uyarı', 
+                              detail: 'Minimum değer 1 olmalıdır.', 
+                              life: 3000 
+                            });
+                            return;
+                          }
+                          setQuantityChanges(prev => ({
+                            ...prev,
+                            [rowData.item_code]: value
+                          }));
+                        }}
+                        min="1"
+                        max={parseInt(rowData.qty) || 1}
+                        step="1"
+                        disabled={!isReady}
+                        className={`w-16 text-xs border rounded px-1 py-0.5 text-center ${!isReady ? 'bg-gray-200 cursor-not-allowed' : ''}`}
+                      />
+                    );
+                  }}
+                />
+                <Column 
+                  header="Durum" 
+                  body={rowData => rowData.is_ready === 'Hazır' ? (
+                    <FaCheckCircle color="#22c55e" size={16} title="Hazır" />
+                  ) : (
+                    <span className="text-xs text-gray-500">Hazır Değil</span>
+                  )} 
+                  style={{ textAlign: 'center', width: '80px' }} 
+                />
+              </DataTable>
+            ) : (
+              <div className='text-center text-sm text-gray-500 py-4'>
+                Cam pozlarını görüntülemek için Sales Order seçiniz.
+              </div>
+            )}
+          </AccordionTab>
+
+          <AccordionTab header={<span className='font-bold text-red-600'>Cam Liste</span>}>
+            {selectedSalesOrders.length > 0 && camListeItems.length > 0 ? (
+              <DataTable 
+                value={camListeItems} 
+                emptyMessage="Cam verisi bulunamadı" 
+                loading={loading} 
+                className="text-xs"
+                scrollable
+                scrollHeight="250px"
+                responsiveLayout='scroll'
+              >
+                <Column field="poz_no" header="Poz No" style={{ minWidth: '90px' }} />
+                <Column field="stok_kodu" header="Stok Kodu" style={{ minWidth: '120px' }} />
+                <Column field="genislik" header="Genişlik" body={rowData => rowData.genislik ? `${rowData.genislik} mm` : '-'} style={{ minWidth: '110px' }} />
+                <Column field="yukseklik" header="Yükseklik" body={rowData => rowData.yukseklik ? `${rowData.yukseklik} mm` : '-'} style={{ minWidth: '110px' }} />
+                <Column field="aciklama" header="Cam Çeşidi" style={{ minWidth: '140px' }} />
+              </DataTable>
+            ) : (
+              <div className='text-center text-sm text-gray-500 py-4'>
+                Cam liste verileri için Sales Order seçiniz.
+              </div>
+            )}
+          </AccordionTab>
+
+          <AccordionTab header={<span className='font-bold text-red-600'>Cam Bilgileri</span>}>
+            {selectedSalesOrders.length > 0 ? (
+              <div className='grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm'>
+                <div className='bg-blue-50 p-3 rounded-lg'>
+                  <div className='text-xs text-gray-600 mb-1'>Toplam Cam</div>
+                  <div className='text-xl font-bold text-blue-600'>{initialTotalCamQty}</div>
+                </div>
+                <div className='bg-orange-50 p-3 rounded-lg'>
+                  <div className='text-xs text-gray-600 mb-1'>Kalan Cam</div>
+                  <div className='text-xl font-bold text-orange-600'>{totalRemainingCam}</div>
+                </div>
+                <div className='bg-green-50 p-3 rounded-lg cursor-pointer hover:bg-green-100 transition-colors'
+                  onClick={handleShowDeliveredItems}
+                  title="Teslim edilen cam ürünlerini görüntüle"
+                >
+                  <div className='text-xs text-gray-600 mb-1'>Teslim Edilen</div>
+                  <div className='text-xl font-bold text-green-600'>{deliveredCamQty}</div>
+                </div>
+              </div>
+            ) : (
+              <div className='text-center text-sm text-gray-500 py-4'>
+                Cam bilgilerini görüntülemek için Sales Order seçiniz.
+              </div>
+            )}
+          </AccordionTab>
+        </Accordion>
+      </div>
+
       {/* Teslim Edilen Ürünler Dialog */}
       <Dialog 
         header="Teslim Edilen Cam Ürünler" 
         visible={showDeliveredItemsDialog} 
         onHide={() => setShowDeliveredItemsDialog(false)}
-        style={{ width: '80vw', maxWidth: '1000px' }}
+        className="w-full mx-2 sm:w-11/12 lg:w-10/12"
+        style={{ maxWidth: '1200px', maxHeight: '90vh' }}
         modal
         closable={true}
-        onMaskClick={() => setShowDeliveredItemsDialog(false)}
+        contentClassName="overflow-y-auto"
+        pt={{
+          root: { className: 'max-h-screen' },
+          content: { className: 'max-h-[70vh] overflow-y-auto' }
+        }}
       >
         {deliveredItems.length > 0 ? (
           <div className="space-y-1">
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
-                <thead>
+                <thead className="sticky top-0 bg-white">
                   <tr className="bg-gray-200 border-b">
-                    <th className="p-1 text-left">Tarih</th>
-                    <th className="p-1 text-left">Teslim Alan</th>
-                    <th className="p-1 text-left">Araç Plakası</th>
-                    <th className="p-1 text-center">Yardımcı Malzemeler</th>
-                    <th className="p-1 text-left">Ürün Adı</th>
-                    <th className="p-1 text-left">Seri No</th>
-                    <th className="p-1 text-left">Renk</th>
-                    <th className="p-1 text-left">Müşteri</th>
-              
-                    <th className="p-1 text-right">Toplam Miktar</th>
+                    <th className="p-1 text-left whitespace-nowrap">Tarih</th>
+                    <th className="p-1 text-left whitespace-nowrap">Teslim Alan</th>
+                    <th className="p-1 text-left whitespace-nowrap">Araç Plakası</th>
+                    <th className="p-1 text-center whitespace-nowrap">Yardımcı Malzemeler</th>
+                    <th className="p-1 text-left whitespace-nowrap">Ürün Adı</th>
+                    <th className="p-1 text-left whitespace-nowrap">Seri No</th>
+                    <th className="p-1 text-left whitespace-nowrap">Renk</th>
+                    <th className="p-1 text-left whitespace-nowrap">Müşteri</th>
+                    <th className="p-1 text-right whitespace-nowrap">Toplam Miktar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -865,9 +1006,9 @@ export default function CamSevkiyat() {
                     
                     return (
                       <tr key={index} className="border-b hover:bg-gray-50">
-                        <td className="p-1">{postingDate}</td>
+                        <td className="p-1 whitespace-nowrap">{postingDate}</td>
                         <td className="p-1">{dn.custom_recipient || '-'}</td>
-                        <td className="p-1">{dn.custom_vehicle || '-'}</td>
+                        <td className="p-1 whitespace-nowrap">{dn.custom_vehicle || '-'}</td>
                         <td className="p-1 text-center">
                           <span className={`px-1 py-0.5 rounded text-xs ${
                             dn.custom_is_auxiliary_materials_delivered 
