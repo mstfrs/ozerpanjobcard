@@ -779,7 +779,6 @@ export default function CamSevkiyat() {
       {/* Mobile View */}
       <div className="md:hidden w-full p-2 space-y-3">
         <div className="bg-white rounded-lg shadow p-3 flex flex-col gap-2">
-          <h2 className="text-lg font-bold text-red-600">Cam Sevkiyat</h2>
           <Button
             label={`Cam Sevkiyat${selectedPozlar.length > 0 ? ` (${selectedPozlar.length})` : ''}`}
             className="p-button-success w-full"
