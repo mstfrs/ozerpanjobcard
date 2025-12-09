@@ -75,7 +75,7 @@ const Jobcards = () => {
     if (filters && filters.length > 0) {
       getJobCards(filters, 5)
         .then((list) => {
-          setJobCardList(list);
+      setJobCardList(list);
         })
         .catch((error) => {
           console.error("Error fetching job cards:", error);
