@@ -165,27 +165,143 @@ def get_quality_label_items(quality_check_code, total_mtul):
 
 
 @frappe.whitelist()
-def get_glass_list(order_no):
+def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="asc", status_filter=None, glass_type_filter=None):
     try:
-        frappe.logger().debug(f"Getting glass list for order: {order_no}")
+        frappe.logger().debug(f"Getting glass list for order: {order_no}, page: {page}, page_size: {page_size}, sort_field: {sort_field}, sort_order: {sort_order}, status_filter: {status_filter}, glass_type_filter: {glass_type_filter}")
         
         if not order_no:
             frappe.throw("Order number is required")
+        
+        # Convert to integers
+        page = int(page)
+        page_size = int(page_size)
+        
+        # Calculate offset
+        offset = (page - 1) * page_size
+        
+        # Determine order_by clause
+        if sort_field:
+            # Validate sort_field to prevent SQL injection
+            allowed_fields = ["name", "poz_no", "genislik", "yukseklik", "sanal_adet", "aciklama", "stok_kodu", "creation", "modified"]
+            if sort_field not in allowed_fields:
+                sort_field = "name"
             
-        camlar = frappe.get_all(
+            # Validate sort_order
+            if sort_order.lower() not in ["asc", "desc"]:
+                sort_order = "asc"
+            
+            order_by = f"{sort_field} {sort_order.upper()}"
+        else:
+            order_by = "name"
+        
+        # Build base query to get all glasses with job cards for filtering
+        # First, get all glasses for the order
+        all_camlar = frappe.get_all(
             "CamListe",
             filters={"order_no": order_no},
-            fields=["*"]
+            fields=["*"],
+            order_by=order_by
         )
         
-        frappe.logger().debug(f"Found {len(camlar)} glass records")
-        
-        for cam in camlar:
-            cam_doc = frappe.get_doc("CamListe", cam.name)
-            cam["job_cards"] = [g.as_dict() for g in cam_doc.job_cards]
+        # Get all job cards for all glasses in one query
+        if all_camlar:
+            all_cam_names = [cam.name for cam in all_camlar]
             
+            # Get all job cards for these glasses in one query
+            all_job_cards = frappe.db.sql("""
+                SELECT 
+                    jc.*,
+                    jc.parent as glass_name
+                FROM `tabCamListe Job Card` jc
+                WHERE jc.parent IN %(cam_names)s
+                ORDER BY jc.parent, jc.idx
+            """, {"cam_names": all_cam_names}, as_dict=True)
+            
+            # Group job cards by glass name
+            job_cards_by_glass = {}
+            for jc in all_job_cards:
+                glass_name = jc.glass_name
+                if glass_name not in job_cards_by_glass:
+                    job_cards_by_glass[glass_name] = []
+                # Remove glass_name from dict before appending
+                jc_dict = {k: v for k, v in jc.items() if k != 'glass_name'}
+                job_cards_by_glass[glass_name].append(jc_dict)
+            
+            # Assign job cards to each glass
+            for cam in all_camlar:
+                cam["job_cards"] = job_cards_by_glass.get(cam.name, [])
+        else:
+            # No glasses found, set empty job_cards
+            for cam in all_camlar:
+                cam["job_cards"] = []
+        
+        # Apply filters on server side
+        filtered_camlar = []
+        for cam in all_camlar:
+            # Filter: must have job cards
+            if not cam.get("job_cards") or len(cam["job_cards"]) == 0:
+                continue
+            
+            # Filter by status (check last job card status)
+            if status_filter:
+                last_job_card = cam["job_cards"][-1] if cam["job_cards"] else None
+                if not last_job_card or last_job_card.get("status") != status_filter:
+                    continue
+            
+            # Filter by glass type (aciklama)
+            if glass_type_filter:
+                if cam.get("aciklama") != glass_type_filter:
+                    continue
+            
+            filtered_camlar.append(cam)
+        
+        # Get total count after filtering
+        total_count = len(filtered_camlar)
+        
+        # Apply pagination to filtered results
+        start_idx = offset
+        end_idx = offset + page_size
+        camlar = filtered_camlar[start_idx:end_idx]
+        
+        frappe.logger().debug(f"Found {len(camlar)} glass records (page {page} of {(total_count + page_size - 1) // page_size if total_count > 0 else 0}) after filtering")
+        
         frappe.logger().debug(f"Returning glass list with job cards")
-        return camlar
+        
+        # Calculate summary statistics for ALL data (not filtered, not just current page)
+        # This ensures sidebar shows correct counts regardless of current filter
+        glass_types_summary = {}
+        status_counts_summary = {}
+        
+        # Use all_camlar (before filtering) for summary
+        for cam in all_camlar:
+            # Only include glasses with job cards
+            if not cam.get("job_cards") or len(cam["job_cards"]) == 0:
+                continue
+            
+            # Glass types summary
+            aciklama = cam.get("aciklama") or "Bilinmeyen"
+            if aciklama not in glass_types_summary:
+                glass_types_summary[aciklama] = 0
+            glass_types_summary[aciklama] += 1
+            
+            # Status counts summary (use last job card status)
+            last_job_card = cam["job_cards"][-1] if cam["job_cards"] else None
+            if last_job_card:
+                status = last_job_card.get("status") or "N/A"
+                if status not in status_counts_summary:
+                    status_counts_summary[status] = 0
+                status_counts_summary[status] += 1
+        
+        # Return paginated results with metadata
+        return {
+            "data": camlar,
+            "total_count": total_count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (total_count + page_size - 1) // page_size if total_count > 0 else 0,
+            "glass_types_summary": glass_types_summary,
+            "status_counts_summary": status_counts_summary
+        }
         
     except Exception as e:
         frappe.logger().error(f"Error in get_glass_list: {str(e)}")
@@ -1025,7 +1141,7 @@ from erpnext.selling.doctype.sales_order.sales_order import make_delivery_note
 def create_delivery_note_from_sales_orders(
     sales_orders, customer, item_group=None, item_details=None,
     custom_recipient=None, custom_vehicle=None, custom_delivery_photo=None,
-    custom_is_auxiliary_materials_delivered=None
+    custom_signature=None, custom_is_auxiliary_materials_delivered=None
 ):
     try:
         import json
@@ -1049,6 +1165,8 @@ def create_delivery_note_from_sales_orders(
                 dn_doc.custom_vehicle = custom_vehicle
             if custom_delivery_photo:
                 dn_doc.custom_delivery_photo = custom_delivery_photo
+            if custom_signature:
+                dn_doc.custom_signature = custom_signature
             if custom_is_auxiliary_materials_delivered is not None:
                 dn_doc.custom_is_auxiliary_materials_delivered = custom_is_auxiliary_materials_delivered
 
@@ -1375,6 +1493,7 @@ def get_delivered_items_by_customer_and_sales_orders(customer, sales_orders):
                 dn.custom_recipient,
                 dn.custom_vehicle,
                 dn.custom_delivery_photo,
+                dn.custom_signature,
                 dn.custom_is_auxiliary_materials_delivered,
                 i.item_group,
                 i.custom_serial,
@@ -1403,6 +1522,7 @@ def get_delivered_items_by_customer_and_sales_orders(customer, sales_orders):
                     "custom_recipient": item.custom_recipient,
                     "custom_vehicle": item.custom_vehicle,
                     "custom_delivery_photo": item.custom_delivery_photo,
+                    "custom_signature": item.custom_signature,
                     "custom_is_auxiliary_materials_delivered": item.custom_is_auxiliary_materials_delivered,
                     "items": []
                 }
@@ -1463,6 +1583,7 @@ def get_delivered_cam_items_by_customer_and_sales_orders(customer, sales_orders)
                 dn.custom_recipient,
                 dn.custom_vehicle,
                 dn.custom_delivery_photo,
+                dn.custom_signature,
                 dn.custom_is_auxiliary_materials_delivered,
                 i.item_group,
                 i.custom_serial,
@@ -1496,6 +1617,7 @@ def get_delivered_cam_items_by_customer_and_sales_orders(customer, sales_orders)
                     "custom_recipient": item.custom_recipient,
                     "custom_vehicle": item.custom_vehicle,
                     "custom_delivery_photo": item.custom_delivery_photo,
+                    "custom_signature": item.custom_signature,
                     "custom_is_auxiliary_materials_delivered": item.custom_is_auxiliary_materials_delivered,
                     "items": []
                 }

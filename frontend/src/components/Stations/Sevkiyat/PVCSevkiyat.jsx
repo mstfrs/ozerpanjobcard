@@ -54,6 +54,11 @@ export default function PVCSevkiyat() {
   const [isAuxiliaryMaterialsDelivered, setIsAuxiliaryMaterialsDelivered] = useState(false); // Yardımcı malzemeler teslim edildi
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  // İmza için state ve ref
+  const [signature, setSignature] = useState(null);
+  const signatureCanvasRef = useRef(null);
+  const signatureCtxRef = useRef(null);
+  const isDrawingRef = useRef(false);
   // Teslim edilen ürünler için state'ler
   const [deliveredItems, setDeliveredItems] = useState([]);
   const [showDeliveredItemsDialog, setShowDeliveredItemsDialog] = useState(false);
@@ -83,6 +88,13 @@ export default function PVCSevkiyat() {
         photoUrl = await uploadPhotoBase64(photo, `delivery_${Date.now()}.png`);
       }
       
+      let signatureUrl = null;
+      if (signature) {
+        // İmzayı önce dosya olarak upload et
+        const { uploadPhotoBase64 } = await import('../../../services/deliveryNoteService');
+        signatureUrl = await uploadPhotoBase64(signature, `signature_${Date.now()}.png`);
+      }
+      
       // Seçili ürünlerin detaylarını al (değiştirilen miktarları kullan)
       const itemDetails = selectedPozlar.map(p => {
         const changedQty = quantityChanges[p.item_code];
@@ -110,6 +122,7 @@ export default function PVCSevkiyat() {
           custom_recipient: teslimAlan, 
           custom_vehicle: aracPlaka, 
           custom_delivery_photo: photoUrl,
+          custom_signature: signatureUrl,
           custom_is_auxiliary_materials_delivered: isAuxiliaryMaterialsDelivered
         },
         itemDetails
@@ -130,6 +143,7 @@ export default function PVCSevkiyat() {
       setTeslimAlan('');
       setAracPlaka('');
       setPhoto(null);
+      setSignature(null);
       setSevkiyatTipi(null);
       setSelectedPozlar([]);
       setIsAuxiliaryMaterialsDelivered(false);
@@ -138,6 +152,11 @@ export default function PVCSevkiyat() {
       setInitialRemainingCutting(0);
       setRemainingCutting(0);
       setDeliveredCutting(0);
+      // İmza canvas'ını temizle
+      if (signatureCanvasRef.current) {
+        const ctx = signatureCanvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, signatureCanvasRef.current.width, signatureCanvasRef.current.height);
+      }
     } catch (error) {
       toast.current.show({ severity: 'error', summary: 'Hata', detail: error.message || error.toString(), life: 4000 });
     } finally {
@@ -179,6 +198,116 @@ export default function PVCSevkiyat() {
       const dataUrl = canvasRef.current.toDataURL('image/png');
       setPhoto(dataUrl);
       setCameraActive(false);
+    }
+  };
+
+  // İmza çizme fonksiyonları - Canvas context'i hazırla
+  useEffect(() => {
+    if (!sidebarVisible) return;
+    
+    // Canvas render olduktan sonra context'i ayarla
+    const timer = setTimeout(() => {
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      signatureCtxRef.current = ctx;
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [sidebarVisible]);
+
+  // İmza çizme event handler'ları
+  const getEventPos = (e) => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  };
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    isDrawingRef.current = true;
+    const pos = getEventPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDrawingRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const pos = getEventPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const handleMouseUp = (e) => {
+    if (!isDrawingRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    
+    isDrawingRef.current = false;
+    const dataUrl = canvas.toDataURL('image/png');
+    setSignature(dataUrl);
+  };
+
+  const handleMouseLeave = (e) => {
+    if (isDrawingRef.current) {
+      handleMouseUp(e);
+    }
+  };
+
+  // İmza temizle
+  const handleClearSignature = () => {
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      setSignature(null);
     }
   };
 
@@ -452,6 +581,12 @@ export default function PVCSevkiyat() {
             tracks.forEach(track => track.stop());
             videoRef.current.srcObject = null;
           }
+          // İmza canvas'ını temizle
+          if (signatureCanvasRef.current) {
+            const ctx = signatureCanvasRef.current.getContext('2d');
+            ctx.clearRect(0, 0, signatureCanvasRef.current.width, signatureCanvasRef.current.height);
+            setSignature(null);
+          }
         }}
         pt={{
           root: { className: 'h-screen' },
@@ -528,6 +663,47 @@ export default function PVCSevkiyat() {
                 />
                 Yardımcı Malzemeler Teslim Edildi
               </label>
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-1 text-red-600">İmza</label>
+              <div className="border rounded p-2 bg-white">
+                <canvas
+                  ref={signatureCanvasRef}
+                  width={400}
+                  height={200}
+                  className="border border-gray-300 rounded cursor-crosshair"
+                  style={{ 
+                    touchAction: 'none', 
+                    width: '100%', 
+                    maxWidth: '400px',
+                    height: '200px',
+                    display: 'block',
+                    backgroundColor: '#ffffff',
+                    pointerEvents: 'auto'
+                  }}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseLeave}
+                  onTouchStart={handleMouseDown}
+                  onTouchMove={handleMouseMove}
+                  onTouchEnd={handleMouseUp}
+                />
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    label="İmzayı Temizle"
+                    className="p-button-secondary flex-1"
+                    size="small"
+                    onClick={handleClearSignature}
+                    disabled={!signature}
+                  />
+                </div>
+                {signature && (
+                  <div className="mt-2 text-xs text-green-600 font-semibold">
+                    ✓ İmza alındı
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="sticky bottom-0 bg-white pt-3 border-t">
