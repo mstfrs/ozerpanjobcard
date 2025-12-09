@@ -56,6 +56,7 @@ const Cam = () => {
   const [glassTypesSummary, setGlassTypesSummary] = useState({});
   const [statusCountsSummary, setStatusCountsSummary] = useState({});
   const isSearchingRef = useRef(false); // Prevent infinite loop
+  const lastSelectedProductRef = useRef(null); // Track last selected product to prevent unnecessary API calls
 
   const {
     employee,
@@ -125,6 +126,7 @@ const Cam = () => {
       
       setGlassList(filteredData);
       setSelectedProduct(null);
+      lastSelectedProductRef.current = null; // Reset selected product ref on new search
       if (value) {
         setLastSearchedValue(value); // Son aranan değeri sakla
       }
@@ -209,10 +211,35 @@ const Cam = () => {
 
   const handleRowClick = async (e) => {
     const product = e.data;
-    const jobCardInfo = await getJobCardDetails(product?.job_cards[0]?.job_card_ref);
-    setCurrentJobcard(jobCardInfo);
-    const glassDetails = await getGlassDetails(product?.stok_kodu);
-    setSelectedProduct({ product, glassDetails });
+    
+    // Prevent unnecessary API calls if the same product is clicked
+    if (lastSelectedProductRef.current?.name === product?.name) {
+      return;
+    }
+    
+    // Only fetch job card details if job_card_ref exists
+    if (product?.job_cards?.[0]?.job_card_ref) {
+      try {
+        const jobCardInfo = await getJobCardDetails(product.job_cards[0].job_card_ref);
+        // Only update if job card info is different to prevent unnecessary re-renders
+        if (jobCardInfo && currentJobcard?.name !== jobCardInfo?.name) {
+          setCurrentJobcard(jobCardInfo);
+        }
+      } catch (error) {
+        console.error("Error fetching job card details:", error);
+      }
+    }
+    
+    // Fetch glass details
+    try {
+      const glassDetails = await getGlassDetails(product?.stok_kodu);
+      setSelectedProduct({ product, glassDetails });
+      lastSelectedProductRef.current = product; // Track selected product
+    } catch (error) {
+      console.error("Error fetching glass details:", error);
+      setSelectedProduct({ product, glassDetails: null });
+      lastSelectedProductRef.current = product;
+    }
   };
 
   const handlePrintLabel = async () => {
