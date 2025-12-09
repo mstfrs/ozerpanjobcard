@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState } from 'react'
 import useJobcardsStore from '../store/jobcardStore';
 import { fetchCurrentUser } from '../services/AuthServices';
 import { getLoggedUserEmployeeDetails } from '../services/EmployeeServices';
@@ -31,48 +31,11 @@ const Market = () => {
       setEmployee(employee);
     });
   }, [currentUser]);
-  // Use refs to track previous values and prevent unnecessary API calls
-  const prevFiltersRef = useRef(JSON.stringify(filters));
-  const prevCurrentOptRef = useRef(JSON.stringify(currentOpt));
-  const isFetchingRef = useRef(false);
-
   useEffect(() => {
-    // Serialize current values for comparison
-    const currentFiltersStr = JSON.stringify(filters);
-    const currentOptStr = JSON.stringify(currentOpt);
-    
-    // Check if values actually changed
-    const filtersChanged = prevFiltersRef.current !== currentFiltersStr;
-    const currentOptChanged = prevCurrentOptRef.current !== currentOptStr;
-    
-    // If nothing changed or already fetching, skip
-    if ((!filtersChanged && !currentOptChanged) || isFetchingRef.current) {
-      return;
-    }
-    
-    // Update refs
-    prevFiltersRef.current = currentFiltersStr;
-    prevCurrentOptRef.current = currentOptStr;
-    
-    // Set fetching flag
-    isFetchingRef.current = true;
-    
-    // Only fetch if filters exist and are not empty
-    if (filters && filters.length > 0) {
-      getJobCards(filters, 5)
-        .then((list) => {
-          setJobCardList(list);
-        })
-        .catch((error) => {
-          console.error("Error fetching job cards:", error);
-        })
-        .finally(() => {
-          isFetchingRef.current = false;
-        });
-    } else {
-      isFetchingRef.current = false;
-    }
-  }, [filters, currentOpt, setJobCardList]);
+    getJobCards(filters, 5).then((list) => {
+      setJobCardList(list);
+    });
+  }, [filters,currentOpt]);
   return (
     <div className='flex flex-col overflow-hidden'>
       <MarketNavbar/>
