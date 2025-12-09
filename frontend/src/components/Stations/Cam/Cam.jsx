@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { DataTable } from "primereact/datatable";
@@ -55,6 +55,7 @@ const Cam = () => {
   // Summary state (for sidebar counts)
   const [glassTypesSummary, setGlassTypesSummary] = useState({});
   const [statusCountsSummary, setStatusCountsSummary] = useState({});
+  const isSearchingRef = useRef(false); // Prevent infinite loop
 
   const {
     employee,
@@ -78,44 +79,89 @@ const Cam = () => {
   };
 
   const handleSearchWithValue = async (value, page = 1, size = pageSize, sortF = sortField, sortO = sortOrder, statusF = selectedStatus, glassTypeF = selectedGlassType) => {
-    // Send status filter directly - API will handle it
-    const statusFilter = (statusF && (statusF === "Pending" || statusF === "Completed" || statusF === "In Progress")) ? statusF : null;
-    const response = await getGlassList(value, page, size, sortF, sortO, statusFilter, glassTypeF);
-    console.log("glasslist", response);
-    
-    // Handle new paginated response format - server already filters
-    const data = response.data || response;
-    const filteredData = Array.isArray(data) ? data : [];
-    
-    if (filteredData.length === 0 && page === 1) {
-      toast.error("Siparişe ait üretilecek Cam bulunamadı");
-      setGlassList([]);
-      setSelectedProduct(null);
-      setTotalCount(0);
-      setTotalPages(0);
+    // Prevent infinite loop - if already searching, return
+    if (isSearchingRef.current) {
       return;
     }
     
-    setGlassList(filteredData);
-    setSelectedProduct(null);
-    setLastSearchedValue(value); // Son aranan değeri sakla
-    setCurrentPage(page);
-    setPageSize(size);
-    setSortField(sortF);
-    setSortOrder(sortO);
-    
-    // Update pagination metadata
-    if (response.total_count !== undefined) {
-      setTotalCount(response.total_count);
-      setTotalPages(response.total_pages || 0);
+    // If no value provided and no last searched value, don't search
+    if (!value && !lastSearchedValue) {
+      return;
     }
     
-    // Update summary from API response (for sidebar counts)
-    if (response.glass_types_summary) {
-      setGlassTypesSummary(response.glass_types_summary);
+    // Use lastSearchedValue if value is not provided
+    const searchValue = value || lastSearchedValue;
+    if (!searchValue) {
+      return;
     }
-    if (response.status_counts_summary) {
-      setStatusCountsSummary(response.status_counts_summary);
+    
+    isSearchingRef.current = true;
+    
+    try {
+      // Send status filter directly - API will handle it
+      const statusFilter = (statusF && (statusF === "Pending" || statusF === "Completed" || statusF === "In Progress")) ? statusF : null;
+      const response = await getGlassList(searchValue, page, size, sortF, sortO, statusFilter, glassTypeF);
+      console.log("glasslist", response);
+      
+      // Handle new paginated response format - server already filters
+      const data = response.data || response;
+      const filteredData = Array.isArray(data) ? data : [];
+      
+      if (filteredData.length === 0 && page === 1) {
+        toast.error("Siparişe ait üretilecek Cam bulunamadı");
+        setGlassList([]);
+        setSelectedProduct(null);
+        setTotalCount(0);
+        setTotalPages(0);
+        // Only update summaries if they exist in response
+        if (response.glass_types_summary) {
+          setGlassTypesSummary(response.glass_types_summary);
+        }
+        if (response.status_counts_summary) {
+          setStatusCountsSummary(response.status_counts_summary);
+        }
+        return;
+      }
+      
+      setGlassList(filteredData);
+      setSelectedProduct(null);
+      if (value) {
+        setLastSearchedValue(value); // Son aranan değeri sakla
+      }
+      setCurrentPage(page);
+      setPageSize(size);
+      setSortField(sortF);
+      setSortOrder(sortO);
+      
+      // Update pagination metadata
+      if (response.total_count !== undefined) {
+        setTotalCount(response.total_count);
+        setTotalPages(response.total_pages || 0);
+      }
+      
+      // Update summary from API response (for sidebar counts) - only if they exist and are different
+      if (response.glass_types_summary) {
+        const newSummary = response.glass_types_summary;
+        setGlassTypesSummary(prev => {
+          // Only update if different to prevent unnecessary re-renders
+          const prevStr = JSON.stringify(prev);
+          const newStr = JSON.stringify(newSummary);
+          return prevStr !== newStr ? newSummary : prev;
+        });
+      }
+      if (response.status_counts_summary) {
+        const newSummary = response.status_counts_summary;
+        setStatusCountsSummary(prev => {
+          // Only update if different to prevent unnecessary re-renders
+          const prevStr = JSON.stringify(prev);
+          const newStr = JSON.stringify(newSummary);
+          return prevStr !== newStr ? newSummary : prev;
+        });
+      }
+    } catch (error) {
+      console.error("Error in handleSearchWithValue:", error);
+    } finally {
+      isSearchingRef.current = false;
     }
   };
 
@@ -186,8 +232,10 @@ const Cam = () => {
     if (result) {
       toast.success("Cam operasyonu başarıyla işlendi");
       glassLabelPrint(selectedProduct);
-      // Reload current page with same sort
-      await handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder);
+      // Reload current page with same sort - only if we have a lastSearchedValue
+      if (lastSearchedValue) {
+        await handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType);
+      }
     }
   };
 
@@ -225,8 +273,10 @@ const Cam = () => {
         toast.success("Hata kaydı başarıyla oluşturuldu");
         setErrorModalVisible(false);
         setErrorNote("");
-        // Reload current page with same sort
-        await handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder);
+        // Reload current page with same sort - only if we have a lastSearchedValue
+        if (lastSearchedValue) {
+          await handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType);
+        }
       }
     } catch (error) {
       toast.error("Hata kaydı oluşturulurken bir sorun oluştu");
@@ -288,9 +338,9 @@ const Cam = () => {
     );
   };
 
-  // Use summary from API (tüm veri üzerinden hesaplanmış)
-  const glassTypes = glassTypesSummary;
-  const statusCounts = statusCountsSummary;
+  // Use summary from API (tüm veri üzerinden hesaplanmış) - memoize to prevent unnecessary re-renders
+  const glassTypes = useMemo(() => glassTypesSummary, [glassTypesSummary]);
+  const statusCounts = useMemo(() => statusCountsSummary, [statusCountsSummary]);
 
   // Filtreleme artık server-side'da yapılıyor, direkt glassList kullanıyoruz
 
