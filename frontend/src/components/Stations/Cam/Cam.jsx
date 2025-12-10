@@ -88,6 +88,7 @@ const Cam = () => {
     // Handle new paginated response format - server already filters
     const data = response.data || response;
     const filteredData = Array.isArray(data) ? data : [];
+    console.log("filteredData", filteredData);
     
     if (filteredData.length === 0 && page === 1) {
       toast.error("Siparişe ait üretilecek Cam bulunamadı");
@@ -165,6 +166,7 @@ const Cam = () => {
   };
 
   const handleRowClick = async (e) => {
+    console.log("e", e);
     const product = e.data;
     const jobCardInfo = await getJobCardDetails(product?.job_cards[0]?.job_card_ref);
     setCurrentJobcard(jobCardInfo);
