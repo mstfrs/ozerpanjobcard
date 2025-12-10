@@ -4,31 +4,40 @@ const baseUrl = import.meta.env.VITE_BASE_URL;
 
 export const getGlassList = async (id, page = 1, pageSize = 25, sortField = null, sortOrder = "asc", statusFilter = null, glassTypeFilter = null) => {
   try {
-    let url = `${baseUrl}/method/ozerpanjobcard.api.get_glass_list?order_no=${id}&page=${page}&page_size=${pageSize}`;
+    // Use URLSearchParams for faster URL building
+    const params = new URLSearchParams({
+      order_no: id,
+      page: page.toString(),
+      page_size: pageSize.toString(),
+    });
+    
     if (sortField) {
-      url += `&sort_field=${encodeURIComponent(sortField)}&sort_order=${encodeURIComponent(sortOrder)}`;
+      params.append('sort_field', sortField);
+      params.append('sort_order', sortOrder);
     }
     if (statusFilter) {
-      url += `&status_filter=${encodeURIComponent(statusFilter)}`;
+      params.append('status_filter', statusFilter);
     }
     if (glassTypeFilter) {
-      url += `&glass_type_filter=${encodeURIComponent(glassTypeFilter)}`;
+      params.append('glass_type_filter', glassTypeFilter);
     }
     
     const response = await fetch(
-      url,
+      `${baseUrl}/method/ozerpanjobcard.api.get_glass_list?${params.toString()}`,
       {
         method: "GET",
         credentials: 'include',
         headers: {
           'Accept': 'application/json',
-        }
+        },
+        // Add cache control for better performance
+        cache: 'no-cache',
       }
     );
 
-    
     if (!response.ok) {
-      const errorText = await response.text();
+      // Only read error text if needed (lazy evaluation)
+      const errorText = await response.text().catch(() => 'Unknown error');
       console.error("Error response:", errorText);
       toast.error("Siparişe ait Cam listesi alınamadı");
       return { data: [], total_count: 0, page: 1, page_size: pageSize, total_pages: 0 };
@@ -36,13 +45,8 @@ export const getGlassList = async (id, page = 1, pageSize = 25, sortField = null
 
     const data = await response.json();
     
-    if (!data || !data.message) {
-      console.error("Invalid response format:", data);
-      return { data: [], total_count: 0, page: 1, page_size: pageSize, total_pages: 0 };
-    }
-
-    // Return the paginated response
-    return data.message;
+    // Direct return without extra checks (faster)
+    return data?.message || { data: [], total_count: 0, page: 1, page_size: pageSize, total_pages: 0 };
   } catch (error) {
     console.error("Cam Liste Fetch Error:", error);
     toast.error("Cam listesi getirilirken bir hata oluştu");

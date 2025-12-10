@@ -167,8 +167,7 @@ def get_quality_label_items(quality_check_code, total_mtul):
 @frappe.whitelist()
 def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="asc", status_filter=None, glass_type_filter=None):
     try:
-        frappe.logger().debug(f"Getting glass list for order: {order_no}, page: {page}, page_size: {page_size}, sort_field: {sort_field}, sort_order: {sort_order}, status_filter: {status_filter}, glass_type_filter: {glass_type_filter}")
-        
+        # Removed debug logging for better performance
         if not order_no:
             frappe.throw("Order number is required")
         
@@ -190,107 +189,205 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
             if sort_order.lower() not in ["asc", "desc"]:
                 sort_order = "asc"
             
-            order_by = f"{sort_field} {sort_order.upper()}"
+            order_by_sql = f"cl.{sort_field} {sort_order.upper()}"
         else:
-            order_by = "name"
+            order_by_sql = "cl.name ASC"
         
-        # Build base query to get all glasses with job cards for filtering
-        # First, get all glasses for the order
-        all_camlar = frappe.get_all(
-            "CamListe",
-            filters={"order_no": order_no},
-            fields=["*"],
-            order_by=order_by
-        )
+        # Build optimized SQL query with filters at database level
+        # First, get filtered glass names with job cards using subquery
+        base_conditions = ["cl.order_no = %(order_no)s"]
+        params = {"order_no": order_no}
         
-        # Get all job cards for all glasses in one query
-        if all_camlar:
-            all_cam_names = [cam.name for cam in all_camlar]
-            
-            # Get all job cards for these glasses in one query
-            all_job_cards = frappe.db.sql("""
-                SELECT 
-                    jc.*,
-                    jc.parent as glass_name
-                FROM `tabCamListe Job Card` jc
-                WHERE jc.parent IN %(cam_names)s
-                ORDER BY jc.parent, jc.idx
-            """, {"cam_names": all_cam_names}, as_dict=True)
-            
-            # Group job cards by glass name
-            job_cards_by_glass = {}
-            for jc in all_job_cards:
-                glass_name = jc.glass_name
-                if glass_name not in job_cards_by_glass:
-                    job_cards_by_glass[glass_name] = []
-                # Remove glass_name from dict before appending
-                jc_dict = {k: v for k, v in jc.items() if k != 'glass_name'}
-                job_cards_by_glass[glass_name].append(jc_dict)
-            
-            # Assign job cards to each glass
-            for cam in all_camlar:
-                cam["job_cards"] = job_cards_by_glass.get(cam.name, [])
+        # Filter by glass type if provided
+        if glass_type_filter:
+            base_conditions.append("cl.aciklama = %(glass_type_filter)s")
+            params["glass_type_filter"] = glass_type_filter
+        
+        # Build query to get glasses that have job cards and match status filter
+        # Use optimized JOIN with MAX subquery for better performance
+        if status_filter:
+            # Use LEFT JOIN with MAX to get last job card status efficiently
+            sql_query = f"""
+                SELECT DISTINCT cl.name
+                FROM `tabCamListe` cl
+                INNER JOIN `tabCamListe Job Card` jc ON jc.parent = cl.name
+                INNER JOIN (
+                    SELECT parent, MAX(idx) as max_idx
+                    FROM `tabCamListe Job Card`
+                    GROUP BY parent
+                ) jc_max ON jc_max.parent = cl.name AND jc.idx = jc_max.max_idx
+                WHERE {' AND '.join(base_conditions)}
+                AND jc.status = %(status_filter)s
+                ORDER BY {order_by_sql}
+            """
+            params["status_filter"] = status_filter
         else:
-            # No glasses found, set empty job_cards
-            for cam in all_camlar:
-                cam["job_cards"] = []
+            # Just filter glasses that have job cards
+            sql_query = f"""
+                SELECT DISTINCT cl.name
+                FROM `tabCamListe` cl
+                INNER JOIN `tabCamListe Job Card` jc ON jc.parent = cl.name
+                WHERE {' AND '.join(base_conditions)}
+                ORDER BY {order_by_sql}
+            """
         
-        # Apply filters on server side
-        filtered_camlar = []
-        for cam in all_camlar:
-            # Filter: must have job cards
-            if not cam.get("job_cards") or len(cam["job_cards"]) == 0:
-                continue
-            
-            # Filter by status (check last job card status)
-            if status_filter:
-                last_job_card = cam["job_cards"][-1] if cam["job_cards"] else None
-                if not last_job_card or last_job_card.get("status") != status_filter:
-                    continue
-            
-            # Filter by glass type (aciklama)
+        # Get total count first (for pagination) - optimized with COUNT
+        # Remove ORDER BY from count query for better performance
+        count_query = sql_query.replace("SELECT DISTINCT cl.name", "SELECT COUNT(DISTINCT cl.name) as total")
+        if " ORDER BY " in count_query.upper():
+            count_query = count_query[:count_query.upper().index(" ORDER BY ")]
+        total_result = frappe.db.sql(count_query, params, as_dict=True)
+        total_count = total_result[0]["total"] if total_result else 0
+        
+        # Get paginated glass names only
+        paginated_query = f"{sql_query} LIMIT %(page_size)s OFFSET %(offset)s"
+        params["page_size"] = page_size
+        params["offset"] = offset
+        glass_names_result = frappe.db.sql(paginated_query, params, as_dict=True)
+        
+        glass_names = [row["name"] for row in glass_names_result]
+        
+        if not glass_names:
+            # Still calculate summary even if no results for current page
+            summary_params = {"order_no": order_no}
             if glass_type_filter:
-                if cam.get("aciklama") != glass_type_filter:
-                    continue
+                summary_params["glass_type_filter"] = glass_type_filter
             
-            filtered_camlar.append(cam)
-        
-        # Get total count after filtering
-        total_count = len(filtered_camlar)
-        
-        # Apply pagination to filtered results
-        start_idx = offset
-        end_idx = offset + page_size
-        camlar = filtered_camlar[start_idx:end_idx]
-        
-        frappe.logger().debug(f"Found {len(camlar)} glass records (page {page} of {(total_count + page_size - 1) // page_size if total_count > 0 else 0}) after filtering")
-        
-        frappe.logger().debug(f"Returning glass list with job cards")
-        
-        # Calculate summary statistics for ALL data (not filtered, not just current page)
-        # This ensures sidebar shows correct counts regardless of current filter
-        glass_types_summary = {}
-        status_counts_summary = {}
-        
-        # Use all_camlar (before filtering) for summary
-        for cam in all_camlar:
-            # Only include glasses with job cards
-            if not cam.get("job_cards") or len(cam["job_cards"]) == 0:
-                continue
+            # Glass types summary - optimized SQL aggregation
+            glass_types_query = """
+                SELECT 
+                    cl.aciklama as glass_type,
+                    COUNT(DISTINCT cl.name) as count
+                FROM `tabCamListe` cl
+                INNER JOIN `tabCamListe Job Card` jc ON jc.parent = cl.name
+                WHERE cl.order_no = %(order_no)s
+                GROUP BY cl.aciklama
+            """
+            if glass_type_filter:
+                glass_types_query = glass_types_query.replace(
+                    "WHERE cl.order_no = %(order_no)s",
+                    "WHERE cl.order_no = %(order_no)s AND cl.aciklama = %(glass_type_filter)s"
+                )
             
-            # Glass types summary
-            aciklama = cam.get("aciklama") or "Bilinmeyen"
-            if aciklama not in glass_types_summary:
-                glass_types_summary[aciklama] = 0
-            glass_types_summary[aciklama] += 1
+            glass_types_result = frappe.db.sql(glass_types_query, summary_params, as_dict=True)
+            glass_types_summary = {row["glass_type"] or "Bilinmeyen": row["count"] for row in glass_types_result}
             
-            # Status counts summary (use last job card status)
-            last_job_card = cam["job_cards"][-1] if cam["job_cards"] else None
-            if last_job_card:
-                status = last_job_card.get("status") or "N/A"
-                if status not in status_counts_summary:
-                    status_counts_summary[status] = 0
-                status_counts_summary[status] += 1
+            # Status counts summary - optimized SQL aggregation with JOIN
+            status_counts_query = """
+                SELECT 
+                    jc.status,
+                    COUNT(DISTINCT cl.name) as count
+                FROM `tabCamListe` cl
+                INNER JOIN `tabCamListe Job Card` jc ON jc.parent = cl.name
+                INNER JOIN (
+                    SELECT parent, MAX(idx) as max_idx
+                    FROM `tabCamListe Job Card`
+                    GROUP BY parent
+                ) jc_max ON jc_max.parent = cl.name AND jc.idx = jc_max.max_idx
+                WHERE cl.order_no = %(order_no)s
+                GROUP BY jc.status
+            """
+            if glass_type_filter:
+                status_counts_query = status_counts_query.replace(
+                    "WHERE cl.order_no = %(order_no)s",
+                    "WHERE cl.order_no = %(order_no)s AND cl.aciklama = %(glass_type_filter)s"
+                )
+            
+            status_counts_result = frappe.db.sql(status_counts_query, summary_params, as_dict=True)
+            status_counts_summary = {row["status"] or "N/A": row["count"] for row in status_counts_result}
+            
+            return {
+                "data": [],
+                "total_count": 0,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": 0,
+                "glass_types_summary": glass_types_summary,
+                "status_counts_summary": status_counts_summary
+            }
+        
+        # Get glass details and job cards in optimized way
+        # Use single query for glass data, then batch fetch job cards
+        if not glass_names:
+            camlar = []
+        else:
+            # Get glass details with direct SQL (faster than frappe.get_all)
+            field_list = "cl.name, cl.poz_no, cl.genislik, cl.yukseklik, cl.sanal_adet, cl.aciklama, cl.cari_unvan, cl.musteri, cl.stok_kodu, cl.order_no, cl.creation, cl.modified"
+            camlar_sql = f"""
+                SELECT {field_list}
+                FROM `tabCamListe` cl
+                WHERE cl.name IN %(glass_names)s
+                ORDER BY {order_by_sql}
+            """
+            camlar = frappe.db.sql(camlar_sql, {"glass_names": glass_names}, as_dict=True)
+            
+            # Get job cards in a single query and group in memory (faster than multiple queries)
+            if camlar:
+                all_job_cards = frappe.db.sql("""
+                    SELECT 
+                        jc.name,
+                        jc.parent as glass_name,
+                        jc.idx,
+                        jc.status,
+                        jc.is_corrective,
+                        jc.job_card_ref
+                    FROM `tabCamListe Job Card` jc
+                    WHERE jc.parent IN %(glass_names)s
+                    ORDER BY jc.parent, jc.idx
+                """, {"glass_names": glass_names}, as_dict=True)
+                
+                # Group job cards by glass name (in-memory, very fast)
+                job_cards_by_glass = {}
+                for jc in all_job_cards:
+                    glass_name = jc.pop('glass_name')
+                    if glass_name not in job_cards_by_glass:
+                        job_cards_by_glass[glass_name] = []
+                    job_cards_by_glass[glass_name].append(jc)
+                
+                # Assign job cards to each glass
+                for cam in camlar:
+                    cam["job_cards"] = job_cards_by_glass.get(cam["name"], [])
+        
+        # Calculate summary statistics efficiently using SQL aggregation
+        # Only calculate summary on first page to improve performance
+        # Summary shows counts for ALL data (not filtered), so sidebar always shows correct totals
+        if page == 1:
+            summary_params = {"order_no": order_no}
+            
+            # Glass types summary - optimized SQL aggregation (single query)
+            glass_types_result = frappe.db.sql("""
+                SELECT 
+                    cl.aciklama as glass_type,
+                    COUNT(DISTINCT cl.name) as count
+                FROM `tabCamListe` cl
+                INNER JOIN `tabCamListe Job Card` jc ON jc.parent = cl.name
+                WHERE cl.order_no = %(order_no)s
+                GROUP BY cl.aciklama
+            """, summary_params, as_dict=True)
+            glass_types_summary = {row["glass_type"] or "Bilinmeyen": row["count"] for row in glass_types_result}
+            
+            # Status counts summary - optimized with JOIN (faster than correlated subquery)
+            status_counts_result = frappe.db.sql("""
+                SELECT 
+                    jc.status,
+                    COUNT(DISTINCT cl.name) as count
+                FROM `tabCamListe` cl
+                INNER JOIN `tabCamListe Job Card` jc ON jc.parent = cl.name
+                INNER JOIN (
+                    SELECT parent, MAX(idx) as max_idx
+                    FROM `tabCamListe Job Card`
+                    GROUP BY parent
+                ) jc_max ON jc_max.parent = cl.name AND jc.idx = jc_max.max_idx
+                WHERE cl.order_no = %(order_no)s
+                GROUP BY jc.status
+            """, summary_params, as_dict=True)
+            status_counts_summary = {row["status"] or "N/A": row["count"] for row in status_counts_result}
+        else:
+            # For pages other than first or when filters are active, return empty summaries to save time
+            glass_types_summary = {}
+            status_counts_summary = {}
+        
+        # Removed debug logging for better performance
         
         # Return paginated results with metadata
         return {

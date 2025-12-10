@@ -82,6 +82,8 @@ const Cam = () => {
     const statusFilter = (statusF && (statusF === "Pending" || statusF === "Completed" || statusF === "In Progress")) ? statusF : null;
     const response = await getGlassList(value, page, size, sortF, sortO, statusFilter, glassTypeF);
     console.log("glasslist", response);
+    console.log("glass_types_summary", response.glass_types_summary);
+    console.log("status_counts_summary", response.status_counts_summary);
     
     // Handle new paginated response format - server already filters
     const data = response.data || response;
@@ -111,10 +113,11 @@ const Cam = () => {
     }
     
     // Update summary from API response (for sidebar counts)
-    if (response.glass_types_summary) {
+    // Only update if summary exists (first page) or keep existing summary (other pages)
+    if (response.glass_types_summary && Object.keys(response.glass_types_summary).length > 0) {
       setGlassTypesSummary(response.glass_types_summary);
     }
-    if (response.status_counts_summary) {
+    if (response.status_counts_summary && Object.keys(response.status_counts_summary).length > 0) {
       setStatusCountsSummary(response.status_counts_summary);
     }
   };
@@ -175,19 +178,40 @@ const Cam = () => {
       return;
     }
 
+    // Get the latest job card ref from job_cards array
+    const jobCards = selectedProduct.product.job_cards || [];
+    const latestJobCard = jobCards.length > 0 ? jobCards[jobCards.length - 1] : null;
+    const jobCardRef = latestJobCard?.job_card_ref || null;
+
     const payload = {
       operation: "Cam",
       employee: employee.name,
-      glass_name: selectedProduct.product.name
+      glass_name: selectedProduct.product.name,
+      job_card_ref: jobCardRef  // Send job_card_ref to avoid lookup in backend
     };
 
-    const result = await processGlassOperation(payload);
-    
-    if (result) {
-      toast.success("Cam operasyonu başarıyla işlendi");
-      glassLabelPrint(selectedProduct);
-      // Reload current page with same sort and filters
-      await handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType);
+    try {
+      const result = await processGlassOperation(payload);
+      
+      if (result) {
+        toast.success("Cam operasyonu başarıyla işlendi");
+        
+        // Fire-and-forget: Print and refresh in background (don't wait)
+        // Print label immediately
+        // glassLabelPrint(selectedProduct);
+        
+        // Refresh list in background after a short delay to allow print to start
+        setTimeout(() => {
+          handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType).catch(err => {
+            console.error("Error refreshing list:", err);
+          });
+        }, 100);
+      } else {
+        toast.error("Operasyon başarısız oldu");
+      }
+    } catch (error) {
+      toast.error("Operasyon sırasında bir hata oluştu");
+      console.error("Error in processGlassOperation:", error);
     }
   };
 
@@ -203,6 +227,11 @@ const Cam = () => {
     }
 
     try {
+      // Get the latest job card ref from job_cards array
+      const jobCards = selectedProduct.product.job_cards || [];
+      const latestJobCard = jobCards.length > 0 ? jobCards[jobCards.length - 1] : null;
+      const jobCardRef = latestJobCard?.job_card_ref || null;
+
       const payload = {
         operation: "Cam",
         employee: employee.name,
@@ -225,8 +254,15 @@ const Cam = () => {
         toast.success("Hata kaydı başarıyla oluşturuldu");
         setErrorModalVisible(false);
         setErrorNote("");
-        // Reload current page with same sort and filters
-        await handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType);
+        
+        // Fire-and-forget: Refresh list in background (don't wait)
+        setTimeout(() => {
+          handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType).catch(err => {
+            console.error("Error refreshing list:", err);
+          });
+        }, 100);
+      } else {
+        toast.error("Hata kaydı oluşturulamadı");
       }
     } catch (error) {
       toast.error("Hata kaydı oluşturulurken bir sorun oluştu");
@@ -349,7 +385,7 @@ const Cam = () => {
       <div className="mr-2 flex flex-col w-1/5">
         {header}
       
-        {glassTypes && (
+        {Object.keys(glassTypes).length > 0 && (
           <>
             <Card
           className="mb-1"
