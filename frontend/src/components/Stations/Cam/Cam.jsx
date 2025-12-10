@@ -198,7 +198,7 @@ const Cam = () => {
         
         // Fire-and-forget: Print and refresh in background (don't wait)
         // Print label immediately
-        // glassLabelPrint(selectedProduct);
+        glassLabelPrint(selectedProduct);
         
         // Refresh list in background after a short delay to allow print to start
         setTimeout(() => {
