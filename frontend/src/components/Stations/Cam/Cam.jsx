@@ -70,6 +70,17 @@ const Cam = () => {
 
   const handleInputKeyDown = async (e) => {
     if (e.key === "Enter" && inputValue.length === 7) {
+      e.preventDefault(); // Prevent form submission and tab behavior
+      setCurrentPage(1); // Reset to first page on new search
+      // Keep filters from localStorage, don't reset on new search
+      await handleSearchWithValue(inputValue, 1, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType);
+      setInputValue(""); // Okutma sonrası inputu temizle
+    }
+  };
+
+  const handleFormSubmit = async (e) => {
+    e.preventDefault(); // Prevent default form submission
+    if (inputValue.length === 7) {
       setCurrentPage(1); // Reset to first page on new search
       // Keep filters from localStorage, don't reset on new search
       await handleSearchWithValue(inputValue, 1, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType);
@@ -278,16 +289,19 @@ const Cam = () => {
 
   const header = (
     <div className="flex flex-col gap-1 justify-between w-full mx-1 mb-1">
-      <span className="p-input-icon-left">
-        <InputText
-          placeholder="Sipariş numarası"
-          value={inputValue}
-          onChange={handleInputChange}
-          onKeyDown={handleInputKeyDown}
-          className="w-full h-10 pl-2 text-base"
-          // disabled={currentJobcard?.status === "Work In Progress"}
-        />
-      </span>
+      <form onSubmit={handleFormSubmit} className="w-full">
+        <span className="p-input-icon-left">
+          <InputText
+            type="search"
+            placeholder="Sipariş numarası"
+            value={inputValue}
+            onChange={handleInputChange}
+            onKeyDown={handleInputKeyDown}
+            className="w-full h-10 pl-2 text-base"
+            // disabled={currentJobcard?.status === "Work In Progress"}
+          />
+        </span>
+      </form>
     
       <div className="flex justify-between gap-2">
         <button
