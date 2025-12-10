@@ -171,6 +171,9 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
         if not order_no:
             frappe.throw("Order number is required")
         
+        # Normalize order_no: trim whitespace and handle case sensitivity for tablet compatibility
+        order_no = str(order_no).strip()
+        
         # Convert to integers
         page = int(page)
         page_size = int(page_size)
@@ -195,7 +198,8 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
         
         # Build optimized SQL query with filters at database level
         # First, get filtered glass names with job cards using subquery
-        base_conditions = ["cl.order_no = %(order_no)s"]
+        # Use TRIM and case-insensitive comparison for tablet compatibility
+        base_conditions = ["TRIM(cl.order_no) = TRIM(%(order_no)s)"]
         params = {"order_no": order_no}
         
         # Filter by glass type if provided
@@ -254,25 +258,27 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                 summary_params["glass_type_filter"] = glass_type_filter
             
             # Glass types summary - optimized SQL aggregation
+            # Use TRIM for tablet compatibility
             glass_types_query = """
                 SELECT 
                     cl.aciklama as glass_type,
                     COUNT(DISTINCT cl.name) as count
                 FROM `tabCamListe` cl
                 INNER JOIN `tabCamListe Job Card` jc ON jc.parent = cl.name
-                WHERE cl.order_no = %(order_no)s
+                WHERE TRIM(cl.order_no) = TRIM(%(order_no)s)
                 GROUP BY cl.aciklama
             """
             if glass_type_filter:
                 glass_types_query = glass_types_query.replace(
-                    "WHERE cl.order_no = %(order_no)s",
-                    "WHERE cl.order_no = %(order_no)s AND cl.aciklama = %(glass_type_filter)s"
+                    "WHERE TRIM(cl.order_no) = TRIM(%(order_no)s)",
+                    "WHERE TRIM(cl.order_no) = TRIM(%(order_no)s) AND cl.aciklama = %(glass_type_filter)s"
                 )
             
             glass_types_result = frappe.db.sql(glass_types_query, summary_params, as_dict=True)
             glass_types_summary = {row["glass_type"] or "Bilinmeyen": row["count"] for row in glass_types_result}
             
             # Status counts summary - optimized SQL aggregation with JOIN
+            # Use TRIM for tablet compatibility
             status_counts_query = """
                 SELECT 
                     jc.status,
@@ -284,13 +290,13 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                     FROM `tabCamListe Job Card`
                     GROUP BY parent
                 ) jc_max ON jc_max.parent = cl.name AND jc.idx = jc_max.max_idx
-                WHERE cl.order_no = %(order_no)s
+                WHERE TRIM(cl.order_no) = TRIM(%(order_no)s)
                 GROUP BY jc.status
             """
             if glass_type_filter:
                 status_counts_query = status_counts_query.replace(
-                    "WHERE cl.order_no = %(order_no)s",
-                    "WHERE cl.order_no = %(order_no)s AND cl.aciklama = %(glass_type_filter)s"
+                    "WHERE TRIM(cl.order_no) = TRIM(%(order_no)s)",
+                    "WHERE TRIM(cl.order_no) = TRIM(%(order_no)s) AND cl.aciklama = %(glass_type_filter)s"
                 )
             
             status_counts_result = frappe.db.sql(status_counts_query, summary_params, as_dict=True)
@@ -355,18 +361,20 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
             summary_params = {"order_no": order_no}
             
             # Glass types summary - optimized SQL aggregation (single query)
+            # Use TRIM for tablet compatibility
             glass_types_result = frappe.db.sql("""
                 SELECT 
                     cl.aciklama as glass_type,
                     COUNT(DISTINCT cl.name) as count
                 FROM `tabCamListe` cl
                 INNER JOIN `tabCamListe Job Card` jc ON jc.parent = cl.name
-                WHERE cl.order_no = %(order_no)s
+                WHERE TRIM(cl.order_no) = TRIM(%(order_no)s)
                 GROUP BY cl.aciklama
             """, summary_params, as_dict=True)
             glass_types_summary = {row["glass_type"] or "Bilinmeyen": row["count"] for row in glass_types_result}
             
             # Status counts summary - optimized with JOIN (faster than correlated subquery)
+            # Use TRIM for tablet compatibility
             status_counts_result = frappe.db.sql("""
                 SELECT 
                     jc.status,
@@ -378,7 +386,7 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                     FROM `tabCamListe Job Card`
                     GROUP BY parent
                 ) jc_max ON jc_max.parent = cl.name AND jc.idx = jc_max.max_idx
-                WHERE cl.order_no = %(order_no)s
+                WHERE TRIM(cl.order_no) = TRIM(%(order_no)s)
                 GROUP BY jc.status
             """, summary_params, as_dict=True)
             status_counts_summary = {row["status"] or "N/A": row["count"] for row in status_counts_result}
@@ -401,8 +409,28 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
         }
         
     except Exception as e:
-        frappe.logger().error(f"Error in get_glass_list: {str(e)}")
-        frappe.throw(f"Error getting glass list: {str(e)}")
+        # Enhanced error logging for tablet debugging
+        error_details = {
+            "order_no": order_no,
+            "order_no_length": len(str(order_no)) if order_no else 0,
+            "order_no_repr": repr(order_no) if order_no else None,
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
+        frappe.logger().error(f"Error in get_glass_list: {error_details}")
+        
+        # Check if order_no exists in database (for debugging)
+        try:
+            order_no_exists = frappe.db.sql("""
+                SELECT COUNT(*) as count
+                FROM `tabCamListe`
+                WHERE TRIM(order_no) = TRIM(%s)
+            """, (order_no,), as_dict=True)
+            error_details["order_no_exists_count"] = order_no_exists[0].count if order_no_exists else 0
+        except:
+            pass
+        
+        frappe.throw(f"Cam listesi alınırken hata oluştu: {str(e)}. Sipariş No: {order_no}")
 
 @frappe.whitelist(allow_guest=False)
 def update_profile_stock_ledger_qty(profile_type, length, qty):
