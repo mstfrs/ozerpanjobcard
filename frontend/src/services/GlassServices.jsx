@@ -4,9 +4,12 @@ const baseUrl = import.meta.env.VITE_BASE_URL;
 
 export const getGlassList = async (id, page = 1, pageSize = 25, sortField = null, sortOrder = "asc", statusFilter = null, glassTypeFilter = null) => {
   try {
+    // Normalize order_no: trim whitespace for tablet compatibility
+    const normalizedOrderNo = id ? String(id).trim() : id;
+    
     // Use URLSearchParams for faster URL building
     const params = new URLSearchParams({
-      order_no: id,
+      order_no: normalizedOrderNo,
       page: page.toString(),
       page_size: pageSize.toString(),
     });
