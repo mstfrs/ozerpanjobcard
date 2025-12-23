@@ -145,7 +145,7 @@ const CreateWorksite = ({
 						<input type="number" step="0.01" name="expected_value" value={formData.expected_value} onChange={onChange} className="w-full border rounded p-2 text-sm" />
 					</div>
 					<div>
-						<label className="block text-sm mb-1">Bayi (zorunlu)</label>
+						<label className="block text-sm mb-1">Bayi</label>
 						<AutoComplete
 							value={selectedCustomer}
 							suggestions={customerSuggestions}
