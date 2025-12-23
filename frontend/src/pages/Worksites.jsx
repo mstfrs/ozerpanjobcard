@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import Loading from '../components/Loading';
-import { listWorksites, createWorksite, uploadFile, getWorksiteDetail } from '../services/WorksitesService';
+import { listWorksites, createWorksite, uploadFile, getWorksiteDetail, updateWorksite } from '../services/WorksitesService';
 import { Button } from 'primereact/button';
 import { Dialog } from 'primereact/dialog';
 import { fetchCurrentUser } from '../services/AuthServices';
@@ -72,9 +72,9 @@ const Worksites = () => {
 			component: "quoted"
 		},
 		{
-			title: "Ziyaretler",
-			icon: "pi pi-calendar",
-			component: "visits"
+			title: "Kazanılan İşler",
+			icon: "pi pi-check-circle",
+			component: "won"
 		}
 	];
 
@@ -178,10 +178,15 @@ const Worksites = () => {
 	};
 
 	const handleCreate = async () => {
+		if (!formData.assigned_dealer) {
+			alert('Lütfen bayi seçiniz.');
+			return;
+		}
 		try {
 			setIsSubmitting(true);
 			await createWorksite({
 				...formData,
+				status: 'Yeni',
 				expected_value: formData.expected_value === '' ? null : Number(formData.expected_value),
 				latitude: formData.latitude === '' ? null : Number(formData.latitude),
 				longitude: formData.longitude === '' ? null : Number(formData.longitude),
@@ -267,6 +272,17 @@ const Worksites = () => {
 
 	const newOnly = worksites.filter((w) => w.status === 'Yeni');
 	const quotedOnly = worksites.filter((w) => w.status === 'Teklif Verildi');
+	const wonOnly = worksites.filter((w) => w.status === 'İş Kazanıldı');
+
+	const handleUpdateWorksite = async (name, updates) => {
+		try {
+			await updateWorksite(name, updates);
+			await loadList();
+		} catch (err) {
+			console.error('Update worksite error:', err);
+			alert('Şantiye güncellenirken hata oluştu.');
+		}
+	};
 
 	return (
 		<div className="w-full">
@@ -289,20 +305,24 @@ const Worksites = () => {
 						{activeSalesComponent === 'new' && (
 							<NewWorksites 
 								worksites={newOnly}
+								onUpdateWorksite={handleUpdateWorksite}
 							/>
 						)}
 						
 						{activeSalesComponent === 'quoted' && (
 							<QuotedWorksites 
 								worksites={quotedOnly}
+								onUpdateWorksite={handleUpdateWorksite}
 							/>
 						)}
 
-						{activeSalesComponent === 'visits' && (
-							<div className="text-center py-8 text-gray-500">
-								<i className="pi pi-calendar text-4xl mb-2"></i>
-								<p>Ziyaret özelliği yakında eklenecek</p>
-							</div>
+						{activeSalesComponent === 'won' && (
+							<QuotedWorksites 
+								worksites={wonOnly}
+								onUpdateWorksite={handleUpdateWorksite}
+								title="Kazanılan İşler"
+								emptyMessage="Kazanılan iş bulunamadı"
+							/>
 						)}
 					</div>
 				)}
@@ -359,7 +379,6 @@ const Worksites = () => {
 						</div>
 
 						{/* Alt tarafta Yeni Şantiyeler butonu ve liste */}
-					
 						{showNewSection && (
 							<div className="overflow-x-auto mt-3">
 								<h2 className="text-lg font-medium mb-2">Yeni Şantiyeler</h2>

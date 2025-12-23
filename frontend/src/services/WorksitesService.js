@@ -10,6 +10,7 @@ export const listWorksites = async () => {
 				"assigned_dealer",
 				"next_action_date",
 				"expected_value",
+				"custom_offer",
 				"latitude",
 				"longitude",
 				"attach_image_aeci",

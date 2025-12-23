@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import ProfilTemin from "../components/Stations/ProfilTemin/ProfilTemin";
 import SacKesim from "../components/Stations/SacKesim/SacKesim";
 import OrtaKayit from "../components/Stations/OrtaKayit/OrtaKayit";
@@ -45,11 +45,48 @@ const Jobcards = () => {
     });
   }, [currentUser]);
 
+  // Use refs to track previous values and prevent unnecessary API calls
+  const prevFiltersRef = useRef(JSON.stringify(filters));
+  const prevCurrentOptRef = useRef(JSON.stringify(currentOpt));
+  const isFetchingRef = useRef(false);
+
   useEffect(() => {
-    getJobCards(filters, 5).then((list) => {
+    // Serialize current values for comparison
+    const currentFiltersStr = JSON.stringify(filters);
+    const currentOptStr = JSON.stringify(currentOpt);
+    
+    // Check if values actually changed
+    const filtersChanged = prevFiltersRef.current !== currentFiltersStr;
+    const currentOptChanged = prevCurrentOptRef.current !== currentOptStr;
+    
+    // If nothing changed or already fetching, skip
+    if ((!filtersChanged && !currentOptChanged) || isFetchingRef.current) {
+      return;
+    }
+    
+    // Update refs
+    prevFiltersRef.current = currentFiltersStr;
+    prevCurrentOptRef.current = currentOptStr;
+    
+    // Set fetching flag
+    isFetchingRef.current = true;
+    
+    // Only fetch if filters exist and are not empty
+    if (filters && filters.length > 0) {
+      getJobCards(filters, 5)
+        .then((list) => {
       setJobCardList(list);
-    });
-  }, [filters,currentOpt]);
+        })
+        .catch((error) => {
+          console.error("Error fetching job cards:", error);
+        })
+        .finally(() => {
+          isFetchingRef.current = false;
+        });
+    } else {
+      isFetchingRef.current = false;
+    }
+  }, [filters, currentOpt, setJobCardList]);
 
   // useEffect(() => {
   //   getTesDetayDetails(currentOpt).then((list) => {

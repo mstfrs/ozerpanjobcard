@@ -11,6 +11,7 @@ import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
 import { Sidebar } from 'primereact/sidebar';
 import { Dialog } from 'primereact/dialog';
+import { Accordion, AccordionTab } from 'primereact/accordion';
 import { 
   getWorkOrderProducts, 
   getFiyat2ItemsForSalesOrder, 
@@ -53,6 +54,11 @@ export default function PVCSevkiyat() {
   const [isAuxiliaryMaterialsDelivered, setIsAuxiliaryMaterialsDelivered] = useState(false); // Yardımcı malzemeler teslim edildi
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
+  // İmza için state ve ref
+  const [signature, setSignature] = useState(null);
+  const signatureCanvasRef = useRef(null);
+  const signatureCtxRef = useRef(null);
+  const isDrawingRef = useRef(false);
   // Teslim edilen ürünler için state'ler
   const [deliveredItems, setDeliveredItems] = useState([]);
   const [showDeliveredItemsDialog, setShowDeliveredItemsDialog] = useState(false);
@@ -82,6 +88,13 @@ export default function PVCSevkiyat() {
         photoUrl = await uploadPhotoBase64(photo, `delivery_${Date.now()}.png`);
       }
       
+      let signatureUrl = null;
+      if (signature) {
+        // İmzayı önce dosya olarak upload et
+        const { uploadPhotoBase64 } = await import('../../../services/deliveryNoteService');
+        signatureUrl = await uploadPhotoBase64(signature, `signature_${Date.now()}.png`);
+      }
+      
       // Seçili ürünlerin detaylarını al (değiştirilen miktarları kullan)
       const itemDetails = selectedPozlar.map(p => {
         const changedQty = quantityChanges[p.item_code];
@@ -109,6 +122,7 @@ export default function PVCSevkiyat() {
           custom_recipient: teslimAlan, 
           custom_vehicle: aracPlaka, 
           custom_delivery_photo: photoUrl,
+          custom_signature: signatureUrl,
           custom_is_auxiliary_materials_delivered: isAuxiliaryMaterialsDelivered
         },
         itemDetails
@@ -129,6 +143,7 @@ export default function PVCSevkiyat() {
       setTeslimAlan('');
       setAracPlaka('');
       setPhoto(null);
+      setSignature(null);
       setSevkiyatTipi(null);
       setSelectedPozlar([]);
       setIsAuxiliaryMaterialsDelivered(false);
@@ -137,6 +152,11 @@ export default function PVCSevkiyat() {
       setInitialRemainingCutting(0);
       setRemainingCutting(0);
       setDeliveredCutting(0);
+      // İmza canvas'ını temizle
+      if (signatureCanvasRef.current) {
+        const ctx = signatureCanvasRef.current.getContext('2d');
+        ctx.clearRect(0, 0, signatureCanvasRef.current.width, signatureCanvasRef.current.height);
+      }
     } catch (error) {
       toast.current.show({ severity: 'error', summary: 'Hata', detail: error.message || error.toString(), life: 4000 });
     } finally {
@@ -181,6 +201,116 @@ export default function PVCSevkiyat() {
     }
   };
 
+  // İmza çizme fonksiyonları - Canvas context'i hazırla
+  useEffect(() => {
+    if (!sidebarVisible) return;
+    
+    // Canvas render olduktan sonra context'i ayarla
+    const timer = setTimeout(() => {
+      const canvas = signatureCanvasRef.current;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      signatureCtxRef.current = ctx;
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [sidebarVisible]);
+
+  // İmza çizme event handler'ları
+  const getEventPos = (e) => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    
+    let clientX, clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    } else {
+      clientX = e.clientX;
+      clientY = e.clientY;
+    }
+    
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY
+    };
+  };
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    
+    isDrawingRef.current = true;
+    const pos = getEventPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDrawingRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    const pos = getEventPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const handleMouseUp = (e) => {
+    if (!isDrawingRef.current) return;
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    
+    isDrawingRef.current = false;
+    const dataUrl = canvas.toDataURL('image/png');
+    setSignature(dataUrl);
+  };
+
+  const handleMouseLeave = (e) => {
+    if (isDrawingRef.current) {
+      handleMouseUp(e);
+    }
+  };
+
+  // İmza temizle
+  const handleClearSignature = () => {
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      setSignature(null);
+    }
+  };
+
   // Sayfa ilk açıldığında müşteri ve sales orderları çek
   useEffect(() => {
     async function fetchCustomers() {
@@ -202,12 +332,14 @@ export default function PVCSevkiyat() {
       setSalesOrders([]);
       setSelectedSalesOrders([]);
       setProducts([]);
+      setSelectedPozlar([]);
       return;
     }
     const customerObj = customers.find(c => c.value === selectedCustomer);
     setSalesOrders(customerObj ? customerObj.sales_orders : []);
     setSelectedSalesOrders([]);
     setProducts([]);
+    setSelectedPozlar([]);
   }, [selectedCustomer, customers]);
 
   // Sales order seçilince ürünleri getir (tüm seçili siparişler için)
@@ -215,9 +347,11 @@ export default function PVCSevkiyat() {
     async function fetchProducts() {
       if (!selectedSalesOrders.length) {
         setProducts([]);
+        setSelectedPozlar([]);
         return;
       }
       setLoading(true);
+      setSelectedPozlar([]);
       try {
         const data = await getWorkOrderProducts(selectedSalesOrders);
         setProducts(data);
@@ -424,37 +558,183 @@ export default function PVCSevkiyat() {
     }
   };
 
+  const [activeAccordionIndex, setActiveAccordionIndex] = useState(0);
+
   // Pozlar tablosu için sadece sıralı veri (grup başlığı yok)
   const groupedPozlar = [...pvcPozlar, ...camPozlar];
 
   return (
-    <div className='w-screen h-screen flex relative'>
+    <div className='w-full h-screen flex relative bg-gray-50'>
       <Toast ref={toast} />
-      {/* Sidebar */}
-      <div style={{  background: '#f4f4f4', padding: 10, display: 'flex', flexDirection: 'column' }}>
-        {/* Dropdownlar */}
-        <div className='text-xs lg:text-sm' style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 4 }}>
-          <div className='min-w-[200px] lg:min-w-[240px]'>
-            <label className='text-red-500 font-bold text-xs lg:text-sm'>Müşteri</label>
+      
+      {/* Teslimat Modal */}
+      <Sidebar 
+        visible={sidebarVisible} 
+        position="right" 
+        className="w-full sm:w-96"
+        onHide={() => {
+          setSidebarVisible(false);
+          setSelectedPozlar([]);
+          setCameraActive(false);
+          if (videoRef.current && videoRef.current.srcObject) {
+            const tracks = videoRef.current.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+            videoRef.current.srcObject = null;
+          }
+          // İmza canvas'ını temizle
+          if (signatureCanvasRef.current) {
+            const ctx = signatureCanvasRef.current.getContext('2d');
+            ctx.clearRect(0, 0, signatureCanvasRef.current.width, signatureCanvasRef.current.height);
+            setSignature(null);
+          }
+        }}
+        pt={{
+          root: { className: 'h-screen' },
+          content: { className: 'h-full overflow-y-auto' }
+        }}
+      >
+        <form className="flex flex-col gap-3 h-full" onSubmit={e => { e.preventDefault(); handleTeslimatFisOlustur(); }}>
+          <div className="flex-1 overflow-y-auto space-y-3">
+            <div>
+              <label className="block text-sm font-bold mb-1 text-red-600">Teslim Alan</label>
+              <input
+                type="text"
+                value={teslimAlan}
+                onChange={e => setTeslimAlan(e.target.value)}
+                className="border rounded px-2 py-1 w-full text-sm"
+                placeholder="Teslim alan kişi adı"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-1 text-red-600">Araç Plakası</label>
+              <input
+                type="text"
+                value={aracPlaka}
+                onChange={e => {
+                  const value = e.target.value.toUpperCase().replace(/\s+/g, '');
+                  setAracPlaka(value);
+                  const regex = /^\d{2}[A-ZÇĞİÖŞÜ]{1,3}\d{3,4}$/;
+                  if (value.length > 0 && !regex.test(value)) {
+                    setPlakaError('Plaka formatı geçersiz. Örnek: 38AAA123 veya 34AB1234');
+                  } else {
+                    setPlakaError('');
+                  }
+                }}
+                className={`border rounded px-2 py-1 w-full text-sm ${plakaError ? 'border-red-500' : ''}`}
+                placeholder="38AAA123 veya 34AB1234"
+                maxLength={9}
+              />
+              {plakaError && <span className="text-xs text-red-600 mt-1 block">{plakaError}</span>}
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-1 text-red-600">Teslim Fotoğrafı</label>
+              {!photo && !cameraActive && (
+                <Button 
+                  label="Kamerayı Aç" 
+                  className="p-button-info w-full" 
+                  size="small"
+                  onClick={() => setCameraActive(true)} 
+                />
+              )}
+              {cameraActive && (
+                <div className="flex flex-col items-center gap-2">
+                  <video ref={videoRef} className="w-full max-w-xs rounded border" autoPlay />
+                  <div className="flex gap-2 w-full">
+                    <Button label="Çek" className="p-button-success flex-1" size="small" onClick={handleTakePhoto} />
+                    <Button label="Kapat" className="p-button-secondary flex-1" size="small" onClick={() => setCameraActive(false)} />
+                  </div>
+                </div>
+              )}
+              {photo && (
+                <div className="flex flex-col items-center gap-2">
+                  <img src={photo} alt="Teslim Fotoğrafı" className="rounded border w-full max-w-xs object-contain" />
+                  <Button label="Fotoğrafı Sil" className="p-button-danger w-full" size="small" onClick={() => setPhoto(null)} />
+                </div>
+              )}
+              <canvas ref={canvasRef} width={320} height={240} style={{ display: 'none' }} />
+            </div>
+            <div>
+              <label className="flex items-center gap-2 text-sm font-bold text-red-600">
+                <input
+                  type="checkbox"
+                  checked={isAuxiliaryMaterialsDelivered}
+                  onChange={e => setIsAuxiliaryMaterialsDelivered(e.target.checked)}
+                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                />
+                Yardımcı Malzemeler Teslim Edildi
+              </label>
+            </div>
+            <div>
+              <label className="block text-sm font-bold mb-1 text-red-600">İmza</label>
+              <div className="border rounded p-2 bg-white">
+                <canvas
+                  ref={signatureCanvasRef}
+                  width={400}
+                  height={200}
+                  className="border border-gray-300 rounded cursor-crosshair"
+                  style={{ 
+                    touchAction: 'none', 
+                    width: '100%', 
+                    maxWidth: '400px',
+                    height: '200px',
+                    display: 'block',
+                    backgroundColor: '#ffffff',
+                    pointerEvents: 'auto'
+                  }}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  onMouseLeave={handleMouseLeave}
+                  onTouchStart={handleMouseDown}
+                  onTouchMove={handleMouseMove}
+                  onTouchEnd={handleMouseUp}
+                />
+                <div className="flex gap-2 mt-2">
+                  <Button
+                    label="İmzayı Temizle"
+                    className="p-button-secondary flex-1"
+                    size="small"
+                    onClick={handleClearSignature}
+                    disabled={!signature}
+                  />
+                </div>
+                {signature && (
+                  <div className="mt-2 text-xs text-green-600 font-semibold">
+                    ✓ İmza alındı
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="sticky bottom-0 bg-white pt-3 border-t">
+            <Button
+              label="Teslimat Fişi Oluştur"
+              className="p-button-success w-full"
+              type="submit"
+              loading={isCreating}
+              disabled={isCreating || !teslimAlan || !!plakaError}
+            />
+          </div>
+        </form>
+      </Sidebar>
+
+      {/* Sidebar - Sadece MD ve üstü ekranlarda */}
+      <div className="hidden md:flex flex-col bg-gray-100 p-2" style={{ minWidth: 300 }}>
+        <div className='space-y-3'>
+          <div>
+            <label className='text-red-500 font-bold text-sm'>Müşteri</label>
             <Dropdown
               value={selectedCustomer}
               options={customers}
-              onChange={e => {
-                setSelectedCustomer(e.value);
-              }}
+              onChange={e => setSelectedCustomer(e.value)}
               placeholder="Müşteri seçin"
               style={{ width: '100%' }}
               loading={loading}
-              className='text-xs lg:text-sm'
-              pt={{
-                input: { className: 'text-xs lg:text-sm' },
-                list: { className: 'text-xs lg:text-sm' },
-                item: { className: 'text-xs lg:text-sm' }
-              }}
+              className='text-sm'
             />
           </div>
-          <div className='min-w-[280px] lg:min-w-[320px]'>
-            <label className=' text-red-500 font-bold text-xs lg:text-sm'>Sales Order</label>
+          <div>
+            <label className='text-red-500 font-bold text-sm'>Sales Order</label>
             <MultiSelect
               value={selectedSalesOrders}
               options={salesOrders}
@@ -463,44 +743,40 @@ export default function PVCSevkiyat() {
               style={{ width: '100%' }}
               disabled={!selectedCustomer}
               loading={loading}
-              className='text-xs lg:text-sm'
-              pt={{
-                input: { className: 'text-xs lg:text-sm' },
-                list: { className: 'text-xs lg:text-sm' },
-                item: { className: 'text-xs lg:text-sm' },
-                token: { className: 'text-xs lg:text-sm' }
-              }}
+              className='text-sm'
+              display="chip"
             />
           </div>
         </div>
-        {/* Tablolar ve toplam doğrama alanı sadece sipariş seçiliyse görünsün */}
+        
         {selectedSalesOrders.length > 0 && (
-          <>
-            {/* Tablolar alt alta ve scroll'lu */}
-            <div className='h-full' style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>POZLAR</h3>
-                <div style={{ fontSize: 13, flex: 1, minHeight: 0, overflow: 'auto' }}>
-                  <DataTable 
+          <div className='flex-1 mt-3 flex flex-col gap-3 overflow-y-auto'>
+            <div className='flex flex-col'>
+              <h3 className='text-center text-sm font-bold text-red-500 mb-2'>POZLAR</h3>
+              <DataTable 
                     value={pvcPozlar.filter(p => (parseFloat(p.qty) || 0) > 0)} 
                     emptyMessage="Ürün yok" 
                     loading={loading} 
                     className="text-xs" 
-                    style={{ fontSize: 12 }}
+                dataKey="item_code"
                     selection={selectedPozlar}
-                    onSelectionChange={(e) => setSelectedPozlar(e.value)}
+                onSelectionChange={(e) => {
+                  const validSelection = (e.value || []).filter(item => item.is_ready === 'Hazır' && (parseFloat(item.qty) || 0) > 0);
+                  setSelectedPozlar(validSelection);
+                }}
                     selectionMode="multiple"
                     rowSelectable={(data) => data.is_ready === 'Hazır' && (parseFloat(data.qty) || 0) > 0}
+                rowClassName={(data) => data.is_ready !== 'Hazır' ? 'opacity-50' : ''}
                     scrollable
-                    scrollHeight="200px"
+                scrollHeight="250px"
                   >
                     <Column selectionMode="multiple" headerStyle={{ width: '3em' }} />
                     <Column field="item_code" header="Ürün Kodu" />
-                    <Column field="item_name" header="Ürün Adı" />
                     <Column 
                       header="Miktar" 
                       body={rowData => {
                         if (rowData.item_group === 'Camlar') return '';
+                    const isReady = rowData.is_ready === 'Hazır';
                         
                         return (
                           <input
@@ -526,22 +802,29 @@ export default function PVCSevkiyat() {
                             min="1"
                             max={parseInt(rowData.qty) || 1}
                             step="1"
-                            className="w-16 text-xs border rounded px-1 py-0.5 text-center"
-                            style={{ fontSize: '11px' }}
+                        disabled={!isReady}
+                        className={`w-16 text-xs border rounded px-1 py-0.5 text-center ${!isReady ? 'bg-gray-200 cursor-not-allowed' : ''}`}
                           />
                         );
                       }}
                     />
-                    <Column header="Durum" body={rowData => rowData.is_ready === 'Hazır' ? (<FaCheckCircle color="#22c55e" size={18} title="Hazır" />) : null} style={{ textAlign: 'center' }} />
+                <Column 
+                  header="Durum" 
+                  body={rowData => rowData.is_ready === 'Hazır' ? (
+                    <FaCheckCircle color="#22c55e" size={16} title="Hazır" />
+                  ) : (
+                    <span className="text-xs text-gray-500">Hazır Değil</span>
+                  )} 
+                  style={{ textAlign: 'center' }} 
+                />
                   </DataTable>
                 </div>
-              </div>
-              <div className='min-h-60' style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <h3 className='text-center text-sm lg:text-lg text-red-500 font-bold'>YARDIMCI ÜRÜNLER</h3>
-                <div style={{  flex: 1, minHeight: 0, overflow: 'auto' }}>
+            
+            <div className='flex flex-col'>
+              <h3 className='text-center text-sm font-bold text-red-500 mb-2'>YARDIMCI ÜRÜNLER</h3>
                   <DataTable 
                     value={groupFiyat2Items(fiyat2Items)} 
-                    emptyMessage="Yardımcı Malzeme bulunamadı "
+                emptyMessage="Yardımcı Malzeme bulunamadı"
                     loading={loading}
                     scrollable
                     scrollHeight="200px"
@@ -553,135 +836,31 @@ export default function PVCSevkiyat() {
                   </DataTable>
                 </div>
               </div>
-            </div>
-          
-          </>
         )}
       </div>
-      {/* Main Content */}
-      <div className='w-full h-full flex-1 p-2 flex flex-col justify-between relative'>
-        {/* PrimeReact Sidebar */}
-        <Sidebar visible={sidebarVisible} position="right" style={{ width: 400 }} onHide={() => {
-          setSidebarVisible(false);
-          setSelectedPozlar([]);
-          // Kamera kapatma işlemi
-          setCameraActive(false);
-          if (videoRef.current && videoRef.current.srcObject) {
-            const tracks = videoRef.current.srcObject.getTracks();
-            tracks.forEach(track => track.stop());
-            videoRef.current.srcObject = null;
-          }
-        }}>
-        
-            <form className="flex flex-col gap-2" onSubmit={e => { e.preventDefault(); handleTeslimatFisOlustur(); }}>
-            <div>
-              <label className="block text-sm font-bold mb-1 text-red-600">Teslim Alan</label>
-              <input
-                type="text"
-                value={teslimAlan}
-                onChange={e => setTeslimAlan(e.target.value)}
-                className="border rounded px-2 py-1 w-full text-sm"
-                placeholder="Teslim alan kişi adı"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold mb-1 text-red-600">Araç Plakası</label>
-              <input
-                type="text"
-                value={aracPlaka}
-                onChange={e => {
-                  const value = e.target.value.toUpperCase().replace(/\s+/g, '');
-                  setAracPlaka(value);
-                  // Plaka regex: 2 rakam, 1-3 harf, 3-4 rakam, boşluksuz
-                  const regex = /^\d{2}[A-ZÇĞİÖŞÜ]{1,3}\d{3,4}$/;
-                  if (value.length > 0 && !regex.test(value)) {
-                    setPlakaError('Plaka formatı geçersiz. Örnek: 38AAA123 veya 34AB1234');
-                  } else {
-                    setPlakaError('');
-                  }
-                }}
-                className={`border rounded px-2 py-1 w-full text-sm ${plakaError ? 'border-red-500' : ''}`}
-                placeholder="38AAA123 veya 34AB1234"
-                maxLength={9}
-              />
-              {plakaError && <span className="text-xs text-red-600 mt-1 block">{plakaError}</span>}
-            </div>
-            <div>
-              <label className="block text-sm font-bold mb-1 text-red-600">Teslim Fotoğrafı</label>
-              {!photo && !cameraActive && (
-                <Button label="Kamerayı Aç" className="p-button-info p-1 mb-2" onClick={() => setCameraActive(true)} />
-              )}
-              {cameraActive && (
-                <div className="flex flex-col items-center gap-2">
-                  <video ref={videoRef} width={320} height={240} autoPlay className="rounded border" />
-                  <Button label="Fotoğraf Çek" className="p-button-success p-1" onClick={handleTakePhoto} />
-                  <Button label="Kapat" className="p-button-secondary p-1" onClick={() => setCameraActive(false)} />
-                </div>
-              )}
-              {photo && (
-                <div className="flex flex-col items-center gap-2">
-                  <img src={photo} alt="Teslim Fotoğrafı" className="rounded border w-[320px] h-[240px] object-contain" />
-                  <Button label="Fotoğrafı Sil" className="p-button-danger p-1" onClick={() => setPhoto(null)} />
-                </div>
-              )}
-              {/* Canvas gizli, sadece fotoğraf almak için */}
-              <canvas ref={canvasRef} width={320} height={240} style={{ display: 'none' }} />
-            </div>
-            <div>
-              <label className="flex items-center gap-2 text-sm font-bold text-red-600">
-                <input
-                  type="checkbox"
-                  checked={isAuxiliaryMaterialsDelivered}
-                  onChange={e => setIsAuxiliaryMaterialsDelivered(e.target.checked)}
-                  className="w-4 h-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                />
-                Yardımcı Malzemeler Teslim Edildi
-              </label>
-            </div>
-            <div className="mt-4">
+
+      {/* Main Content - MD ve üstü için */}
+      <div className='hidden md:flex flex-1 flex-col p-2 relative'>
+        <div className='flex flex-row justify-between items-center mb-3'>
+          <h3 className='text-red-500 text-lg font-bold'>Ürün Görselleri</h3>
               <Button
-                label="Teslimat Fişi Oluştur"
-                className="p-button-success w-full"
-                type="submit"
-                loading={isCreating}
-                disabled={isCreating || !teslimAlan || !!plakaError}
-              />
-            </div>
-          </form>
-        </Sidebar>
-        <div className=''>
-         <div className='flex flex-row justify-between items-center'>
-         <h3 className='text-red-500 text-sm lg:text-lg font-bold'>Ürün Görselleri</h3>
-             {/* Sağ: Butonlar */}
-             <div className=' flex-1 w-full p-2 md:text-md text-xs text-right items-center '>
-              <Button
-                label={`PVC Sevkiyat${selectedPozlar.length > 0 ? ` (${selectedPozlar.length} ürün)` : ''}`}
-                className="p-button-success  p-1"
+            label={`PVC Sevkiyat${selectedPozlar.length > 0 ? ` (${selectedPozlar.length})` : ''}`}
+            className="p-button-success"
+            size="small"
                 onClick={() => handleSevkiyatClick("PVC")}
                 disabled={selectedPozlar.length === 0}
               />
-              {/* <Button
-                label="Camlar Sevkiyat"
-                className="p-button-info p-1"
-                onClick={() => handleSevkiyatClick("Camlar")}
-              />
-              <Button
-                label="Detay"
-                className="p-button-help p-1"
-                onClick={() => setSidebarVisible(true)}
-              /> */}
             </div>
-         </div>
-          <div
-            className='grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-6 bg-white p-4 rounded-lg shadow-sm overflow-y-auto 'style={{ maxHeight: 'calc(100svh - 120px)' }}
-          >
+        
+        <div className='flex-1 overflow-y-auto'>
+          <div className='grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-4 bg-white p-4 rounded-lg shadow-sm'>
             {products
               .filter(prod => prod.item_group === 'PVC' && pozItemCodes.includes(prod.item_code))
               .map((prod, idx) => {
                 const imgName = prod.item_code ? prod.item_code.replace(/-/g, '') + '.jpg' : '';
                 const imgSrc = imgName ? `/files/share/${imgName}` : '';
                 return (
-                  <div key={prod.item_code + idx} className='text-center overflow-auto'>
+                  <div key={prod.item_code + idx} className='text-center'>
                     <img
                       src={imgSrc}
                       alt={prod.item_code}
@@ -697,12 +876,10 @@ export default function PVCSevkiyat() {
               })}
           </div>
         </div>
-        {/* Sticky toplam doğrama alanı ve butonlar */}
-        {selectedSalesOrders.length > 0 && (
-          <div className='w-full sticky bottom-0 left-0 z-20 p-0 flex flex-row justify-between items-center rounded-lg bg-slate-300'>
-            {/* Sol: Doğrama Bilgileri */}
-            {pvcPozlar.length > 0 && (
-              <div className='flex-1 p-1 rounded-lg lg:text-md text-xs font-bold text-red-700 flex flex-row justify-between gap-1'>
+        
+        {selectedSalesOrders.length > 0 && pvcPozlar.length > 0 && (
+          <div className='w-full sticky bottom-0 left-0 z-20 p-2 flex flex-row justify-between items-center rounded-lg bg-slate-300 mt-2'>
+            <div className='flex-1 flex flex-row justify-between gap-2 text-sm font-bold text-red-700'>
                 <div>Toplam Doğrama: {initialTotalCutting}</div>
                 <div>Kalan Doğrama: {initialRemainingCutting}</div>
                 <div 
@@ -711,38 +888,223 @@ export default function PVCSevkiyat() {
                   title="Teslim edilen ürünleri görüntüle"
                 >
                   Teslim Edilen Doğrama: {deliveredCutting}
+              </div>
                 </div>
               </div>
             )}
           </div>
-        )}
+
+      {/* Mobil Görünüm - Sadece MD altı ekranlarda Accordion */}
+      <div className="md:hidden w-full p-2 space-y-3">
+        {/* Üst Bilgi ve Buton */}
+        <div className="bg-white rounded-lg shadow p-3">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
+              <Button
+              label={`Sevkiyat Yap${selectedPozlar.length > 0 ? ` (${selectedPozlar.length})` : ''}`}
+              className="p-button-success w-full sm:w-auto"
+              size="small"
+                onClick={() => handleSevkiyatClick("PVC")}
+                disabled={selectedPozlar.length === 0}
+              />
+          </div>
+        </div>
+
+        {/* Accordion Yapısı */}
+        <Accordion activeIndex={activeAccordionIndex} onTabChange={(e) => setActiveAccordionIndex(e.index)}>
+          {/* Müşteri Seçimi */}
+          <AccordionTab header={
+            <span className="font-bold text-red-600">
+              Müşteri Seçimi {selectedCustomer && '✓'}
+            </span>
+          }>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-bold mb-2 text-red-500">Müşteri</label>
+                <Dropdown
+                  value={selectedCustomer}
+                  options={customers}
+                  onChange={e => setSelectedCustomer(e.value)}
+                  placeholder="Müşteri seçin"
+                  className="w-full text-sm"
+                  loading={loading}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-bold mb-2 text-red-500">Sales Order</label>
+                <MultiSelect
+                  value={selectedSalesOrders}
+                  options={salesOrders}
+                  onChange={e => setSelectedSalesOrders(e.value)}
+                  placeholder="Sales Order seçin"
+                  className="w-full text-sm"
+                  disabled={!selectedCustomer}
+                  loading={loading}
+                  display="chip"
+                />
+              </div>
+            </div>
+          </AccordionTab>
+
+          {/* Pozlar */}
+          {selectedSalesOrders.length > 0 && (
+            <AccordionTab header={
+              <span className="font-bold text-red-600">
+                PVC Pozlar ({pvcPozlar.filter(p => (parseFloat(p.qty) || 0) > 0).length})
+              </span>
+            }>
+              <DataTable 
+                value={pvcPozlar.filter(p => (parseFloat(p.qty) || 0) > 0)} 
+                emptyMessage="Ürün yok" 
+                loading={loading} 
+                className="text-xs"
+                dataKey="item_code"
+                selection={selectedPozlar}
+                onSelectionChange={(e) => {
+                  const validSelection = (e.value || []).filter(item => item.is_ready === 'Hazır' && (parseFloat(item.qty) || 0) > 0);
+                  setSelectedPozlar(validSelection);
+                }}
+                selectionMode="multiple"
+                rowSelectable={(data) => data.is_ready === 'Hazır' && (parseFloat(data.qty) || 0) > 0}
+                rowClassName={(data) => data.is_ready !== 'Hazır' ? 'opacity-50' : ''}
+                scrollable
+                scrollHeight="300px"
+                responsiveLayout="scroll"
+              >
+                <Column selectionMode="multiple" headerStyle={{ width: '3em' }} />
+                <Column field="item_code" header="Ürün Kodu" style={{ minWidth: '120px' }} />
+                <Column 
+                  header="Miktar" 
+                  style={{ minWidth: '80px' }}
+                  body={rowData => {
+                    if (rowData.item_group === 'Camlar') return '';
+                    const isReady = rowData.is_ready === 'Hazır';
+                    
+                    return (
+                      <input
+                        key={`qty-${rowData.item_code}`}
+                        type="number"
+                        defaultValue={parseInt(rowData.qty) || 0}
+                        onChange={(e) => {
+                          const value = parseInt(e.target.value) || 0;
+                          if (value < 1) {
+                            toast.current.show({ 
+                              severity: 'warn', 
+                              summary: 'Uyarı', 
+                              detail: 'Minimum değer 1 olmalıdır.', 
+                              life: 3000 
+                            });
+                            return;
+                          }
+                          setQuantityChanges(prev => ({
+                            ...prev,
+                            [rowData.item_code]: value
+                          }));
+                        }}
+                        min="1"
+                        max={parseInt(rowData.qty) || 1}
+                        step="1"
+                        disabled={!isReady}
+                        className={`w-16 text-xs border rounded px-1 py-0.5 text-center ${!isReady ? 'bg-gray-200 cursor-not-allowed' : ''}`}
+                      />
+                    );
+                  }}
+                />
+                <Column 
+                  header="Durum" 
+                  body={rowData => rowData.is_ready === 'Hazır' ? (
+                    <FaCheckCircle color="#22c55e" size={16} title="Hazır" />
+                  ) : (
+                    <span className="text-xs text-gray-500">Hazır Değil</span>
+                  )} 
+                  style={{ textAlign: 'center', width: '80px' }} 
+                />
+              </DataTable>
+            </AccordionTab>
+          )}
+
+          {/* Yardımcı Ürünler */}
+          {selectedSalesOrders.length > 0 && (
+            <AccordionTab header={
+              <span className="font-bold text-red-600">
+                Yardımcı Ürünler ({groupFiyat2Items(fiyat2Items).length})
+              </span>
+            }>
+              <DataTable 
+                value={groupFiyat2Items(fiyat2Items)} 
+                emptyMessage="Yardımcı Malzeme bulunamadı"
+                loading={loading}
+                scrollable
+                scrollHeight="300px"
+                className="text-xs"
+                responsiveLayout="scroll"
+              >
+                <Column field="stock_code" header="Stok Kodu" style={{ minWidth: '100px' }} />
+                <Column field="stock_name" header="Stok Adı" style={{ minWidth: '150px' }} />
+                <Column field="qty" header="Miktar" style={{ minWidth: '80px' }} />
+              </DataTable>
+            </AccordionTab>
+          )}
+
+          {/* Doğrama Bilgileri */}
+          {selectedSalesOrders.length > 0 && pvcPozlar.length > 0 && (
+            <AccordionTab header={
+              <span className="font-bold text-red-600">
+                Doğrama Bilgileri
+              </span>
+            }>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="text-xs text-gray-600 mb-1">Toplam Doğrama</div>
+                  <div className="text-xl font-bold text-blue-600">{initialTotalCutting}</div>
+                  </div>
+                <div className="bg-orange-50 p-3 rounded-lg">
+                  <div className="text-xs text-gray-600 mb-1">Kalan Doğrama</div>
+                  <div className="text-xl font-bold text-orange-600">{initialRemainingCutting}</div>
+        </div>
+                <div 
+                  className="bg-green-50 p-3 rounded-lg cursor-pointer hover:bg-green-100 transition-colors"
+                  onClick={handleShowDeliveredItems}
+                  title="Teslim edilen ürünleri görüntüle"
+                >
+                  <div className="text-xs text-gray-600 mb-1">Teslim Edilen</div>
+                  <div className="text-xl font-bold text-green-600">{deliveredCutting}</div>
+                </div>
+              </div>
+            </AccordionTab>
+            )}
+        </Accordion>
       </div>
       {/* Teslim Edilen Ürünler Dialog */}
       <Dialog 
         header="Teslim Edilen Ürünler" 
         visible={showDeliveredItemsDialog} 
         onHide={() => setShowDeliveredItemsDialog(false)}
-        style={{ width: '80vw', maxWidth: '1000px' }}
+        className="w-full mx-2 sm:w-11/12 lg:w-10/12"
+        style={{ maxWidth: '1200px', maxHeight: '90vh' }}
         modal
         closable={true}
-        onMaskClick={() => setShowDeliveredItemsDialog(false)}
+        contentClassName="overflow-y-auto"
+        pt={{
+          root: { className: 'max-h-screen' },
+          content: { className: 'max-h-[70vh] overflow-y-auto' }
+        }}
       >
         {deliveredItems.length > 0 ? (
           <div className="space-y-1">
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
-                <thead>
+                <thead className="sticky top-0 bg-white">
                   <tr className="bg-gray-200 border-b">
-                    <th className="p-1 text-left">Tarih</th>
-                    <th className="p-1 text-left">Teslim Alan</th>
-                    <th className="p-1 text-left">Araç Plakası</th>
-                    <th className="p-1 text-center">Yardımcı Malzemeler</th>
-                    <th className="p-1 text-left">Ürün Adı</th>
-                    <th className="p-1 text-left">Seri No</th>
-                    <th className="p-1 text-left">Renk</th>
-                    <th className="p-1 text-left">Son Müşteri</th>
-                    <th className="p-1 text-center">Ürün Sayısı</th>
-                    <th className="p-1 text-right">Toplam Miktar</th>
+                    <th className="p-1 text-left whitespace-nowrap">Tarih</th>
+                    <th className="p-1 text-left whitespace-nowrap">Teslim Alan</th>
+                    <th className="p-1 text-left whitespace-nowrap">Araç Plakası</th>
+                    <th className="p-1 text-center whitespace-nowrap">Yardımcı Malzemeler</th>
+                    <th className="p-1 text-left whitespace-nowrap">Ürün Adı</th>
+                    <th className="p-1 text-left whitespace-nowrap">Seri No</th>
+                    <th className="p-1 text-left whitespace-nowrap">Renk</th>
+                    <th className="p-1 text-left whitespace-nowrap">Son Müşteri</th>
+                    <th className="p-1 text-center whitespace-nowrap">Ürün Sayısı</th>
+                    <th className="p-1 text-right whitespace-nowrap">Toplam Miktar</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -752,11 +1114,11 @@ export default function PVCSevkiyat() {
                     
                     return (
                       <tr key={index} className="border-b hover:bg-gray-50">
-                        <td className="p-1">{postingDate}</td>
+                        <td className="p-1 whitespace-nowrap">{postingDate}</td>
                         <td className="p-1">{dn.custom_recipient || '-'}</td>
-                        <td className="p-1">{dn.custom_vehicle || '-'}</td>
+                        <td className="p-1 whitespace-nowrap">{dn.custom_vehicle || '-'}</td>
                         <td className="p-1 text-center">
-                          <span className={`px-1 py-0.5 rounded text-xs ${
+                          <span className={`px-1 py-0.5 rounded text-xs whitespace-nowrap ${
                             dn.custom_is_auxiliary_materials_delivered 
                               ? 'bg-green-100 text-green-800' 
                               : 'bg-red-100 text-red-800'

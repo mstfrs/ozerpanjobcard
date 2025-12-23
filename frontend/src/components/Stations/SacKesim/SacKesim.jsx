@@ -83,7 +83,7 @@ const SacKesim = () => {
                     console.log(`Fetching details for item: ${item}`);
                     const itemData = await getItemDetails(item);
                     console.log(`Received data for item ${item}:`, itemData);
-                    return { item, image: itemData.image };
+                    return { item, image: itemData.custom_destek_img };
                 } catch (error) {
                     console.error(`Error fetching image for item ${item}:`, error);
                     return { item, image: null };
