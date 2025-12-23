@@ -133,13 +133,11 @@ const CreateWorksite = ({
 					</div>
 					<div>
 						<label className="block text-sm mb-1">Durum</label>
-						<select name="status" value={formData.status} onChange={onChange} className="w-full border rounded p-2 text-sm">
-							<option value="Yeni">Yeni</option>
-							<option value="Görüşme Yapıldı">Görüşme Yapıldı</option>
-							<option value="Teklif Verildi">Teklif Verildi</option>
-							<option value="İş Kazanıldı">İş Kazanıldı</option>
-							<option value="İş Kaybedildi">İş Kaybedildi</option>
-						</select>
+						<input
+							value="Yeni"
+							readOnly
+							className="w-full border rounded p-2 text-sm bg-gray-100"
+						/>
 					</div>
 					
 					<div>
@@ -147,7 +145,7 @@ const CreateWorksite = ({
 						<input type="number" step="0.01" name="expected_value" value={formData.expected_value} onChange={onChange} className="w-full border rounded p-2 text-sm" />
 					</div>
 					<div>
-						<label className="block text-sm mb-1">Bayi (Customer)</label>
+						<label className="block text-sm mb-1">Bayi (zorunlu)</label>
 						<AutoComplete
 							value={selectedCustomer}
 							suggestions={customerSuggestions}
