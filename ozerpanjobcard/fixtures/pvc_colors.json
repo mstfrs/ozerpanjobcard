@@ -84,13 +84,6 @@
   "name": "Vizon Dış Folyo"
  },
  {
-  "color": "Vizon Çift Foly",
-  "docstatus": 0,
-  "doctype": "PVC Colors",
-  "modified": "2025-05-29 21:25:22.080086",
-  "name": "Vizon Çift Foly"
- },
- {
   "color": "Met.Ant.Gri İç",
   "docstatus": 0,
   "doctype": "PVC Colors",
@@ -131,5 +124,12 @@
   "doctype": "PVC Colors",
   "modified": "2025-05-29 21:25:22.150636",
   "name": "Winchester Çift"
+ },
+ {
+  "color": "Vizon Çift Foly",
+  "docstatus": 0,
+  "doctype": "PVC Colors",
+  "modified": "2025-05-29 21:25:22.080086",
+  "name": "Vizon Çift Foly"
  }
 ]

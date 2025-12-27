@@ -72,8 +72,8 @@ const Cam = () => {
     if (e.key === "Enter" && inputValue.length === 7) {
       e.preventDefault(); // Prevent form submission and tab behavior
       setCurrentPage(1); // Reset to first page on new search
-      // Keep filters from localStorage, don't reset on new search
-      await handleSearchWithValue(inputValue, 1, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType);
+      // İlk sorguda glass_type_filter ve status_filter boş olmalı
+      await handleSearchWithValue(inputValue, 1, pageSize, sortField, sortOrder, null, null);
       setInputValue(""); // Okutma sonrası inputu temizle
     }
   };
@@ -82,8 +82,8 @@ const Cam = () => {
     e.preventDefault(); // Prevent default form submission
     if (inputValue.length === 7) {
       setCurrentPage(1); // Reset to first page on new search
-      // Keep filters from localStorage, don't reset on new search
-      await handleSearchWithValue(inputValue, 1, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType);
+      // İlk sorguda glass_type_filter ve status_filter boş olmalı
+      await handleSearchWithValue(inputValue, 1, pageSize, sortField, sortOrder, null, null);
       setInputValue(""); // Okutma sonrası inputu temizle
     }
   };
@@ -128,6 +128,31 @@ const Cam = () => {
     // Only update if summary exists (first page) or keep existing summary (other pages)
     if (response.glass_types_summary && Object.keys(response.glass_types_summary).length > 0) {
       setGlassTypesSummary(response.glass_types_summary);
+      
+      // İlk sorguda (page === 1) ve glassTypeF null ise, ilk cam tipini seç ve cache'e kaydet
+      if (page === 1 && glassTypeF === null) {
+        const firstGlassType = Object.keys(response.glass_types_summary)[0];
+        if (firstGlassType) {
+          setSelectedGlassType(firstGlassType);
+          saveFilterToStorage("glassType", firstGlassType);
+          // İlk cam tipiyle tekrar sorgu yap
+          const statusFilter = (statusF && (statusF === "Pending" || statusF === "Completed" || statusF === "In Progress")) ? statusF : null;
+          const filteredResponse = await getGlassList(value, page, size, sortF, sortO, statusFilter, firstGlassType);
+          const filteredData = Array.isArray(filteredResponse.data || filteredResponse) ? (filteredResponse.data || filteredResponse) : [];
+          setGlassList(filteredData);
+          if (filteredResponse.total_count !== undefined) {
+            setTotalCount(filteredResponse.total_count);
+            setTotalPages(filteredResponse.total_pages || 0);
+          }
+          if (filteredResponse.glass_types_summary && Object.keys(filteredResponse.glass_types_summary).length > 0) {
+            setGlassTypesSummary(filteredResponse.glass_types_summary);
+          }
+          if (filteredResponse.status_counts_summary && Object.keys(filteredResponse.status_counts_summary).length > 0) {
+            setStatusCountsSummary(filteredResponse.status_counts_summary);
+          }
+          return; // İlk cam tipiyle yapılan sorgudan sonra çık
+        }
+      }
     }
     if (response.status_counts_summary && Object.keys(response.status_counts_summary).length > 0) {
       setStatusCountsSummary(response.status_counts_summary);
