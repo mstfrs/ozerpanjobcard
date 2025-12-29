@@ -168,6 +168,71 @@ ${(surmeItems || []).map((item, i) => {
   }
 };
 
+
+export const accessoryPackagePrint = async (data) => {
+  console.log('accessoryPackagePrint data', data);
+  print('/n/n/n data', data);
+
+  const items = data?.items || [];
+  const docName = data?.name || '';
+  const dealer = data?.dealer || '';
+  const endCustomer = data?.end_customer || '';
+
+  let zpl = `
+^XA
+^CI28
+^PW640
+^LL800
+
+^FO30,30^A0N,30,30^FDSO: ${docName}^FS
+^FO30,65^A0N,22,22^FDDealer: ${dealer}^FS
+^FO30,95^A0N,22,22^FDCustomer: ${endCustomer}^FS
+
+^FO20,155^GB600,3,3^FS
+
+^FO30,170^FDKOD^FS
+^FO180,170^FDÜRÜN ADI^FS
+^FO470,170^FDMKT^FS
+^FO540,170^FDUOM^FS
+
+^FO20,195^GB600,2,2^FS
+`;
+
+  let y = 215;
+
+  items.forEach(item => {
+    zpl += `
+^FO30,${y}^A0N,20,20^FD${item.item_code || ''}^FS
+^FO180,${y}^A0N,20,20^FB270,2,3,L^FD${item.item_name || ''}^FS
+^FO470,${y}^A0N,20,20^FD${item.qty || ''}^FS
+^FO540,${y}^A0N,20,20^FD${item.uom || ''}^FS
+`;
+    y += 55;
+  });
+
+  zpl += `^XZ`;
+
+
+  // try {
+  //   const response = await fetch(`${baseUrl}/method/ozerpanjobcard.api.print_surme_label`, {
+  //     credentials: "include",
+  //     method: "POST",
+  //     headers: { "Content-Type": "application/json" },
+  //     body: JSON.stringify({ zpl }),
+  //   });
+
+  //   if (response.ok) {
+  //     const message = await response.json();
+  //     console.log("message", message);
+  //     return message;
+  //   } else {
+  //     throw new Error(`HTTP error! Status: ${response.status}`);
+  //   }
+  // } catch (error) {
+  //   console.error("Hata:", error);
+  // }
+};
+
 export const surmeLabelPrintYedek= async (pozDetails, surmeItems) => {
   // Düz metin formatı
   const text = `CLS\n\nTEXT 30,30,"3",0,1,1,"Cari Unvan : ${pozDetails?.bayi_adi}"\nTEXT 30,70,"3",0,1,1,"Cari Kodu  : ${pozDetails?.cari_kod}"\nTEXT 30,110,"3",0,1,1,"Sip / Sevk : ${pozDetails?.siparis_tarihi} / ${pozDetails?.sevkiyat_tarihi}"\nTEXT 30,150,"3",0,1,1,"Musterisi  : ${pozDetails?.musteri || '-'}"\nTEXT 30,190,"3",0,1,1,"Siparis No : ${pozDetails?.siparis_no}   Poz No : ${pozDetails?.poz_no?.split('-')[1]}"\n\nBAR 0,230,800,2\nTEXT 30,240,"3",0,1,1,"Stok Kodu"\nTEXT 200,240,"3",0,1,1,"Ürün Adı"\nTEXT 650,240,"3",0,1,1,"Miktar"\nBAR 0,270,800,2\n\n${(surmeItems || []).map((item, i) => {
