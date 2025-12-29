@@ -113,6 +113,146 @@ def print_glass_label():
         )
         return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
         
+@frappe.whitelist()
+def print_accessory_package(data):
+    """Print accessory package label using TSPL format for TSC TTP244 printer"""
+    print('print_accessory_package data', data)
+    try:
+        import json
+        
+        # If data is string, parse it
+        if isinstance(data, str):
+            data = json.loads(data)
+        
+        items = data.get('items', [])
+        doc_name = data.get('name', '')
+        dealer = data.get('dealer', '')
+        end_customer = data.get('end_customer', '')
+        sales_order = data.get('sales_order', '') or ''
+        
+        # Debug: Print sales_order value
+        print(f'Sales Order value: {sales_order}')
+        print(f'Full data received: {data}')
+        
+        # Türkçe karakterleri ASCII'ye çevir fonksiyonu
+        def turkish_to_ascii(text):
+            if not text:
+                return ""
+            replacements = {
+                'ş': 's', 'Ş': 'S',
+                'ı': 'i', 'İ': 'I',
+                'ğ': 'g', 'Ğ': 'G',
+                'ü': 'u', 'Ü': 'U',
+                'ö': 'o', 'Ö': 'O',
+                'ç': 'c', 'Ç': 'C'
+            }
+            for tr_char, ascii_char in replacements.items():
+                text = text.replace(tr_char, ascii_char)
+            return text
+        
+        # Build TSPL string for TSC TTP244 printer
+        # Etiket boyutu: 10cm x 15cm (100mm x 150mm)
+        tspl = "SIZE 100 mm,150 mm\n"
+        tspl += "GAP 2 mm,0\n"
+        tspl += "DENSITY 8\n"
+        tspl += "SET TEAR ON\n"  # Etiketin otomatik olarak çıkması için (tear-off modu)
+        tspl += "CLS\n"
+        
+        # Üst boşluk azaltıldı - doc_name kaldırıldı
+        # Yazı boyutları artırıldı - 10cm x 15cm etiket için
+        if sales_order:
+            # Font 3, x2, y2 - büyük boyut
+            tspl += f'TEXT 30,25,"3",0,2,2,"Siparis No: {sales_order}"\n'
+            # Font 3, x1.5, y1.5 - biraz büyük boyut (Bayi ve Müşteri için)
+            tspl += f'TEXT 30,80,"3",0,1.5,1.5,"Bayi: {turkish_to_ascii(dealer)}"\n'
+            tspl += f'TEXT 30,105,"3",0,1.5,1.5,"Musteri: {turkish_to_ascii(end_customer)}"\n'
+            y_start = 145
+        else:
+            tspl += f'TEXT 30,25,"3",0,1.5,1.5,"Bayi: {turkish_to_ascii(dealer)}"\n'
+            tspl += f'TEXT 30,55,"3",0,1.5,1.5,"Musteri: {turkish_to_ascii(end_customer)}"\n'
+            y_start = 105
+        
+        # Header separator line (BAR x, y, width, height) - kenarlarda boşluk için
+        # Etiket genişliği 100mm = 1000 dots (203 dpi için), kenarlarda 20 dots boşluk
+        tspl += f'BAR 20,{y_start},960,3\n'
+        
+        # Table headers - font 3, x1.5, y1.5 - daha büyük ve okunabilir
+        header_y = y_start + 20
+        tspl += f'TEXT 30,{header_y},"3",0,1.5,1.5,"KOD"\n'
+        tspl += f'TEXT 180,{header_y},"3",0,1.5,1.5,"URUN ADI"\n'
+        tspl += f'TEXT 650,{header_y},"3",0,1.5,1.5,"MKT"\n'
+        tspl += f'TEXT 750,{header_y},"3",0,1.5,1.5,"BRM"\n'
+        
+        # Header separator line (under headers) - sadece yatay çizgi
+        header_line_y = header_y + 25
+        tspl += f'BAR 20,{header_line_y},960,2\n'
+        
+        # Items - font 2, x1, y1 (orta boyut, daha okunabilir)
+        # Item'lar arası mesafe artırıldı (daha geniş etiket için)
+        y = header_line_y + 25
+        for item in items:
+            item_code = item.get('item_code', '')
+            item_name = item.get('item_name', '')
+            qty = item.get('qty', '')
+            uom = item.get('uom', '')
+            
+            # Ürün adını kısalt (maksimum 35 karakter - daha geniş etiket için)
+            item_name_short = turkish_to_ascii(item_name)
+            if len(item_name_short) > 35:
+                item_name_short = item_name_short[:32] + "..."
+            
+            # Türkçe karakterleri ASCII'ye çevir
+            # Kenarlarda boşluk için koordinatları ayarla - geniş etiket için
+            tspl += f'TEXT 30,{y},"2",0,1,1,"{turkish_to_ascii(item_code)}"\n'
+            # Ürün adı için daha geniş alan (geniş etiket için)
+            tspl += f'TEXT 180,{y},"2",0,1,1,"{item_name_short}"\n'
+            tspl += f'TEXT 650,{y},"2",0,1,1,"{qty}"\n'
+            tspl += f'TEXT 750,{y},"2",0,1,1,"{turkish_to_ascii(uom)}"\n'
+            y += 35
+        
+        # Etiketin tamamını yazdırmak için PRINT komutu
+        # SET TEAR ON ile etiket otomatik olarak çıkacak
+        # PRINT komutu etiketin tamamını yazdırır ve çıkarır
+        tspl += "PRINT 1\n"
+        
+        # Send to TSC TTP244 printer via TCP socket (port 9100)
+        import socket
+        printer_ip = "192.168.0.104"
+        printer_port = 9100
+        
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(10)
+            sock.connect((printer_ip, printer_port))
+            # TSC yazıcıları için Windows-1254 (Türkçe) encoding kullan
+            # Eğer desteklenmiyorsa latin-1 veya cp1254 dene
+            try:
+                sock.sendall(tspl.encode('windows-1254'))
+            except (LookupError, UnicodeEncodeError):
+                # Windows-1254 yoksa latin-1 kullan (daha geniş destek)
+                sock.sendall(tspl.encode('latin-1'))
+            sock.close()
+            return {"success": True, "message": "Label sent to printer successfully"}
+        except OSError as sock_error:
+            # Fallback: Try HTTP endpoint if TCP fails
+            try:
+                url = f"http://{printer_ip}/pstprnt"
+                headers = {"Content-Type": "text/plain"}
+                response = requests.post(url, headers=headers, data=tspl, timeout=10)
+                if response.status_code == 200:
+                    return {"success": True, "message": "Label sent to printer successfully"}
+                else:
+                    return {"success": False, "message": f"Printer Error: {response.status_code}"}
+            except Exception as http_error:
+                return {"success": False, "message": f"Printer Connection Failed: TCP {str(sock_error)}, HTTP {str(http_error)}"}
+    
+    except Exception as e:
+        frappe.log_error(
+            title="Accessory Package Print Error",
+            message=f"{e.__class__.__name__}: {str(e)[:500]}"
+        )
+        return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
+
 @frappe.whitelist(allow_guest=True)
 def print_quality_label():
     try:
