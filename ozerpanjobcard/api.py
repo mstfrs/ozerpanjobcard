@@ -224,27 +224,40 @@ def print_accessory_package(data):
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(10)
             sock.connect((printer_ip, printer_port))
-            # TSC yazıcıları için Windows-1254 (Türkçe) encoding kullan
-            # Eğer desteklenmiyorsa latin-1 veya cp1254 dene
+            # TSC yazıcıları için encoding - önce latin-1 dene (daha güvenilir)
             try:
-                sock.sendall(tspl.encode('windows-1254'))
-            except (LookupError, UnicodeEncodeError):
-                # Windows-1254 yoksa latin-1 kullan (daha geniş destek)
                 sock.sendall(tspl.encode('latin-1'))
+            except (LookupError, UnicodeEncodeError):
+                # Latin-1 başarısız olursa utf-8 dene
+                sock.sendall(tspl.encode('utf-8', errors='ignore'))
             sock.close()
             return {"success": True, "message": "Label sent to printer successfully"}
-        except OSError as sock_error:
-            # Fallback: Try HTTP endpoint if TCP fails
-            try:
-                url = f"http://{printer_ip}/pstprnt"
-                headers = {"Content-Type": "text/plain"}
-                response = requests.post(url, headers=headers, data=tspl, timeout=10)
-                if response.status_code == 200:
-                    return {"success": True, "message": "Label sent to printer successfully"}
-                else:
-                    return {"success": False, "message": f"Printer Error: {response.status_code}"}
-            except Exception as http_error:
-                return {"success": False, "message": f"Printer Connection Failed: TCP {str(sock_error)}, HTTP {str(http_error)}"}
+        except (OSError, socket.error, socket.timeout) as sock_error:
+            # TCP bağlantı hatası - detaylı hata mesajı
+            error_msg = str(sock_error)
+            # HTTP fallback denemesi - TSC yazıcıları için farklı endpoint'ler
+            http_endpoints = [
+                f"http://{printer_ip}/pstprnt",
+                f"http://{printer_ip}/",
+                f"http://{printer_ip}/cgi-bin/eposprint.cgi"
+            ]
+            
+            for url in http_endpoints:
+                try:
+                    headers = {"Content-Type": "text/plain"}
+                    # Latin-1 encoding ile gönder
+                    response = requests.post(url, headers=headers, data=tspl.encode('latin-1'), timeout=10)
+                    if response.status_code == 200:
+                        return {"success": True, "message": "Label sent to printer successfully via HTTP"}
+                    elif response.status_code != 404:
+                        # 404 değilse başka bir hata, bir sonraki endpoint'i dene
+                        continue
+                except requests.exceptions.RequestException:
+                    # Bu endpoint çalışmıyor, bir sonraki endpoint'i dene
+                    continue
+            
+            # Tüm yöntemler başarısız oldu
+            return {"success": False, "message": f"Printer Connection Failed: TCP error - {error_msg}. HTTP endpoints also failed."}
     
     except Exception as e:
         frappe.log_error(
