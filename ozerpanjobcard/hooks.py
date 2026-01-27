@@ -309,7 +309,7 @@ override_whitelisted_methods = {
 # }
 
 
-website_route_rules = [{'from_route': '/ozerpanjobcard/<path:app_path>', 'to_route': 'ozerpanjobcard'},]
+website_route_rules = [{'from_route': '/ozerpan/<path:app_path>', 'to_route': 'ozerpanjobcard'},]
 # app_include_js = [
 #         "/assets/ozerpanjobcard/js/ozerpancustomer.js"
 # ]

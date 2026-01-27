@@ -64,12 +64,13 @@ const Cam = () => {
   } = useJobcardsStore();
 
   const handleInputChange = (e) => {
-    setInputValue(e.target.value.slice(0, 7));
-    setCurrentOrder(e.target.value.slice(0, 7));
+    setInputValue(e.target.value.slice(0, 6));
+    setCurrentOrder(e.target.value.slice(0, 6));
   };
 
   const handleInputKeyDown = async (e) => {
-    if (e.key === "Enter" && inputValue.length === 7) {
+    if (e.key === "Enter" && inputValue.length > 5) {
+
       e.preventDefault(); // Prevent form submission and tab behavior
       setCurrentPage(1); // Reset to first page on new search
       // İlk sorguda glass_type_filter ve status_filter boş olmalı
@@ -80,7 +81,7 @@ const Cam = () => {
 
   const handleFormSubmit = async (e) => {
     e.preventDefault(); // Prevent default form submission
-    if (inputValue.length === 7) {
+    if (inputValue.length > 5) {
       setCurrentPage(1); // Reset to first page on new search
       // İlk sorguda glass_type_filter ve status_filter boş olmalı
       await handleSearchWithValue(inputValue, 1, pageSize, sortField, sortOrder, null, null);
@@ -95,12 +96,12 @@ const Cam = () => {
     console.log("glasslist", response);
     console.log("glass_types_summary", response.glass_types_summary);
     console.log("status_counts_summary", response.status_counts_summary);
-    
+
     // Handle new paginated response format - server already filters
     const data = response.data || response;
     const filteredData = Array.isArray(data) ? data : [];
     console.log("filteredData", filteredData);
-    
+
     if (filteredData.length === 0 && page === 1) {
       toast.error("Siparişe ait üretilecek Cam bulunamadı");
       setGlassList([]);
@@ -109,7 +110,7 @@ const Cam = () => {
       setTotalPages(0);
       return;
     }
-    
+
     setGlassList(filteredData);
     setSelectedProduct(null);
     setLastSearchedValue(value); // Son aranan değeri sakla
@@ -117,18 +118,18 @@ const Cam = () => {
     setPageSize(size);
     setSortField(sortF);
     setSortOrder(sortO);
-    
+
     // Update pagination metadata
     if (response.total_count !== undefined) {
       setTotalCount(response.total_count);
       setTotalPages(response.total_pages || 0);
     }
-    
+
     // Update summary from API response (for sidebar counts)
     // Only update if summary exists (first page) or keep existing summary (other pages)
     if (response.glass_types_summary && Object.keys(response.glass_types_summary).length > 0) {
       setGlassTypesSummary(response.glass_types_summary);
-      
+
       // İlk sorguda (page === 1) ve glassTypeF null ise, ilk cam tipini seç ve cache'e kaydet
       if (page === 1 && glassTypeF === null) {
         const firstGlassType = Object.keys(response.glass_types_summary)[0];
@@ -168,12 +169,12 @@ const Cam = () => {
     // PrimeReact Paginator: event.page is 0-based, event.first is the index of first record
     const newPage = event.page + 1;
     const newPageSize = event.rows;
-    
+
     // If page size changed, update it
     if (newPageSize !== pageSize) {
       setPageSize(newPageSize);
     }
-    
+
     setCurrentPage(newPage);
     await handleSearchWithValue(lastSearchedValue, newPage, newPageSize, sortField, sortOrder, selectedStatus, selectedGlassType);
   };
@@ -187,14 +188,14 @@ const Cam = () => {
   const handleSort = async (event) => {
     const newSortField = event.sortField;
     let newSortOrder = event.sortOrder === 1 ? "asc" : "desc";
-    
+
     // If sorting by the same field, toggle order
     if (sortField === newSortField && sortOrder === "asc") {
       newSortOrder = "desc";
     } else if (sortField === newSortField && sortOrder === "desc") {
       newSortOrder = "asc";
     }
-    
+
     setSortField(newSortField);
     setSortOrder(newSortOrder);
     setCurrentPage(1); // Reset to first page when sorting
@@ -230,14 +231,14 @@ const Cam = () => {
 
     try {
       const result = await processGlassOperation(payload);
-      
+
       if (result) {
         toast.success("Cam operasyonu başarıyla işlendi");
-        
+
         // Fire-and-forget: Print and refresh in background (don't wait)
         // Print label immediately
         glassLabelPrint(selectedProduct);
-        
+
         // Refresh list in background after a short delay to allow print to start
         setTimeout(() => {
           handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType).catch(err => {
@@ -287,12 +288,12 @@ const Cam = () => {
       };
 
       const result = await processGlassOperation(payload);
-      
+
       if (result) {
         toast.success("Hata kaydı başarıyla oluşturuldu");
         setErrorModalVisible(false);
         setErrorNote("");
-        
+
         // Fire-and-forget: Refresh list in background (don't wait)
         setTimeout(() => {
           handleSearchWithValue(lastSearchedValue, currentPage, pageSize, sortField, sortOrder, selectedStatus, selectedGlassType).catch(err => {
@@ -327,7 +328,7 @@ const Cam = () => {
           />
         </span>
       </form>
-    
+
       <div className="flex justify-between gap-2">
         <button
           className="w-full h-10 bg-blue-400 rounded-md cursor-pointer flex items-center justify-center gap-2 text-lg"
@@ -337,7 +338,7 @@ const Cam = () => {
           <i className="pi pi-print text-xl"></i>
           Etiket Yazdır
         </button>
-       
+
         {/* <button
           onClick={handleSearch}
           label="Sorgula"
@@ -425,7 +426,7 @@ const Cam = () => {
 
       <div className="mr-2 flex flex-col w-1/5">
         {header}
-      
+
         {Object.keys(glassTypes).length > 0 && (
           <>
             <Card
@@ -468,7 +469,7 @@ const Cam = () => {
             </ul>
           </div>
           </>
-       
+
         )}
         <div className=" bg-white rounded-md items-center">
           <h3 className="text-base font-semibold mb-1 bg-red-300 rounded-t-md text-center">Durumlar</h3>
@@ -560,8 +561,8 @@ const Cam = () => {
                       className={options.className}
                       onClick={options.onClick}
                       disabled={options.disabled}
-                      style={{ 
-                        ...options.style, 
+                      style={{
+                        ...options.style,
                         padding: '0.5rem 1rem',
                         fontSize: '1rem',
                         minWidth: '3rem'
@@ -578,8 +579,8 @@ const Cam = () => {
                       className={options.className}
                       onClick={options.onClick}
                       disabled={options.disabled}
-                      style={{ 
-                        ...options.style, 
+                      style={{
+                        ...options.style,
                         padding: '0.5rem 1rem',
                         fontSize: '1rem',
                         minWidth: '3rem'
