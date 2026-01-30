@@ -1,4 +1,3 @@
-
 frappe.ui.form.on("Accessory Delivery Package", {
 	refresh(frm) {
 		// Button handler will be called via action in JSON
@@ -7,7 +6,6 @@ frappe.ui.form.on("Accessory Delivery Package", {
 		// Get items from the "Item list" table field
 		// The fieldname might be "items" or "item_list" - adjust according to your actual fieldname
 		const items = frm.doc.items || frm.doc.item_list || [];
-
 		if (!items || items.length === 0) {
 			frappe.msgprint({
 				title: __('No Items'),
@@ -27,7 +25,6 @@ frappe.ui.form.on("Accessory Delivery Package", {
 		} else if (frm.doc.custom_sales_order) {
 			sales_order = frm.doc.custom_sales_order;
 		}
-
 		const data = {
 			name: frm.doc.name,
 			dealer: frm.doc.dealer || '',
@@ -40,7 +37,6 @@ frappe.ui.form.on("Accessory Delivery Package", {
 				uom: item.uom || item.stock_uom || ''
 			}))
 		};
-
 		console.log('Print data:', data);
 
 		// Call the print function via API
