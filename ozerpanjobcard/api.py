@@ -50,7 +50,7 @@ def get_glass_details(item_code):
 
         return {
             "item_code": item.item_no,
-            "item_name": item.get("custom_item_name",""),         
+            "item_name": item.get("custom_item_name",""),
             "custom_top_gunes_gecirgenligi": item.get("custom_top_gunes_gecirgenligi", ""),
             "custom_u_degeri": item.get("custom_u_degeri", ""),
             "custom_isik_gecirgenligi": item.get("custom_isik_gecirgenligi", ""),
@@ -85,7 +85,7 @@ def print_surme_label():
             message=f"{e.__class__.__name__}: {str(e)[:500]}"
         )
         return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
-        
+
 @frappe.whitelist(allow_guest=True)
 def print_glass_label():
     try:
@@ -112,7 +112,160 @@ def print_glass_label():
             message=f"{e.__class__.__name__}: {str(e)[:500]}"
         )
         return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
-        
+
+@frappe.whitelist()
+def print_accessory_package(data):
+    """Print accessory package label using TSPL format for TSC TTP244 printer"""
+    print('print_accessory_package data', data)
+    try:
+        import json
+
+        # If data is string, parse it
+        if isinstance(data, str):
+            data = json.loads(data)
+
+        items = data.get('items', [])
+        doc_name = data.get('name', '')
+        dealer = data.get('dealer', '')
+        end_customer = data.get('end_customer', '')
+        sales_order = data.get('sales_order', '') or ''
+
+        # Debug: Print sales_order value
+        print(f'Sales Order value: {sales_order}')
+        print(f'Full data received: {data}')
+
+        # Türkçe karakterleri ASCII'ye çevir fonksiyonu
+        def turkish_to_ascii(text):
+            if not text:
+                return ""
+            replacements = {
+                'ş': 's', 'Ş': 'S',
+                'ı': 'i', 'İ': 'I',
+                'ğ': 'g', 'Ğ': 'G',
+                'ü': 'u', 'Ü': 'U',
+                'ö': 'o', 'Ö': 'O',
+                'ç': 'c', 'Ç': 'C'
+            }
+            for tr_char, ascii_char in replacements.items():
+                text = text.replace(tr_char, ascii_char)
+            return text
+
+        # Build TSPL string for TSC TTP244 printer
+        # Etiket boyutu: 10cm x 15cm (100mm x 150mm)
+        tspl = "SIZE 100 mm,150 mm\n"
+        tspl += "GAP 2 mm,0\n"
+        tspl += "DENSITY 8\n"
+        tspl += "SET TEAR ON\n"  # Etiketin otomatik olarak çıkması için (tear-off modu)
+        tspl += "CLS\n"
+
+        # Üst boşluk azaltıldı - doc_name kaldırıldı
+        # Yazı boyutları artırıldı - 10cm x 15cm etiket için
+        if sales_order:
+            # Font 3, x2, y2 - büyük boyut
+            tspl += f'TEXT 30,25,"3",0,2,2,"Siparis No: {sales_order}"\n'
+            # Font 3, x1.5, y1.5 - biraz büyük boyut (Bayi ve Müşteri için)
+            tspl += f'TEXT 30,80,"3",0,1.5,1.5,"Bayi: {turkish_to_ascii(dealer)}"\n'
+            tspl += f'TEXT 30,105,"3",0,1.5,1.5,"Musteri: {turkish_to_ascii(end_customer)}"\n'
+            y_start = 145
+        else:
+            tspl += f'TEXT 30,25,"3",0,1.5,1.5,"Bayi: {turkish_to_ascii(dealer)}"\n'
+            tspl += f'TEXT 30,55,"3",0,1.5,1.5,"Musteri: {turkish_to_ascii(end_customer)}"\n'
+            y_start = 105
+
+        # Header separator line (BAR x, y, width, height) - kenarlarda boşluk için
+        # Etiket genişliği 100mm = 1000 dots (203 dpi için), kenarlarda 20 dots boşluk
+        tspl += f'BAR 20,{y_start},960,3\n'
+
+        # Table headers - font 3, x1.5, y1.5 - daha büyük ve okunabilir
+        header_y = y_start + 20
+        tspl += f'TEXT 30,{header_y},"3",0,1.5,1.5,"KOD"\n'
+        tspl += f'TEXT 180,{header_y},"3",0,1.5,1.5,"URUN ADI"\n'
+        tspl += f'TEXT 650,{header_y},"3",0,1.5,1.5,"MKT"\n'
+        tspl += f'TEXT 750,{header_y},"3",0,1.5,1.5,"BRM"\n'
+
+        # Header separator line (under headers) - sadece yatay çizgi
+        header_line_y = header_y + 25
+        tspl += f'BAR 20,{header_line_y},960,2\n'
+
+        # Items - font 2, x1, y1 (orta boyut, daha okunabilir)
+        # Item'lar arası mesafe artırıldı (daha geniş etiket için)
+        y = header_line_y + 25
+        for item in items:
+            item_code = item.get('item_code', '')
+            item_name = item.get('item_name', '')
+            qty = item.get('qty', '')
+            uom = item.get('uom', '')
+
+            # Ürün adını kısalt (maksimum 35 karakter - daha geniş etiket için)
+            item_name_short = turkish_to_ascii(item_name)
+            if len(item_name_short) > 35:
+                item_name_short = item_name_short[:32] + "..."
+
+            # Türkçe karakterleri ASCII'ye çevir
+            # Kenarlarda boşluk için koordinatları ayarla - geniş etiket için
+            tspl += f'TEXT 30,{y},"2",0,1,1,"{turkish_to_ascii(item_code)}"\n'
+            # Ürün adı için daha geniş alan (geniş etiket için)
+            tspl += f'TEXT 180,{y},"2",0,1,1,"{item_name_short}"\n'
+            tspl += f'TEXT 650,{y},"2",0,1,1,"{qty}"\n'
+            tspl += f'TEXT 750,{y},"2",0,1,1,"{turkish_to_ascii(uom)}"\n'
+            y += 35
+
+        # Etiketin tamamını yazdırmak için PRINT komutu
+        # SET TEAR ON ile etiket otomatik olarak çıkacak
+        # PRINT komutu etiketin tamamını yazdırır ve çıkarır
+        tspl += "PRINT 1\n"
+
+        # Send to TSC TTP244 printer via TCP socket (port 9100)
+        import socket
+        printer_ip = "192.168.0.104"
+        printer_port = 9100
+
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(10)
+            sock.connect((printer_ip, printer_port))
+            # TSC yazıcıları için encoding - önce latin-1 dene (daha güvenilir)
+            try:
+                sock.sendall(tspl.encode('latin-1'))
+            except (LookupError, UnicodeEncodeError):
+                # Latin-1 başarısız olursa utf-8 dene
+                sock.sendall(tspl.encode('utf-8', errors='ignore'))
+            sock.close()
+            return {"success": True, "message": "Label sent to printer successfully"}
+        except (OSError, socket.error, socket.timeout) as sock_error:
+            # TCP bağlantı hatası - detaylı hata mesajı
+            error_msg = str(sock_error)
+            # HTTP fallback denemesi - TSC yazıcıları için farklı endpoint'ler
+            http_endpoints = [
+                f"http://{printer_ip}/pstprnt",
+                f"http://{printer_ip}/",
+                f"http://{printer_ip}/cgi-bin/eposprint.cgi"
+            ]
+
+            for url in http_endpoints:
+                try:
+                    headers = {"Content-Type": "text/plain"}
+                    # Latin-1 encoding ile gönder
+                    response = requests.post(url, headers=headers, data=tspl.encode('latin-1'), timeout=10)
+                    if response.status_code == 200:
+                        return {"success": True, "message": "Label sent to printer successfully via HTTP"}
+                    elif response.status_code != 404:
+                        # 404 değilse başka bir hata, bir sonraki endpoint'i dene
+                        continue
+                except requests.exceptions.RequestException:
+                    # Bu endpoint çalışmıyor, bir sonraki endpoint'i dene
+                    continue
+
+            # Tüm yöntemler başarısız oldu
+            return {"success": False, "message": f"Printer Connection Failed: TCP error - {error_msg}. HTTP endpoints also failed."}
+
+    except Exception as e:
+        frappe.log_error(
+            title="Accessory Package Print Error",
+            message=f"{e.__class__.__name__}: {str(e)[:500]}"
+        )
+        return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}
+
 @frappe.whitelist(allow_guest=True)
 def print_quality_label():
     try:
@@ -146,13 +299,13 @@ def get_quality_label_items(quality_check_code, total_mtul):
     try:
         # Quality Label Items doctype'ını filtreleyin
         quality_label_items = frappe.db.sql("""
-            SELECT 
+            SELECT
                 qli.*
-            FROM 
+            FROM
                 `tabQuality Label Items` qli
-            JOIN 
+            JOIN
                 `tabQuality Label Frame Codes` qlfc ON qlfc.parent = qli.name
-            WHERE 
+            WHERE
                 qlfc.frame_code = %s
                 AND qli.min <= %s
                 AND qli.max >= %s
@@ -170,43 +323,43 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
         # Removed debug logging for better performance
         if not order_no:
             frappe.throw("Order number is required")
-        
+
         # Normalize order_no: trim whitespace and handle case sensitivity for tablet compatibility
         order_no = str(order_no).strip()
-        
+
         # Convert to integers
         page = int(page)
         page_size = int(page_size)
-        
+
         # Calculate offset
         offset = (page - 1) * page_size
-        
+
         # Determine order_by clause
         if sort_field:
             # Validate sort_field to prevent SQL injection
             allowed_fields = ["name", "poz_no", "genislik", "yukseklik", "sanal_adet", "aciklama", "stok_kodu", "creation", "modified"]
             if sort_field not in allowed_fields:
                 sort_field = "name"
-            
+
             # Validate sort_order
             if sort_order.lower() not in ["asc", "desc"]:
                 sort_order = "asc"
-            
+
             order_by_sql = f"cl.{sort_field} {sort_order.upper()}"
         else:
             order_by_sql = "cl.name ASC"
-        
+
         # Build optimized SQL query with filters at database level
         # First, get filtered glass names with job cards using subquery
         # Use TRIM and case-insensitive comparison for tablet compatibility
         base_conditions = ["TRIM(cl.order_no) = TRIM(%(order_no)s)"]
         params = {"order_no": order_no}
-        
+
         # Filter by glass type if provided
         if glass_type_filter:
             base_conditions.append("cl.aciklama = %(glass_type_filter)s")
             params["glass_type_filter"] = glass_type_filter
-        
+
         # Build query to get glasses that have job cards and match status filter
         # Use optimized JOIN with MAX subquery for better performance
         if status_filter:
@@ -234,7 +387,7 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                 WHERE {' AND '.join(base_conditions)}
                 ORDER BY {order_by_sql}
             """
-        
+
         # Get total count first (for pagination) - optimized with COUNT
         # Remove ORDER BY from count query for better performance
         count_query = sql_query.replace("SELECT DISTINCT cl.name", "SELECT COUNT(DISTINCT cl.name) as total")
@@ -242,25 +395,25 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
             count_query = count_query[:count_query.upper().index(" ORDER BY ")]
         total_result = frappe.db.sql(count_query, params, as_dict=True)
         total_count = total_result[0]["total"] if total_result else 0
-        
+
         # Get paginated glass names only
         paginated_query = f"{sql_query} LIMIT %(page_size)s OFFSET %(offset)s"
         params["page_size"] = page_size
         params["offset"] = offset
         glass_names_result = frappe.db.sql(paginated_query, params, as_dict=True)
-        
+
         glass_names = [row["name"] for row in glass_names_result]
-        
+
         if not glass_names:
             # Still calculate summary even if no results for current page
             summary_params = {"order_no": order_no}
             if glass_type_filter:
                 summary_params["glass_type_filter"] = glass_type_filter
-            
+
             # Glass types summary - optimized SQL aggregation
             # Use TRIM for tablet compatibility
             glass_types_query = """
-                SELECT 
+                SELECT
                     cl.aciklama as glass_type,
                     COUNT(DISTINCT cl.name) as count
                 FROM `tabCamListe` cl
@@ -273,14 +426,14 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                     "WHERE TRIM(cl.order_no) = TRIM(%(order_no)s)",
                     "WHERE TRIM(cl.order_no) = TRIM(%(order_no)s) AND cl.aciklama = %(glass_type_filter)s"
                 )
-            
+
             glass_types_result = frappe.db.sql(glass_types_query, summary_params, as_dict=True)
             glass_types_summary = {row["glass_type"] or "Bilinmeyen": row["count"] for row in glass_types_result}
-            
+
             # Status counts summary - optimized SQL aggregation with JOIN
             # Use TRIM for tablet compatibility
             status_counts_query = """
-                SELECT 
+                SELECT
                     jc.status,
                     COUNT(DISTINCT cl.name) as count
                 FROM `tabCamListe` cl
@@ -298,10 +451,10 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                     "WHERE TRIM(cl.order_no) = TRIM(%(order_no)s)",
                     "WHERE TRIM(cl.order_no) = TRIM(%(order_no)s) AND cl.aciklama = %(glass_type_filter)s"
                 )
-            
+
             status_counts_result = frappe.db.sql(status_counts_query, summary_params, as_dict=True)
             status_counts_summary = {row["status"] or "N/A": row["count"] for row in status_counts_result}
-            
+
             return {
                 "data": [],
                 "total_count": 0,
@@ -311,7 +464,7 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                 "glass_types_summary": glass_types_summary,
                 "status_counts_summary": status_counts_summary
             }
-        
+
         # Get glass details and job cards in optimized way
         # Use single query for glass data, then batch fetch job cards
         if not glass_names:
@@ -326,11 +479,11 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                 ORDER BY {order_by_sql}
             """
             camlar = frappe.db.sql(camlar_sql, {"glass_names": glass_names}, as_dict=True)
-            
+
             # Get job cards in a single query and group in memory (faster than multiple queries)
             if camlar:
                 all_job_cards = frappe.db.sql("""
-                    SELECT 
+                    SELECT
                         jc.name,
                         jc.parent as glass_name,
                         jc.idx,
@@ -341,7 +494,7 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                     WHERE jc.parent IN %(glass_names)s
                     ORDER BY jc.parent, jc.idx
                 """, {"glass_names": glass_names}, as_dict=True)
-                
+
                 # Group job cards by glass name (in-memory, very fast)
                 job_cards_by_glass = {}
                 for jc in all_job_cards:
@@ -349,21 +502,21 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                     if glass_name not in job_cards_by_glass:
                         job_cards_by_glass[glass_name] = []
                     job_cards_by_glass[glass_name].append(jc)
-                
+
                 # Assign job cards to each glass
                 for cam in camlar:
                     cam["job_cards"] = job_cards_by_glass.get(cam["name"], [])
-        
+
         # Calculate summary statistics efficiently using SQL aggregation
         # Only calculate summary on first page to improve performance
         # Summary shows counts for ALL data (not filtered), so sidebar always shows correct totals
         if page == 1:
             summary_params = {"order_no": order_no}
-            
+
             # Glass types summary - optimized SQL aggregation (single query)
             # Use TRIM for tablet compatibility
             glass_types_result = frappe.db.sql("""
-                SELECT 
+                SELECT
                     cl.aciklama as glass_type,
                     COUNT(DISTINCT cl.name) as count
                 FROM `tabCamListe` cl
@@ -372,11 +525,11 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
                 GROUP BY cl.aciklama
             """, summary_params, as_dict=True)
             glass_types_summary = {row["glass_type"] or "Bilinmeyen": row["count"] for row in glass_types_result}
-            
+
             # Status counts summary - optimized with JOIN (faster than correlated subquery)
             # Use TRIM for tablet compatibility
             status_counts_result = frappe.db.sql("""
-                SELECT 
+                SELECT
                     jc.status,
                     COUNT(DISTINCT cl.name) as count
                 FROM `tabCamListe` cl
@@ -394,9 +547,9 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
             # For pages other than first or when filters are active, return empty summaries to save time
             glass_types_summary = {}
             status_counts_summary = {}
-        
+
         # Removed debug logging for better performance
-        
+
         # Return paginated results with metadata
         return {
             "data": camlar,
@@ -407,7 +560,7 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
             "glass_types_summary": glass_types_summary,
             "status_counts_summary": status_counts_summary
         }
-        
+
     except Exception as e:
         # Enhanced error logging for tablet debugging
         error_details = {
@@ -418,7 +571,7 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
             "error_type": type(e).__name__
         }
         frappe.logger().error(f"Error in get_glass_list: {error_details}")
-        
+
         # Check if order_no exists in database (for debugging)
         try:
             order_no_exists = frappe.db.sql("""
@@ -429,7 +582,7 @@ def get_glass_list(order_no, page=1, page_size=25, sort_field=None, sort_order="
             error_details["order_no_exists_count"] = order_no_exists[0].count if order_no_exists else 0
         except:
             pass
-        
+
         frappe.throw(f"Cam listesi alınırken hata oluştu: {str(e)}. Sipariş No: {order_no}")
 
 @frappe.whitelist(allow_guest=False)
@@ -450,22 +603,22 @@ def update_profile_stock_ledger_qty(profile_type, length, qty):
 
 @frappe.whitelist(allow_guest=True)
 def get_serial_details(serial):
-    
+
     try:
         frappe.logger().debug(f"Getting details for serial: {serial}")
-        
+
         # Get the serial number details from the database with all fields
-        serial_doc = frappe.get_all("Serial No", 
+        serial_doc = frappe.get_all("Serial No",
             filters={"name": serial},
             fields=["*"]
         )
-        
+
         if not serial_doc:
             frappe.logger().error(f"No serial document found for: {serial}")
             return None
-            
+
         serial_doc = serial_doc[0]  # Get the first (and should be only) result
-        
+
         frappe.logger().debug(f"Serial doc found: {serial_doc}")
 
         # Get the sales order details
@@ -473,14 +626,14 @@ def get_serial_details(serial):
         print("DEBUG - Serial doc purchase_document_type:", serial_doc.get("purchase_document_type"))
         print("DEBUG - Serial doc purchase_document_no:", serial_doc.get("purchase_document_no"))
         print("DEBUG - Serial doc fields:", list(serial_doc.keys()))
-        
+
         # Serial numarasından Sales Order'ı bul
         # S502623-1-1 formatından S502623 kısmını al
         serial_parts = serial.split('-')
         if len(serial_parts) >= 1:
             sales_order_no = serial_parts[0]  # S502623
             print("DEBUG - Extracted Sales Order No from serial:", sales_order_no)
-            
+
             if frappe.db.exists("Sales Order", sales_order_no):
                 print("DEBUG - Sales Order found by serial number:", sales_order_no)
                 sales_order = frappe.get_doc("Sales Order", sales_order_no)
@@ -492,31 +645,31 @@ def get_serial_details(serial):
 
         # Get the customer details
         customer = None
-        
+
         if sales_order:
             frappe.logger().debug(f"Getting customer: {sales_order.customer}")
             customer = frappe.get_doc("Customer", sales_order.customer)
             frappe.logger().debug(f"Customer found: {customer}")
-            
+
             # Customer dokümanının alanlarını kontrol et
             try:
                 customer_fields = [f.fieldname for f in customer.meta.fields]
-                
+
             except Exception as e:
                 print("DEBUG - Error getting customer fields:", str(e))
 
         # Get the item details
         item = None
         cam_item = None
-        
+
         # Önce serial_parts'ı tanımla
         print(f"DEBUG - Processing serial: {serial}")
         serial_parts = serial.split('-')
         print(f"DEBUG - Serial parts: {serial_parts}")
         print(f"DEBUG - Serial parts length: {len(serial_parts)}")
-        
+
         frappe.logger().debug(f"Getting item: {serial_doc.get('item_code')}")
-        
+
         # PVC ana ürününü al (custom_serial ve custom_color için)
         item = None
         try:
@@ -527,7 +680,7 @@ def get_serial_details(serial):
             print("DEBUG - Item not found with serial_doc.item_code:", serial_doc.get("item_code"))
             print("DEBUG - Error:", str(e))
             frappe.logger().error(f"Item not found: {serial_doc.get('item_code')}")
-            
+
             # Item bulunamadıysa, ana ürün kodu ile tekrar dene
             if len(serial_parts) >= 2:
                 ana_urun_kodu = f"{serial_parts[0]}-{serial_parts[1]}"
@@ -538,20 +691,20 @@ def get_serial_details(serial):
                 except Exception as e2:
                     print(f"DEBUG - PVC Item not found with ana_urun_kodu either: {str(e2)}")
                     item = None
-        
+
         # Seri numarasından cam bilgisini çıkar (try-except dışında)
         # S502225-9-1 formatından S502225-9 kısmını al (PVC ürün)
         # S502225-9-367210041640 formatından 367210041640 kısmını al (Cam ürün)
-        
+
         if len(serial_parts) >= 3:
             # PVC ürün kodu: S502225-9
             pvc_product_code = f"{serial_parts[0]}-{serial_parts[1]}"
             # Cam ürün kodu: 367210041640 (3. parça)
             cam_product_code = serial_parts[2]
-            
+
             print(f"DEBUG - PVC Product Code: {pvc_product_code}")
             print(f"DEBUG - Cam Product Code: {cam_product_code}")
-            
+
             # Cam ürününü Item'lardan bul
             if frappe.db.exists("Item", cam_product_code):
                 cam_item = frappe.get_doc("Item", cam_product_code)
@@ -564,14 +717,14 @@ def get_serial_details(serial):
                 print(f"DEBUG - Sample items in database: {all_items}")
         else:
             print(f"DEBUG - Serial format not as expected. Parts: {serial_parts}")
-        
+
         # Cam bilgisini Item tablosundan ara (ana ürün kodu ile başlayan tüm ürünler)
         if len(serial_parts) >= 2:
             # Ana ürün kodu: S502225-1
             ana_urun_kodu = f"{serial_parts[0]}-{serial_parts[1]}"
-            
+
             print(f"DEBUG - Ana ürün kodu: {ana_urun_kodu}")
-            
+
             # Item tablosunda bu kodla başlayan tüm ürünleri bul
             # LIKE ile arama yap: S502225-1%
             related_items = frappe.get_all(
@@ -582,11 +735,11 @@ def get_serial_details(serial):
                 fields=["name", "item_name", "item_group"],
                 order_by="name"
             )
-            
+
             print(f"DEBUG - Found {len(related_items)} related items")
             for related_item in related_items:
                 print(f"DEBUG - Related item: {related_item}")
-            
+
             # Cam ürünlerini filtrele (ana ürün kodu değil, daha uzun olanlar)
             cam_items = []
             for related_item in related_items:
@@ -594,14 +747,14 @@ def get_serial_details(serial):
                     # S502225-1-367210041640 formatındaki ürünler
                     cam_items.append(related_item)
                     print(f"DEBUG - Cam item found: {related_item.name}")
-            
+
             print(f"DEBUG - Found {len(cam_items)} cam items")
-            
+
             # İlk cam ürününü seç (birden fazla varsa ilkini al)
             if cam_items:
                 selected_cam_item = cam_items[0]
                 print(f"DEBUG - Selected cam item: {selected_cam_item.name}")
-                
+
                 # Cam ürün kodundan sadece cam kısmını çıkar
                 # S502623-1-367210041140 -> 367210041140
                 if "-" in selected_cam_item.name:
@@ -609,7 +762,7 @@ def get_serial_details(serial):
                     if len(cam_code_parts) >= 3:
                         cam_code = cam_code_parts[2]  # 3. parça: 367210041140
                         print(f"DEBUG - Extracted cam code: {cam_code}")
-                        
+
                         # Bu cam kodu ile Item tablosunda ara
                         if frappe.db.exists("Item", cam_code):
                             cam_item = frappe.get_doc("Item", cam_code)
@@ -628,9 +781,9 @@ def get_serial_details(serial):
                 cam_item = None
 
         # Get any existing issues for this serial number
-        
+
         frappe.logger().debug(f"Getting issues for serial: {serial}")
-        
+
         # Subject LIKE ile serial'ı içeren Issue'ları getir
         issues = []
         try:
@@ -646,9 +799,9 @@ def get_serial_details(serial):
             issues = []
 
         # Get tasks for each issue
-        
+
         for i, issue in enumerate(issues):
-            
+
             frappe.logger().debug(f"Getting tasks for issue: {issue.name}")
             try:
                 issue["tasks"] = frappe.get_all(
@@ -656,7 +809,7 @@ def get_serial_details(serial):
                     filters={"issue": issue.name},
                     fields=["name", "subject", "status"]
                 )
-                
+
                 # Fetch assignees from ToDo for each task
                 assignees = frappe.get_all(
                     "ToDo",
@@ -674,31 +827,31 @@ def get_serial_details(serial):
                     }
                     for t in issue["tasks"]
                 ]
-                
+
                 frappe.logger().debug(f"Found {len(issue['tasks'])} tasks")
             except Exception as e:
                 print(f"DEBUG - Error getting tasks for issue {issue.name}:", str(e))
                 issue["tasks"] = []
 
-        
-        
-        
-        
+
+
+
+
         try:
             # Customer alanlarını güvenli şekilde al
             customer_name = customer.name if customer else None
             address_display = getattr(customer, 'address_display', None) if customer else None
             contact_mobile = getattr(customer, 'mobile_no', None) if customer else None
-            
+
             # Item alanlarını güvenli şekilde al
             custom_serial = getattr(item, 'custom_serial', None) if item else None
             custom_color = getattr(item, 'custom_color', None) if item else None
-            
+
             print(f"DEBUG - PVC Item: {item.name if item else 'None'}")
             print(f"DEBUG - custom_serial: {custom_serial}")
             print(f"DEBUG - custom_color: {custom_color}")
             print(f"DEBUG - Cam Item: {cam_item.name if cam_item else 'None'}")
-            
+
             # Cam bilgisini cam_item'dan al
             cam_text = None
             if cam_item:
@@ -706,7 +859,7 @@ def get_serial_details(serial):
             else:
                 # Eski yöntem (geriye uyumluluk için)
                 cam_text = getattr(item, 'custom_cam_text', None) if item else None
-            
+
             response = {
                 "serial": serial,
                 "serial_details": serial_doc,  # This will contain all fields from Serial No
@@ -728,9 +881,9 @@ def get_serial_details(serial):
             print("DEBUG - Error creating response:", str(e))
             frappe.logger().error(f"Error creating response: {str(e)}")
             response = {"error": "Failed to create response"}
-        
+
         frappe.logger().debug(f"Returning response: {response}")
-        
+
         return response
 
     except Exception as e:
@@ -846,7 +999,7 @@ def get_bom_items_by_item_code(item_code, operation=None):
         {"item": item_code, "is_active": 1, "is_default": 1},
         "name"
     )
-    
+
     if not bom:
         # Eğer default BOM yoksa, herhangi bir aktif BOM'u al
         bom = frappe.db.get_value(
@@ -854,7 +1007,7 @@ def get_bom_items_by_item_code(item_code, operation=None):
             {"item": item_code, "is_active": 1},
             "name"
         )
-    
+
     if not bom:
         return {"error": f"'{item_code}' için aktif BOM bulunamadı."}
 
@@ -1029,7 +1182,7 @@ def get_customers_with_undelivered_pvc_items():
                 AND wo.docstatus = 1
             ORDER BY so.customer, so.name
         ''', as_dict=True)
-        
+
         # 2. Müşteri bazında grupla
         customers = {}
         for order in undelivered_pvc_orders:
@@ -1040,7 +1193,7 @@ def get_customers_with_undelivered_pvc_items():
                     "value": customer_key,
                     "sales_orders": []
                 }
-            
+
             # Sales Order'ı ekle (eğer daha önce eklenmemişse)
             so_name = order['sales_order_name']
             if not any(so['value'] == so_name for so in customers[customer_key]["sales_orders"]):
@@ -1048,14 +1201,14 @@ def get_customers_with_undelivered_pvc_items():
                 so_label = so_name
                 if order.get("custom_end_customer"):
                     so_label = f"{so_name}-{order['custom_end_customer']}"
-                
+
                 customers[customer_key]["sales_orders"].append({
                     "label": so_label,
                     "value": so_name
                 })
-        
+
         return list(customers.values())
-        
+
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Customers with Undelivered PVC Items Error")
         return []
@@ -1087,7 +1240,7 @@ def get_customers_with_undelivered_cam_items():
                 AND wo.docstatus = 1
             ORDER BY so.customer, so.name
         ''', as_dict=True)
-        
+
         # 2. Müşteri bazında grupla
         customers = {}
         for order in undelivered_cam_orders:
@@ -1098,7 +1251,7 @@ def get_customers_with_undelivered_cam_items():
                     "value": customer_key,
                     "sales_orders": []
                 }
-            
+
             # Sales Order'ı ekle (eğer daha önce eklenmemişse)
             so_name = order['sales_order_name']
             if not any(so['value'] == so_name for so in customers[customer_key]["sales_orders"]):
@@ -1106,14 +1259,14 @@ def get_customers_with_undelivered_cam_items():
                 so_label = so_name
                 if order.get("custom_end_customer"):
                     so_label = f"{so_name}-{order['custom_end_customer']}"
-                
+
                 customers[customer_key]["sales_orders"].append({
                     "label": so_label,
                     "value": so_name
                 })
-        
+
         return list(customers.values())
-        
+
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Customers with Undelivered Cam Items Error")
         return []
@@ -1140,7 +1293,7 @@ def get_customers_with_sales_orders_and_work_orders():
             AND wo.docstatus = 1
         ORDER BY so.customer, so.name
     ''', as_dict=True)
-    
+
     # Müşteri bazında grupla
     customers = {}
     for order in completed_orders:
@@ -1151,13 +1304,13 @@ def get_customers_with_sales_orders_and_work_orders():
                 "value": customer_key,
                 "sales_orders": []
             }
-        
+
         # Sales Order'ı ekle
         customers[customer_key]["sales_orders"].append({
             "label": order['sales_order_name'],
             "value": order['sales_order_name']
         })
-    
+
     return list(customers.values())
 
 @frappe.whitelist(allow_guest=True)
@@ -1222,16 +1375,16 @@ def get_sales_order_items_with_work_order_status(sales_orders):
     ''', {"parents": tuple(sales_orders)}, as_dict=True)
     # Teslimatı tamamlanmış ürünleri çıkar
     so_items = [item for item in so_items if float(item["delivered_qty"] or 0) < float(item["qty"] or 0)]
-    
+
     # Her ürün için kalan miktarı hesapla ve qty alanını güncelle
     for item in so_items:
         total_qty = float(item["qty"] or 0)
         delivered_qty = float(item["delivered_qty"] or 0)
         remaining_qty = total_qty - delivered_qty
-        
+
         # qty alanını kalan miktar olarak güncelle
         item["qty"] = remaining_qty
-        
+
         # Work Order kontrolü
         wo = frappe.db.exists(
             "Work Order",
@@ -1243,7 +1396,7 @@ def get_sales_order_items_with_work_order_status(sales_orders):
             }
         )
         item["is_ready"] = "Hazır" if wo else ""
-    
+
     return so_items
 
 @frappe.whitelist(allow_guest=True)
@@ -1282,7 +1435,7 @@ def create_delivery_note_from_sales_orders(
         dn_names = []
         for so_name in sales_orders:
             dn_doc = make_delivery_note(so_name)
-            
+
             dn_doc.customer = customer
             if custom_recipient:
                 dn_doc.custom_recipient = custom_recipient
@@ -1297,7 +1450,7 @@ def create_delivery_note_from_sales_orders(
 
             # Clear existing items
             dn_doc.items = []
-            
+
             # Sales Order Item'ları al - name alanı so_detail için gerekli
             so_doc = frappe.get_all("Sales Order Item", filters={"parent": so_name}, fields=[
                 "name", "item_code", "item_name", "qty", "rate", "warehouse", "uom",
@@ -1305,8 +1458,8 @@ def create_delivery_note_from_sales_orders(
                 "base_rate", "base_amount", "base_net_rate", "base_net_amount", "stock_uom",
                 "conversion_factor", "stock_qty", "description", "cost_center"
             ])
-          
-            
+
+
             for detail in item_details:
                 so_item = next((i for i in so_doc if i.item_code == detail["item_code"]), None)
                 if so_item:
@@ -1336,13 +1489,13 @@ def create_delivery_note_from_sales_orders(
                         "description": so_item.get("description"),
                         "cost_center": so_item.get("cost_center"),
                         "use_serial_batch_fields": 1,
-                     
+
                     }
-          
+
                     # Item'ın seri numarası zorunlu olup olmadığını kontrol et
                     item_doc = frappe.get_doc("Item", detail["item_code"])
                     has_serial_no = item_doc.has_serial_no
-                    
+
                     # Eğer seri numarası zorunluysa, seri numarası ekle
                     if has_serial_no:
                         # FIFO sırasına göre seri numaralarını al
@@ -1354,16 +1507,16 @@ def create_delivery_note_from_sales_orders(
                             # Seri numarası yoksa, bu ürünü atla ve uyarı ver
                             frappe.logger().warning(f"Item {detail['item_code']} için seri numarası bulunamadı, ürün atlanıyor")
                             continue  # Bu ürünü atla
-                    
+
                     dn_doc.append("items", item_dict)
                 else:
                     frappe.throw(f"Sales Order'da {detail['item_code']} item'ı bulunamadı.")
-            
+
             # Call set_missing_values() to set default values like expense_account
             dn_doc.set_missing_values()
             # Allow negative stock for delivery note - stok kontrolünü bypass et
             dn_doc.allow_negative_stock = 1
-            
+
             # Stok durumunu debug et
             for item in dn_doc.items:
                 try:
@@ -1374,38 +1527,38 @@ def create_delivery_note_from_sales_orders(
                     frappe.logger().debug(f"Item {item.item_code} - Warehouse: {item.warehouse} - Required: {item.qty} - Available: {actual_qty}")
                 except Exception as e:
                     frappe.logger().debug(f"Stok kontrolü hatası: {str(e)}")
-            
+
             # Stok kontrolünü tamamen bypass et
             def custom_validate():
                 # Do nothing - skip all validation including stock validation
                 pass
-            
+
             def custom_on_submit():
                 # Do nothing - skip stock ledger update
                 pass
-            
+
             dn_doc.validate = custom_validate
             dn_doc.on_submit = custom_on_submit
-            
+
             # Then manually calculate and set the totals
             total_amount = sum(item.amount for item in dn_doc.items)
             total_base_amount = sum(item.base_amount for item in dn_doc.items)
             total_net_amount = sum(item.net_amount for item in dn_doc.items)
             total_base_net_amount = sum((item.base_net_amount or 0) for item in dn_doc.items)
-            
+
             dn_doc.total = total_amount
             dn_doc.base_total = total_base_amount
             dn_doc.net_total = total_net_amount
             dn_doc.base_net_total = total_base_net_amount
             dn_doc.grand_total = total_amount
             dn_doc.base_grand_total = total_base_amount
-            
+
             dn_doc.save()
             # Allow negative stock for delivery note
             dn_doc.allow_negative_stock = 1
             dn_doc.submit()
             dn_names.append(dn_doc.name)
-            
+
         if not dn_names:
             frappe.throw("Teslim edilecek hazır ürün bulunamadı.")
         # Teslim fişleri oluşturulduktan sonra ilgili Sales Order kalemlerinin delivered_qty değerlerini
@@ -1423,26 +1576,26 @@ def get_glass_types_by_sales_orders(sales_orders):
         if isinstance(sales_orders, str):
             import json
             sales_orders = json.loads(sales_orders)
-        
+
         # Debug: Sales orders'ları logla
         frappe.logger().debug(f"Sales orders for glass types: {sales_orders}")
-        
+
         # CamListe'den seçilen siparişlere ait verileri al
         cam_liste_items = frappe.get_all(
             "CamListe",
             filters={"order_no": ["in", sales_orders]},
             fields=["*"]
         )
-        
+
         # Debug: Bulunan kayıt sayısını logla
         frappe.logger().debug(f"Found {len(cam_liste_items)} CamListe items")
-        
+
         # Cam çeşitlerini gruplandır (stok_kodu'na göre)
         glass_types = {}
         for item in cam_liste_items:
             # Cam çeşidini belirle (stok_kodu'ndan)
             stok_kodu = item.get("stok_kodu") or "Bilinmeyen Cam"
-            
+
             if stok_kodu not in glass_types:
                 glass_types[stok_kodu] = {
                     "type": item.get("aciklama") or item.get("description") or "Bilinmeyen Cam",  # aciklama alanını kullan
@@ -1451,35 +1604,35 @@ def get_glass_types_by_sales_orders(sales_orders):
                     "record_count": 0,  # Kayıt sayısı
                     "items": []
                 }
-            
+
             # Sanal Adet'i parse et (örn: "9/9" -> total: 9, remaining: 9)
             sanal_adet = item.get("sanal_adet") or "0/0"
-            
+
             # Debug: Her item'ın sanal_adet değerini logla
             frappe.logger().debug(f"Item {item.name}: sanal_adet={sanal_adet}, stok_kodu={stok_kodu}")
-            
+
             try:
                 if "/" in sanal_adet:
                     delivered, total = sanal_adet.split("/")
                     delivered_qty = int(delivered) if delivered.isdigit() else 0
                     total_qty = int(total) if total.isdigit() else 0
                     remaining_qty = total_qty - delivered_qty
-                    
+
                     # Validasyon: Makul değerler kontrol et
                     if total_qty > 1000:
                         frappe.logger().warning(f"Item {item.name}: Çok yüksek total_qty: {total_qty}")
                         total_qty = min(total_qty, 1000)  # Maksimum 1000 ile sınırla
                         remaining_qty = total_qty - delivered_qty
-                    
+
                     if remaining_qty < 0:
                         frappe.logger().warning(f"Item {item.name}: Negatif remaining_qty: {remaining_qty}")
                         remaining_qty = 0
-                        
+
                 else:
                     total_qty = int(sanal_adet) if sanal_adet.isdigit() else 0
                     delivered_qty = 0
                     remaining_qty = total_qty
-                    
+
                     # Validasyon: Makul değerler kontrol et
                     if total_qty > 1000:
                         frappe.logger().warning(f"Item {item.name}: Çok yüksek total_qty: {total_qty}")
@@ -1489,10 +1642,10 @@ def get_glass_types_by_sales_orders(sales_orders):
                 total_qty = 0
                 delivered_qty = 0
                 remaining_qty = 0
-            
+
             # Debug: Hesaplanan değerleri logla
             frappe.logger().debug(f"Item {item.name}: total_qty={total_qty}, delivered_qty={delivered_qty}, remaining_qty={remaining_qty}")
-            
+
             glass_types[stok_kodu]["total_qty"] += total_qty
             glass_types[stok_kodu]["remaining_qty"] += remaining_qty
             glass_types[stok_kodu]["record_count"] += 1  # Kayıt sayısını artır
@@ -1512,13 +1665,13 @@ def get_glass_types_by_sales_orders(sales_orders):
                 "delivered_qty": delivered_qty,
                 "remaining_qty": remaining_qty
             })
-        
+
         # Debug: Final glass types'ı logla
         for stok_kodu, data in glass_types.items():
             frappe.logger().debug(f"Glass type '{stok_kodu}': total_qty={data['total_qty']}, remaining_qty={data['remaining_qty']}, record_count={data['record_count']}")
-        
+
         return list(glass_types.values())
-        
+
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Glass Types Error")
         return []
@@ -1530,7 +1683,7 @@ def get_cam_liste_items_by_sales_orders(sales_orders):
         if isinstance(sales_orders, str):
             import json
             sales_orders = json.loads(sales_orders)
-        
+
         # CamListe'den seçilen siparişlere ait verileri al
         cam_liste_items = frappe.get_all(
             "CamListe",
@@ -1538,7 +1691,7 @@ def get_cam_liste_items_by_sales_orders(sales_orders):
             fields=["*"],
             order_by="poz_no, name"
         )
-        
+
         # Her item için detaylı bilgileri hazırla
         detailed_items = []
         for item in cam_liste_items:
@@ -1558,7 +1711,7 @@ def get_cam_liste_items_by_sales_orders(sales_orders):
                 total_qty = 0
                 delivered_qty = 0
                 remaining_qty = 0
-            
+
             detailed_items.append({
                 "name": item.name,
                 "order_no": item.get("order_no"),
@@ -1580,9 +1733,9 @@ def get_cam_liste_items_by_sales_orders(sales_orders):
                 "karolaj": item.get("karolaj"),
                 "kucuk_cam": item.get("kucuk_cam")
             })
-        
+
         return detailed_items
-        
+
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get CamListe Items Error")
         return []
@@ -1594,7 +1747,7 @@ def get_delivered_items_by_customer_and_sales_orders(customer, sales_orders):
         if isinstance(sales_orders, str):
             import json
             sales_orders = json.loads(sales_orders)
-        
+
         # Tek elemanlı liste için özel kontrol
         if len(sales_orders) == 1:
             sales_orders_condition = "= %(sales_order)s"
@@ -1602,10 +1755,10 @@ def get_delivered_items_by_customer_and_sales_orders(customer, sales_orders):
         else:
             sales_orders_condition = "IN %(sales_orders)s"
             params = {"customer": customer, "sales_orders": tuple(sales_orders)}
-        
+
         # Delivery Note'lardan teslim edilen ürünleri al
         delivered_items = frappe.db.sql(f"""
-            SELECT 
+            SELECT
                 dn.name as delivery_note,
                 dn.posting_date,
                 dn.posting_time,
@@ -1628,13 +1781,13 @@ def get_delivered_items_by_customer_and_sales_orders(customer, sales_orders):
             INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
             INNER JOIN `tabItem` i ON i.name = dni.item_code
             INNER JOIN `tabSales Order` so ON so.name = dni.against_sales_order
-            WHERE dn.docstatus = 1 
+            WHERE dn.docstatus = 1
                 AND dn.customer = %(customer)s
                 AND dni.against_sales_order {sales_orders_condition}
                 AND i.item_group = 'PVC'
             ORDER BY dn.posting_date DESC, dn.posting_time DESC
         """, params, as_dict=True)
-        
+
         # Delivery Note'ları grupla
         delivery_notes = {}
         for item in delivered_items:
@@ -1651,7 +1804,7 @@ def get_delivered_items_by_customer_and_sales_orders(customer, sales_orders):
                     "custom_is_auxiliary_materials_delivered": item.custom_is_auxiliary_materials_delivered,
                     "items": []
                 }
-            
+
             delivery_notes[dn_name]["items"].append({
                 "item_code": item.item_code,
                 "item_name": item.item_name,
@@ -1663,9 +1816,9 @@ def get_delivered_items_by_customer_and_sales_orders(customer, sales_orders):
                 "custom_color": item.custom_color,
                 "custom_end_customer": item.custom_end_customer
             })
-        
+
         return list(delivery_notes.values())
-        
+
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Delivered Items Error")
         return []
@@ -1677,11 +1830,11 @@ def get_delivered_cam_items_by_customer_and_sales_orders(customer, sales_orders)
         if isinstance(sales_orders, str):
             import json
             sales_orders = json.loads(sales_orders)
-        
+
         # Debug: Gelen parametreleri logla
         frappe.logger().debug(f"Cam sevkiyat - Customer: {customer}")
         frappe.logger().debug(f"Cam sevkiyat - Sales Orders: {sales_orders}")
-        
+
         # Tek elemanlı liste için özel kontrol
         if len(sales_orders) == 1:
             sales_orders_condition = "= %(sales_order)s"
@@ -1689,13 +1842,13 @@ def get_delivered_cam_items_by_customer_and_sales_orders(customer, sales_orders)
         else:
             sales_orders_condition = "IN %(sales_orders)s"
             params = {"customer": customer, "sales_orders": tuple(sales_orders)}
-        
+
         # Debug: SQL parametrelerini logla
         frappe.logger().debug(f"Cam sevkiyat - SQL params: {params}")
-        
+
         # Delivery Note'lardan teslim edilen cam ürünleri al
         delivered_items = frappe.db.sql(f"""
-            SELECT 
+            SELECT
                 dn.name as delivery_note,
                 dn.posting_date,
                 dn.posting_time,
@@ -1718,18 +1871,18 @@ def get_delivered_cam_items_by_customer_and_sales_orders(customer, sales_orders)
             INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
             INNER JOIN `tabItem` i ON i.name = dni.item_code
             INNER JOIN `tabSales Order` so ON so.name = dni.against_sales_order
-            WHERE dn.docstatus = 1 
+            WHERE dn.docstatus = 1
                 AND dn.customer = %(customer)s
                 AND dni.against_sales_order {sales_orders_condition}
                 AND i.item_group = 'Camlar'
             ORDER BY dn.posting_date DESC, dn.posting_time DESC
         """, params, as_dict=True)
-        
+
         # Debug: SQL sonuçlarını logla
         frappe.logger().debug(f"Cam sevkiyat - SQL results count: {len(delivered_items)}")
         if delivered_items:
             frappe.logger().debug(f"Cam sevkiyat - First result: {delivered_items[0]}")
-        
+
         # Delivery Note'ları grupla
         delivery_notes = {}
         for item in delivered_items:
@@ -1746,7 +1899,7 @@ def get_delivered_cam_items_by_customer_and_sales_orders(customer, sales_orders)
                     "custom_is_auxiliary_materials_delivered": item.custom_is_auxiliary_materials_delivered,
                     "items": []
                 }
-            
+
             delivery_notes[dn_name]["items"].append({
                 "item_code": item.item_code,
                 "item_name": item.item_name,
@@ -1758,12 +1911,12 @@ def get_delivered_cam_items_by_customer_and_sales_orders(customer, sales_orders)
                 "custom_color": item.custom_color,
                 "custom_end_customer": item.custom_end_customer
             })
-        
+
         # Debug: Final sonuçları logla
         frappe.logger().debug(f"Cam sevkiyat - Final delivery notes count: {len(delivery_notes)}")
-        
+
         return list(delivery_notes.values())
-        
+
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Delivered Cam Items Error")
         return []
@@ -1775,7 +1928,7 @@ def get_delivered_item_counts_by_customer_and_sales_orders(customer, sales_order
         if isinstance(sales_orders, str):
             import json
             sales_orders = json.loads(sales_orders)
-        
+
         # Tek elemanlı liste için özel kontrol
         if len(sales_orders) == 1:
             sales_orders_condition = "= %(sales_order)s"
@@ -1783,29 +1936,29 @@ def get_delivered_item_counts_by_customer_and_sales_orders(customer, sales_order
         else:
             sales_orders_condition = "IN %(sales_orders)s"
             params = {"customer": customer, "sales_orders": tuple(sales_orders)}
-        
+
         # Delivery Note'lardan teslim edilen ürün sayılarını ürün grubuna göre al
         delivered_counts = frappe.db.sql(f"""
-            SELECT 
+            SELECT
                 i.item_group,
                 SUM(dni.qty) as total_delivered_qty
             FROM `tabDelivery Note Item` dni
             INNER JOIN `tabDelivery Note` dn ON dn.name = dni.parent
             INNER JOIN `tabItem` i ON i.name = dni.item_code
-            WHERE dn.docstatus = 1 
+            WHERE dn.docstatus = 1
                 AND dn.customer = %(customer)s
                 AND dni.against_sales_order {sales_orders_condition}
                 AND i.item_group IN ('PVC', 'Camlar')
             GROUP BY i.item_group
         """, params, as_dict=True)
-        
+
         # Sonuçları dictionary'ye çevir
         result = {}
         for item in delivered_counts:
             result[item.item_group] = item.total_delivered_qty
-        
+
         return result
-        
+
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Delivered Item Counts Error")
         return {}
@@ -1818,16 +1971,16 @@ def get_delivered_item_counts_by_customer_and_sales_orders(customer, sales_order
 #         # Item'ın seri numarası zorunlu olup olmadığını kontrol et
 #         item_doc = frappe.get_doc("Item", item_code)
 #         has_serial_no = item_doc.has_serial_no
-        
+
 #         # Seri numaralarını FIFO sırasına göre getir
 #         filters = {
 #             "item_code": item_code,
 #             "status": "Active"
 #         }
-        
+
 #         if warehouse:
 #             filters["warehouse"] = warehouse
-        
+
 #         serial_nos = frappe.get_all(
 #             "Serial No",
 #             filters=filters,
@@ -1835,9 +1988,9 @@ def get_delivered_item_counts_by_customer_and_sales_orders(customer, sales_order
 #             order_by="creation asc",  # FIFO sırası
 #             limit=int(qty)
 #         )
-        
+
 #         return [sn.name for sn in serial_nos]
-        
+
 #     except Exception as e:
 #         frappe.log_error(frappe.get_traceback(), "Get Serial Numbers Error")
 #         return []
@@ -1849,13 +2002,13 @@ def get_serial_numbers_for_item(item_code, qty=1):
         # Item'ın seri numarası zorunlu olup olmadığını kontrol et
         item_doc = frappe.get_doc("Item", item_code)
         has_serial_no = item_doc.has_serial_no
-        
+
         # Seri numaralarını FIFO sırasına göre getir
         filters = {
             "item_code": item_code,
             "status": "Active"
         }
-        
+
         serial_nos = frappe.get_all(
             "Serial No",
             filters=filters,
@@ -1863,9 +2016,9 @@ def get_serial_numbers_for_item(item_code, qty=1):
             order_by="creation asc",  # FIFO sırası
             limit=int(qty)
         )
-        
+
         return [sn.name for sn in serial_nos]
-        
+
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Get Serial Numbers Error")
         return []
@@ -1881,24 +2034,24 @@ def get_delivered_qty_by_item_codes(customer, sales_orders, item_codes):
         if isinstance(item_codes, str):
             import json
             item_codes = json.loads(item_codes)
-            
+
         if not sales_orders or not item_codes:
             return {}
-            
+
         # Tek sales order için IN yerine = kullan
         if len(sales_orders) == 1:
             sales_orders_condition = f"= '{sales_orders[0]}'"
         else:
             sales_orders_condition = f"IN {tuple(sales_orders)}"
-            
+
         # Tek item code için IN yerine = kullan
         if len(item_codes) == 1:
             item_codes_condition = f"= '{item_codes[0]}'"
         else:
             item_codes_condition = f"IN {tuple(item_codes)}"
-            
+
         query = f"""
-            SELECT 
+            SELECT
                 dni.item_code,
                 SUM(dni.qty) as delivered_qty
             FROM `tabDelivery Note Item` dni
@@ -1909,22 +2062,22 @@ def get_delivered_qty_by_item_codes(customer, sales_orders, item_codes):
             AND dn.docstatus = 1
             GROUP BY dni.item_code
         """
-        
+
         result = frappe.db.sql(query, {
             "customer": customer
         }, as_dict=True)
-        
+
         # Sonucu item_code -> delivered_qty şeklinde döndür
         delivered_qty_dict = {}
         for row in result:
             delivered_qty_dict[row.item_code] = row.delivered_qty
-            
+
         return delivered_qty_dict
-        
+
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Get Delivered Qty By Item Codes Error")
         return {}
-        
+
 @frappe.whitelist(allow_guest=False)
 def get_customer_by_logged_user():
     """Return Customer linked to the logged-in User (via Customer.custom_user_link),
@@ -2020,3 +2173,156 @@ def recalculate_sales_order_delivered_qty(sales_orders):
             so_doc.save()
     except Exception as e:
         frappe.log_error(frappe.get_traceback(), "Recalculate SO delivered_qty Error")
+
+@frappe.whitelist()
+def print_accessory_package(data):
+    """Print accessory package label using TSPL format for TSC TTP244 printer"""
+    print('print_accessory_package data', data)
+    try:
+        import json
+
+        # If data is string, parse it
+        if isinstance(data, str):
+            data = json.loads(data)
+
+        items = data.get('items', [])
+        doc_name = data.get('name', '')
+        dealer = data.get('dealer', '')
+        end_customer = data.get('end_customer', '')
+        sales_order = data.get('sales_order', '') or ''
+
+        # Debug: Print sales_order value
+        print(f'Sales Order value: {sales_order}')
+        print(f'Full data received: {data}')
+
+        # Türkçe karakterleri ASCII'ye çevir fonksiyonu
+        def turkish_to_ascii(text):
+            if not text:
+                return ""
+            replacements = {
+                'ş': 's', 'Ş': 'S',
+                'ı': 'i', 'İ': 'I',
+                'ğ': 'g', 'Ğ': 'G',
+                'ü': 'u', 'Ü': 'U',
+                'ö': 'o', 'Ö': 'O',
+                'ç': 'c', 'Ç': 'C'
+            }
+            for tr_char, ascii_char in replacements.items():
+                text = text.replace(tr_char, ascii_char)
+            return text
+
+        # Build TSPL string for TSC TTP244 printer
+        # Etiket boyutu: 10cm x 15cm (100mm x 150mm)
+        tspl = "SIZE 100 mm,150 mm\n"
+        tspl += "GAP 2 mm,0\n"
+        tspl += "DENSITY 8\n"
+        tspl += "SET TEAR ON\n"  # Etiketin otomatik olarak çıkması için (tear-off modu)
+        tspl += "CLS\n"
+
+        # Üst boşluk azaltıldı - doc_name kaldırıldı
+        # Yazı boyutları artırıldı - 10cm x 15cm etiket için
+        if sales_order:
+            # Font 3, x2, y2 - büyük boyut
+            tspl += f'TEXT 30,25,"3",0,2,2,"Siparis No: {sales_order}"\n'
+            # Font 3, x1.5, y1.5 - biraz büyük boyut (Bayi ve Müşteri için)
+            tspl += f'TEXT 30,80,"3",0,1.5,1.5,"Bayi: {turkish_to_ascii(dealer)}"\n'
+            tspl += f'TEXT 30,105,"3",0,1.5,1.5,"Musteri: {turkish_to_ascii(end_customer)}"\n'
+            y_start = 145
+        else:
+            tspl += f'TEXT 30,25,"3",0,1.5,1.5,"Bayi: {turkish_to_ascii(dealer)}"\n'
+            tspl += f'TEXT 30,55,"3",0,1.5,1.5,"Musteri: {turkish_to_ascii(end_customer)}"\n'
+            y_start = 105
+
+        # Header separator line (BAR x, y, width, height) - kenarlarda boşluk için
+        # Etiket genişliği 100mm = 1000 dots (203 dpi için), kenarlarda 20 dots boşluk
+        tspl += f'BAR 20,{y_start},960,3\n'
+
+        # Table headers - font 3, x1.5, y1.5 - daha büyük ve okunabilir
+        header_y = y_start + 20
+        tspl += f'TEXT 30,{header_y},"3",0,1.5,1.5,"KOD"\n'
+        tspl += f'TEXT 180,{header_y},"3",0,1.5,1.5,"URUN ADI"\n'
+        tspl += f'TEXT 650,{header_y},"3",0,1.5,1.5,"MKT"\n'
+        tspl += f'TEXT 750,{header_y},"3",0,1.5,1.5,"BRM"\n'
+
+        # Header separator line (under headers) - sadece yatay çizgi
+        header_line_y = header_y + 25
+        tspl += f'BAR 20,{header_line_y},960,2\n'
+
+        # Items - font 2, x1, y1 (orta boyut, daha okunabilir)
+        # Item'lar arası mesafe artırıldı (daha geniş etiket için)
+        y = header_line_y + 25
+        for item in items:
+            item_code = item.get('item_code', '')
+            item_name = item.get('item_name', '')
+            qty = item.get('qty', '')
+            uom = item.get('uom', '')
+
+            # Ürün adını kısalt (maksimum 35 karakter - daha geniş etiket için)
+            item_name_short = turkish_to_ascii(item_name)
+            if len(item_name_short) > 35:
+                item_name_short = item_name_short[:32] + "..."
+
+            # Türkçe karakterleri ASCII'ye çevir
+            # Kenarlarda boşluk için koordinatları ayarla - geniş etiket için
+            tspl += f'TEXT 30,{y},"2",0,1,1,"{turkish_to_ascii(item_code)}"\n'
+            # Ürün adı için daha geniş alan (geniş etiket için)
+            tspl += f'TEXT 180,{y},"2",0,1,1,"{item_name_short}"\n'
+            tspl += f'TEXT 650,{y},"2",0,1,1,"{qty}"\n'
+            tspl += f'TEXT 750,{y},"2",0,1,1,"{turkish_to_ascii(uom)}"\n'
+            y += 35
+
+        # Etiketin tamamını yazdırmak için PRINT komutu
+        # SET TEAR ON ile etiket otomatik olarak çıkacak
+        # PRINT komutu etiketin tamamını yazdırır ve çıkarır
+        tspl += "PRINT 1\n"
+
+        # Send to TSC TTP244 printer via TCP socket (port 9100)
+        import socket
+        printer_ip = "192.168.0.104"
+        printer_port = 9100
+
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(10)
+            sock.connect((printer_ip, printer_port))
+            # TSC yazıcıları için encoding - önce latin-1 dene (daha güvenilir)
+            try:
+                sock.sendall(tspl.encode('latin-1'))
+            except (LookupError, UnicodeEncodeError):
+                # Latin-1 başarısız olursa utf-8 dene
+                sock.sendall(tspl.encode('utf-8', errors='ignore'))
+            sock.close()
+            return {"success": True, "message": "Label sent to printer successfully"}
+        except (OSError, socket.error, socket.timeout) as sock_error:
+            # TCP bağlantı hatası - detaylı hata mesajı
+            error_msg = str(sock_error)
+            # HTTP fallback denemesi - TSC yazıcıları için farklı endpoint'ler
+            http_endpoints = [
+                f"http://{printer_ip}/pstprnt",
+                f"http://{printer_ip}/",
+                f"http://{printer_ip}/cgi-bin/eposprint.cgi"
+            ]
+
+            for url in http_endpoints:
+                try:
+                    headers = {"Content-Type": "text/plain"}
+                    # Latin-1 encoding ile gönder
+                    response = requests.post(url, headers=headers, data=tspl.encode('latin-1'), timeout=10)
+                    if response.status_code == 200:
+                        return {"success": True, "message": "Label sent to printer successfully via HTTP"}
+                    elif response.status_code != 404:
+                        # 404 değilse başka bir hata, bir sonraki endpoint'i dene
+                        continue
+                except requests.exceptions.RequestException:
+                    # Bu endpoint çalışmıyor, bir sonraki endpoint'i dene
+                    continue
+
+            # Tüm yöntemler başarısız oldu
+            return {"success": False, "message": f"Printer Connection Failed: TCP error - {error_msg}. HTTP endpoints also failed."}
+
+    except Exception as e:
+        frappe.log_error(
+            title="Accessory Package Print Error",
+            message=f"{e.__class__.__name__}: {str(e)[:500]}"
+        )
+        return {"success": False, "message": f"Printer Connection Failed: {str(e)}"}

@@ -178,10 +178,6 @@ const Worksites = () => {
 	};
 
 	const handleCreate = async () => {
-		if (!formData.assigned_dealer) {
-			alert('Lütfen bayi seçiniz.');
-			return;
-		}
 		try {
 			setIsSubmitting(true);
 			await createWorksite({

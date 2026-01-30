@@ -108,7 +108,10 @@ ozerpandoc = [
 
 # include js in doctype views
 
-doctype_js = {"Production Plan" : "public/js/production_plan/production_plan.js"}
+doctype_js = {
+	"Production Plan" : "public/js/production_plan/production_plan.js",
+	"Accessory Delivery Package" : "public/js/accessory_delivery_package/accessory_delivery_package.js"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -309,7 +312,7 @@ override_whitelisted_methods = {
 # }
 
 
-website_route_rules = [{'from_route': '/ozerpanjobcard/<path:app_path>', 'to_route': 'ozerpanjobcard'},]
+website_route_rules = [{'from_route': '/ozerpan/<path:app_path>', 'to_route': 'ozerpanjobcard'},]
 # app_include_js = [
 #         "/assets/ozerpanjobcard/js/ozerpancustomer.js"
 # ]
